@@ -30,6 +30,9 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
 BOT_USERNAME = "BuraPay_bot" 
 
+# FORCE HTTPS URL for Telegram WebApp
+WEBAPP_URL = "https://manga-shunaqa.preview.emergentagent.com"
+
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
 
@@ -54,7 +57,7 @@ class User(BaseModel):
     balance: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
-    referrer_id: Optional[int] = None # Telegram ID of referrer
+    referrer_id: Optional[int] = None 
     referrals_count: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -80,49 +83,52 @@ class TransactionCreate(BaseModel):
 # Bot Handlers
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, command: CommandObject):
-    # Check if user exists
-    user = await db.users.find_one({"telegram_id": message.from_user.id})
-    referrer_id = None
-    
-    # Handle Referral
-    args = command.args
-    if args and args.isdigit() and not user:
-        ref_internal_id = args
-        referrer = await db.users.find_one({"internal_id": ref_internal_id})
-        if referrer and referrer['telegram_id'] != message.from_user.id:
-            referrer_id = referrer['telegram_id']
-            # Increment referrer count
-            await db.users.update_one(
-                {"telegram_id": referrer['telegram_id']},
-                {"$inc": {"referrals_count": 1}}
-            )
-            # Maybe notify referrer?
-            if bot:
-                try:
-                    await bot.send_message(referrer['telegram_id'], f"🎉 Sizda yangi referal bor: {message.from_user.first_name}")
-                except: pass
+    try:
+        # Check if user exists
+        user = await db.users.find_one({"telegram_id": message.from_user.id})
+        referrer_id = None
+        
+        # Handle Referral
+        args = command.args
+        if args and args.isdigit() and not user:
+            ref_internal_id = args
+            referrer = await db.users.find_one({"internal_id": ref_internal_id})
+            if referrer and referrer['telegram_id'] != message.from_user.id:
+                referrer_id = referrer['telegram_id']
+                await db.users.update_one(
+                    {"telegram_id": referrer['telegram_id']},
+                    {"$inc": {"referrals_count": 1}}
+                )
+                if bot:
+                    try:
+                        await bot.send_message(referrer['telegram_id'], f"🎉 Sizda yangi referal bor: {message.from_user.first_name}")
+                    except: pass
 
-    if not user:
-        new_user = User(
-            telegram_id=message.from_user.id,
-            first_name=message.from_user.first_name,
-            username=message.from_user.username,
-            balance=0.0,
-            referrer_id=referrer_id
+        if not user:
+            new_user = User(
+                telegram_id=message.from_user.id,
+                first_name=message.from_user.first_name,
+                username=message.from_user.username,
+                balance=0.0,
+                referrer_id=referrer_id
+            )
+            await db.users.insert_one(new_user.model_dump())
+        
+        # Use the hardcoded HTTPS URL
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📱 BuraPay ilovasini ochish", web_app=WebAppInfo(url=WEBAPP_URL))]
+        ])
+        
+        await message.answer(
+            f"👋 Salom, {message.from_user.first_name}!\n\n"
+            "<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\n"
+            "Hisobni to'ldirish, pul yechish va referal tizimidan foydalanish uchun pastdagi tugmani bosing.",
+            reply_markup=markup,
+            parse_mode="HTML"
         )
-        await db.users.insert_one(new_user.model_dump())
-    
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📱 BuraPay ilovasini ochish", web_app=WebAppInfo(url=os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:3000').replace('/api', '')))]
-    ])
-    
-    await message.answer(
-        f"👋 Salom, {message.from_user.first_name}!\n\n"
-        "<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\n"
-        "Hisobni to'ldirish, pul yechish va referal tizimidan foydalanish uchun pastdagi tugmani bosing.",
-        reply_markup=markup,
-        parse_mode="HTML"
-    )
+    except Exception as e:
+        logging.error(f"Error in cmd_start: {e}")
+        await message.answer("Xatolik yuz berdi. Iltimos qayta urinib ko'ring.")
 
 async def notify_admins(text: str):
     if not bot: return
