@@ -16,7 +16,11 @@ import {
   UserCheck,
   Users,
   Copy,
-  Calendar
+  Calendar,
+  Search,
+  LayoutDashboard,
+  List,
+  Edit
 } from "lucide-react";
 import axios from "axios";
 
@@ -439,20 +443,175 @@ const Wallets = ({ user }) => {
 };
 
 const Admin = ({ user }) => {
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [stats, setStats] = useState(null);
     const [txs, setTxs] = useState([]);
-    useEffect(() => { if(user?.is_admin) fetchPending(); }, [user]);
+    const [users, setUsers] = useState([]);
+    const [search, setSearch] = useState('');
+    const [editingUser, setEditingUser] = useState(null);
+    const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
+
+    useEffect(() => { 
+        if(user?.is_admin) {
+            fetchStats();
+            fetchPending();
+            fetchUsers();
+        }
+    }, [user]);
+
+    const fetchStats = async () => { try { const res = await axios.get(`${API_URL}/admin/stats`); setStats(res.data); } catch (e) { console.error(e); } };
     const fetchPending = async () => { try { const res = await axios.get(`${API_URL}/admin/transactions/pending`); setTxs(res.data); } catch (e) { console.error(e); } };
-    const handleAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/transactions/${id}/${action}`); toast.success(`Transaction ${action}ed`); fetchPending(); } catch (e) { toast.error("Action failed"); } };
+    const fetchUsers = async () => { try { const res = await axios.get(`${API_URL}/admin/users?search=${search}`); setUsers(res.data); } catch (e) { console.error(e); } };
+
+    const handleAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/transactions/${id}/${action}`); toast.success(`Transaction ${action}ed`); fetchPending(); fetchStats(); } catch (e) { toast.error("Action failed"); } };
+
+    const handleSearch = (e) => {
+        setSearch(e.target.value);
+        // Debounce simple implementation
+        setTimeout(() => fetchUsers(), 500);
+    };
+
+    const handleBalanceUpdate = async () => {
+        if(!balanceForm.amount) return toast.error("Summani kiriting");
+        try {
+            await axios.post(`${API_URL}/admin/users/${editingUser.telegram_id}/balance`, balanceForm);
+            toast.success("Balans yangilandi");
+            setEditingUser(null);
+            fetchUsers();
+            fetchStats();
+        } catch(e) { toast.error("Xatolik"); }
+    };
+
     if (!user?.is_admin) return <div className="p-10 text-center">Ruxsat yo'q</div>;
+
     return (
         <div className="p-6 pb-24">
-            <div className="flex items-center justify-between mb-6"><h1 className="text-2xl font-bold">Admin Panel</h1><Link to="/" className="text-sm text-slate-500">Ilovaga qaytish</Link></div>
-            <div className="space-y-4">{txs.length === 0 ? <div className="text-center text-slate-500 py-10">Kutilayotgan to'lovlar yo'q</div> : txs.map(tx => (
-                <div key={tx.id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl">
-                    <div className="flex justify-between items-start mb-4"><div><div className={`text-sm font-bold uppercase ${tx.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>{tx.type === 'deposit' ? "Kirim" : "Chiqim"} So'rovi</div><div className="text-2xl font-bold">{tx.amount.toLocaleString()} <span className="text-sm text-slate-500">{tx.currency}</span></div><div className="text-sm text-slate-400 mt-1">User ID: {tx.user_id}<br/>Tizim: {tx.method}<br/>{tx.wallet_number && `Hamyon: ${tx.wallet_number}`}</div></div><div className="text-xs text-slate-600">{new Date(tx.created_at).toLocaleTimeString()}</div></div>
-                    <div className="flex gap-2"><button onClick={() => handleAction(tx.id, 'reject')} className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition-colors">Rad etish</button><button onClick={() => handleAction(tx.id, 'approve')} className="flex-1 py-2 rounded-lg bg-green-500/10 text-green-500 font-bold hover:bg-green-500/20 transition-colors">Tasdiqlash</button></div>
+            <div className="flex items-center justify-between mb-6"><h1 className="text-2xl font-bold">Admin Panel</h1><Link to="/" className="text-sm text-slate-500">Chiqish</Link></div>
+            
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                {[
+                    { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
+                    { id: 'pending', icon: List, label: `To'lovlar (${stats?.pending_count || 0})` },
+                    { id: 'users', icon: Users, label: 'Foydalanuvchilar' },
+                ].map(tab => (
+                    <button 
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                            activeTab === tab.id 
+                            ? 'bg-gold text-black' 
+                            : 'bg-midnight-light border border-slate-800 text-slate-400'
+                        }`}
+                    >
+                        <tab.icon size={16} />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {activeTab === 'dashboard' && stats && (
+                <div className="grid grid-cols-2 gap-4 animate-in fade-in">
+                    <Card>
+                        <div className="text-slate-400 text-xs uppercase mb-1">Jami foydalanuvchilar</div>
+                        <div className="text-2xl font-bold">{stats.total_users}</div>
+                    </Card>
+                    <Card>
+                        <div className="text-slate-400 text-xs uppercase mb-1">Jami depozit</div>
+                        <div className="text-2xl font-bold text-green-500">{stats.total_deposits.toLocaleString()}</div>
+                    </Card>
+                    <Card className="col-span-2 highlight">
+                        <div className="text-slate-400 text-xs uppercase mb-1">Tizimdagi jami balans</div>
+                        <div className="text-3xl font-bold text-gold">{stats.total_balance.toLocaleString()} UZS</div>
+                    </Card>
                 </div>
-            ))}</div>
+            )}
+
+            {activeTab === 'pending' && (
+                <div className="space-y-4 animate-in fade-in">
+                    {txs.length === 0 ? <div className="text-center text-slate-500 py-10">Kutilayotgan to'lovlar yo'q</div> : txs.map(tx => (
+                        <div key={tx.id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl">
+                            <div className="flex justify-between items-start mb-4"><div><div className={`text-sm font-bold uppercase ${tx.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>{tx.type === 'deposit' ? "Kirim" : "Chiqim"} So'rovi</div><div className="text-2xl font-bold">{tx.amount.toLocaleString()} <span className="text-sm text-slate-500">{tx.currency}</span></div><div className="text-sm text-slate-400 mt-1">User ID: {tx.user_id}<br/>Tizim: {tx.method}<br/>{tx.wallet_number && `Hamyon: ${tx.wallet_number}`}</div></div><div className="text-xs text-slate-600">{new Date(tx.created_at).toLocaleTimeString()}</div></div>
+                            <div className="flex gap-2"><button onClick={() => handleAction(tx.id, 'reject')} className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition-colors">Rad etish</button><button onClick={() => handleAction(tx.id, 'approve')} className="flex-1 py-2 rounded-lg bg-green-500/10 text-green-500 font-bold hover:bg-green-500/20 transition-colors">Tasdiqlash</button></div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activeTab === 'users' && (
+                <div className="space-y-4 animate-in fade-in">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3.5 text-slate-500" size={18} />
+                        <Input 
+                            placeholder="ID yoki Ism bo'yicha qidirish..." 
+                            className="pl-10"
+                            value={search}
+                            onChange={handleSearch}
+                        />
+                    </div>
+                    
+                    <div className="space-y-2">
+                        {users.map(u => (
+                            <div key={u.telegram_id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <div className="font-bold">{u.first_name}</div>
+                                    <div className="text-xs text-slate-500">ID: {u.internal_id} | TG: {u.telegram_id}</div>
+                                    <div className="text-gold font-mono mt-1">{u.balance.toLocaleString()} UZS</div>
+                                </div>
+                                <button 
+                                    onClick={() => setEditingUser(u)}
+                                    className="p-2 bg-slate-800 rounded-lg text-slate-300 hover:text-white"
+                                >
+                                    <Edit size={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {editingUser && (
+                <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm bg-midnight border-slate-700">
+                        <h3 className="font-bold text-lg mb-4">Balansni o'zgartirish</h3>
+                        <p className="text-sm text-slate-400 mb-4">Foydalanuvchi: {editingUser.first_name}</p>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Tur</label>
+                                <div className="flex bg-slate-800 rounded-lg p-1">
+                                    <button 
+                                        onClick={() => setBalanceForm({...balanceForm, type: 'credit'})}
+                                        className={`flex-1 py-1 rounded text-sm ${balanceForm.type === 'credit' ? 'bg-green-600 text-white' : 'text-slate-400'}`}
+                                    >
+                                        Qo'shish (+)
+                                    </button>
+                                    <button 
+                                        onClick={() => setBalanceForm({...balanceForm, type: 'debit'})}
+                                        className={`flex-1 py-1 rounded text-sm ${balanceForm.type === 'debit' ? 'bg-red-600 text-white' : 'text-slate-400'}`}
+                                    >
+                                        Ayirish (-)
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Summa</label>
+                                <Input 
+                                    type="number"
+                                    value={balanceForm.amount}
+                                    onChange={e => setBalanceForm({...balanceForm, amount: e.target.value})}
+                                    placeholder="0"
+                                />
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="secondary" onClick={() => setEditingUser(null)} className="flex-1">Bekor qilish</Button>
+                                <Button onClick={handleBalanceUpdate} className="flex-1">Saqlash</Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };
