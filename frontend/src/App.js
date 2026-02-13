@@ -12,13 +12,21 @@ import {
   ChevronRight,
   LogOut,
   Menu,
-  X
+  X,
+  UserCheck
 } from "lucide-react";
 import axios from "axios";
 
 // Config
 const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
-const MOCK_USER_ID = 123456789; // For MVP
+
+// Telegram Utils
+const tg = window.Telegram?.WebApp;
+const tgUser = tg?.initDataUnsafe?.user;
+// Fallback for browser testing
+const MOCK_USER_ID = tgUser?.id || 123456789;
+const MOCK_FIRST_NAME = tgUser?.first_name || "Demo User";
+const MOCK_USERNAME = tgUser?.username || "demouser";
 
 // Components
 const Button = ({ children, variant = "primary", className = "", ...props }) => {
@@ -56,7 +64,7 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
-const BottomNav = () => {
+const BottomNav = ({ isAdmin }) => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
   
@@ -66,6 +74,11 @@ const BottomNav = () => {
     { icon: <ArrowDownLeft size={20} />, label: "Withdraw", path: "/withdraw" },
     { icon: <CreditCard size={20} />, label: "Wallets", path: "/wallets" },
   ];
+
+  // If admin, add admin link
+  if (isAdmin) {
+      navItems.push({ icon: <UserCheck size={20} />, label: "Admin", path: "/admin" });
+  }
 
   if (location.pathname.startsWith('/admin')) return null;
 
@@ -88,33 +101,19 @@ const BottomNav = () => {
 };
 
 // Pages
-const Home = () => {
-  const [user, setUser] = useState(null);
+const Home = ({ user }) => {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if(user?.telegram_id) fetchData();
+  }, [user]);
 
   const fetchData = async () => {
     try {
-      // Mock Login first
-      await axios.post(`${API_URL}/auth/login`, {
-        telegram_id: MOCK_USER_ID,
-        first_name: "Demo User",
-        username: "demouser"
-      });
-      
-      const [userRes, histRes] = await Promise.all([
-        axios.get(`${API_URL}/user/${MOCK_USER_ID}`),
-        axios.get(`${API_URL}/transactions/${MOCK_USER_ID}`)
-      ]);
-      
-      setUser(userRes.data);
+      const histRes = await axios.get(`${API_URL}/transactions/${user.telegram_id}`);
       setHistory(histRes.data);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load data");
     }
   };
 
@@ -133,7 +132,7 @@ const Home = () => {
                 <h1 className="text-xl font-bold leading-none">{user.first_name}</h1>
             </div>
         </div>
-        <Link to="/admin" className="text-xs text-slate-600 hover:text-white">Admin</Link>
+        {user.is_admin && <Link to="/admin" className="text-xs px-2 py-1 rounded bg-gold/10 text-gold">Admin Panel</Link>}
       </div>
 
       {/* Balance Card */}
@@ -205,7 +204,7 @@ const Home = () => {
   );
 };
 
-const Deposit = () => {
+const Deposit = ({ user }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS");
@@ -215,7 +214,7 @@ const Deposit = () => {
     
     try {
       await axios.post(`${API_URL}/transactions/create`, {
-        user_id: MOCK_USER_ID,
+        user_id: user.telegram_id,
         type: "deposit",
         amount: Number(amount),
         currency,
@@ -229,7 +228,7 @@ const Deposit = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-40">
+    <div className="p-4 space-y-6 pb-24">
       <h1 className="text-2xl font-bold">Deposit Funds</h1>
       
       <div className="grid grid-cols-3 gap-3">
@@ -274,19 +273,19 @@ const Deposit = () => {
   );
 };
 
-const Withdraw = () => {
+const Withdraw = ({ user }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [wallets, setWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
 
   useEffect(() => {
-    fetchWallets();
-  }, []);
+    if(user?.telegram_id) fetchWallets();
+  }, [user]);
 
   const fetchWallets = async () => {
       try {
-          const res = await axios.get(`${API_URL}/user/${MOCK_USER_ID}`);
+          const res = await axios.get(`${API_URL}/user/${user.telegram_id}`);
           setWallets(res.data.wallets || []);
       } catch (e) { console.error(e); }
   };
@@ -297,7 +296,7 @@ const Withdraw = () => {
 
     try {
       await axios.post(`${API_URL}/transactions/create`, {
-        user_id: MOCK_USER_ID,
+        user_id: user.telegram_id,
         type: "withdraw",
         amount: Number(amount),
         currency: "UZS",
@@ -312,7 +311,7 @@ const Withdraw = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-40">
+    <div className="p-4 space-y-6 pb-24">
       <h1 className="text-2xl font-bold">Withdraw Funds</h1>
 
       <div>
@@ -373,18 +372,18 @@ const Withdraw = () => {
   );
 };
 
-const Wallets = () => {
+const Wallets = ({ user }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
     const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', name: '' });
   
     useEffect(() => {
-      fetchWallets();
-    }, []);
+        if(user?.telegram_id) fetchWallets();
+    }, [user]);
   
     const fetchWallets = async () => {
         try {
-            const res = await axios.get(`${API_URL}/user/${MOCK_USER_ID}`);
+            const res = await axios.get(`${API_URL}/user/${user.telegram_id}`);
             setWallets(res.data.wallets || []);
         } catch (e) { console.error(e); }
     };
@@ -393,7 +392,7 @@ const Wallets = () => {
         if(!newWallet.number) return toast.error("Enter number");
         try {
             await axios.post(`${API_URL}/wallets/add`, {
-                telegram_id: MOCK_USER_ID,
+                telegram_id: user.telegram_id,
                 wallet: newWallet
             });
             setIsAdding(false);
@@ -404,7 +403,7 @@ const Wallets = () => {
     };
 
     return (
-        <div className="p-4 space-y-6 pb-40">
+        <div className="p-4 space-y-6 pb-24">
             <h1 className="text-2xl font-bold">My Wallets</h1>
             
             {isAdding ? (
@@ -462,12 +461,12 @@ const Wallets = () => {
     );
 };
 
-const Admin = () => {
+const Admin = ({ user }) => {
     const [txs, setTxs] = useState([]);
 
     useEffect(() => {
-        fetchPending();
-    }, []);
+        if(user?.is_admin) fetchPending();
+    }, [user]);
 
     const fetchPending = async () => {
         try {
@@ -484,8 +483,10 @@ const Admin = () => {
         } catch (e) { toast.error("Action failed"); }
     };
 
+    if (!user?.is_admin) return <div className="p-10 text-center">Access Denied</div>;
+
     return (
-        <div className="p-6">
+        <div className="p-6 pb-24">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">Admin Panel</h1>
                 <Link to="/" className="text-sm text-slate-500">Back to App</Link>
@@ -534,17 +535,39 @@ const Admin = () => {
 };
 
 function App() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Initial Login
+    const login = async () => {
+        try {
+            const res = await axios.post(`${API_URL}/auth/login`, {
+                telegram_id: MOCK_USER_ID,
+                first_name: MOCK_FIRST_NAME,
+                username: MOCK_USERNAME
+            });
+            setUser(res.data);
+            
+            if(tg) {
+                tg.ready();
+                tg.expand();
+            }
+        } catch(e) { console.error(e); }
+    };
+    login();
+  }, []);
+
   return (
     <div className="App min-h-screen bg-midnight text-white font-body selection:bg-gold selection:text-black">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/deposit" element={<Deposit />} />
-          <Route path="/withdraw" element={<Withdraw />} />
-          <Route path="/wallets" element={<Wallets />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/" element={<Home user={user} />} />
+          <Route path="/deposit" element={<Deposit user={user} />} />
+          <Route path="/withdraw" element={<Withdraw user={user} />} />
+          <Route path="/wallets" element={<Wallets user={user} />} />
+          <Route path="/admin" element={<Admin user={user} />} />
         </Routes>
-        <BottomNav />
+        <BottomNav isAdmin={user?.is_admin} />
       </BrowserRouter>
       <Toaster position="top-center" theme="dark" />
     </div>
