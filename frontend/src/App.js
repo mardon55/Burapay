@@ -229,7 +229,7 @@ const Deposit = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24">
+    <div className="p-4 space-y-6 pb-40">
       <h1 className="text-2xl font-bold">Deposit Funds</h1>
       
       <div className="grid grid-cols-3 gap-3">
@@ -312,7 +312,7 @@ const Withdraw = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24">
+    <div className="p-4 space-y-6 pb-40">
       <h1 className="text-2xl font-bold">Withdraw Funds</h1>
 
       <div>
@@ -404,7 +404,7 @@ const Wallets = () => {
     };
 
     return (
-        <div className="p-4 space-y-6 pb-24">
+        <div className="p-4 space-y-6 pb-40">
             <h1 className="text-2xl font-bold">My Wallets</h1>
             
             {isAdding ? (
