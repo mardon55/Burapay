@@ -45,6 +45,7 @@ class Wallet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: str 
     number: str
+    expiry: Optional[str] = None # Added expiry date
     name: Optional[str] = None
 
 class User(BaseModel):
@@ -149,11 +150,9 @@ async def login(data: dict = Body(...)):
     
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     
-    # Check Env admin
     is_admin_env = telegram_id in ADMIN_IDS
     
     if not user:
-        # Create new user
         new_user = User(
             telegram_id=telegram_id,
             first_name=data.get("first_name", "User"),
@@ -164,7 +163,7 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
-    # Update existing user if needed (missing ID or admin status changed)
+    # Update logic
     update_fields = {}
     if "internal_id" not in user:
         update_fields["internal_id"] = generate_user_id()
@@ -174,7 +173,6 @@ async def login(data: dict = Body(...)):
         update_fields["is_admin"] = True
         user['is_admin'] = True
 
-    # Update name if changed
     if data.get("first_name") and user.get("first_name") != data.get("first_name"):
         update_fields["first_name"] = data.get("first_name")
         user["first_name"] = data.get("first_name")
@@ -190,7 +188,6 @@ async def get_profile(telegram_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Hot-fix for missing ID in existing users
     if "internal_id" not in user:
         new_id = generate_user_id()
         await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"internal_id": new_id}})

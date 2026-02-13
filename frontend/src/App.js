@@ -15,7 +15,8 @@ import {
   X,
   UserCheck,
   Users,
-  Copy
+  Copy,
+  Calendar
 } from "lucide-react";
 import axios from "axios";
 
@@ -319,7 +320,16 @@ const Withdraw = ({ user }) => {
           <div className="space-y-2">
               {wallets.length === 0 ? <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">Hamyonlar yo'q. Iltimos, avval qo'shing.</div> : wallets.map(w => (
                   <div key={w.id} onClick={() => setSelectedWallet(w)} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${selectedWallet?.id === w.id ? 'bg-primary/10 border-primary' : 'bg-midnight-light border-slate-800'}`}>
-                      <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"><CreditCard size={20} className="text-slate-300" /></div><div><div className="font-bold text-white uppercase">{w.type}</div><div className="text-xs text-slate-500">{w.number}</div></div></div>
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                              <CreditCard size={20} className="text-slate-300" />
+                          </div>
+                          <div>
+                              <div className="font-bold text-white uppercase">{w.type}</div>
+                              <div className="text-xs text-slate-500">{w.number}</div>
+                              {w.expiry && <div className="text-[10px] text-slate-600">{w.expiry}</div>}
+                          </div>
+                      </div>
                       {selectedWallet?.id === w.id && <div className="w-4 h-4 rounded-full bg-primary" />}
                   </div>
               ))}
@@ -334,13 +344,27 @@ const Withdraw = ({ user }) => {
 const Wallets = ({ user }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
-    const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', name: '' });
+    const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
+    
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
+    
     const fetchWallets = async () => { try { const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); setWallets(res.data.wallets || []); } catch (e) { console.error(e); } };
+    
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error("Raqamni kiriting");
-        try { await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); setIsAdding(false); setNewWallet({ type: 'uzcard', number: '', name: '' }); fetchWallets(); toast.success("Hamyon qo'shildi"); } catch(e) { toast.error("Xatolik yuz berdi"); }
+        if(newWallet.type !== 'mostbet' && !newWallet.expiry) return toast.error("Amal qilish muddatini kiriting");
+        
+        try { 
+            await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
+            setIsAdding(false); 
+            setNewWallet({ type: 'uzcard', number: '', expiry: '', name: '' }); 
+            fetchWallets(); 
+            toast.success("Hamyon qo'shildi"); 
+        } catch(e) { toast.error("Xatolik yuz berdi"); }
     };
+    
+    const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
+
     return (
         <div className="p-4 space-y-6 pb-24">
             <h1 className="text-2xl font-bold">Mening hamyonlarim</h1>
@@ -348,13 +372,68 @@ const Wallets = ({ user }) => {
                 <Card className="animate-in zoom-in-95 duration-200">
                     <h3 className="font-bold mb-4">Yangi hamyon qo'shish</h3>
                     <div className="space-y-4">
-                        <div><label className="text-xs text-slate-400 mb-1 block">Tur</label><select className="w-full bg-midnight border border-slate-700 rounded-xl h-12 px-4 text-white outline-none" value={newWallet.type} onChange={e => setNewWallet({...newWallet, type: e.target.value})}><option value="uzcard">Uzcard</option><option value="humo">Humo</option><option value="mostbet">Mostbet ID</option></select></div>
-                        <div><label className="text-xs text-slate-400 mb-1 block">Raqam / ID</label><Input value={newWallet.number} onChange={e => setNewWallet({...newWallet, number: e.target.value})} placeholder="8600 0000 0000 0000" /></div>
-                        <div className="flex gap-2 pt-2"><Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">Bekor qilish</Button><Button onClick={handleAdd} className="flex-1">Saqlash</Button></div>
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">Tur</label>
+                            <select 
+                                className="w-full bg-midnight border border-slate-700 rounded-xl h-12 px-4 text-white outline-none" 
+                                value={newWallet.type} 
+                                onChange={e => setNewWallet({...newWallet, type: e.target.value})}
+                            >
+                                <option value="uzcard">Uzcard</option>
+                                <option value="humo">Humo</option>
+                                <option value="mostbet">Mostbet ID</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">
+                                {isCard ? "Karta raqami" : "Mostbet ID raqami"}
+                            </label>
+                            <Input 
+                                value={newWallet.number} 
+                                onChange={e => setNewWallet({...newWallet, number: e.target.value})} 
+                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"} 
+                            />
+                        </div>
+                        
+                        {isCard && (
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Amal qilish muddati</label>
+                                <div className="relative">
+                                    <Input 
+                                        value={newWallet.expiry} 
+                                        onChange={e => setNewWallet({...newWallet, expiry: e.target.value})} 
+                                        placeholder="MM/YY" 
+                                        maxLength={5}
+                                    />
+                                    <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2 pt-2">
+                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">Bekor qilish</Button>
+                            <Button onClick={handleAdd} className="flex-1">Saqlash</Button>
+                        </div>
                     </div>
                 </Card>
             ) : (<Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">+ Yangi hamyon qo'shish</Button>)}
-            <div className="space-y-3">{wallets.map((w, i) => (<div key={i} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"><CreditCard size={20} className="text-slate-300" /></div><div><div className="font-bold uppercase text-white">{w.type}</div><div className="text-slate-500 text-sm font-mono">{w.number}</div></div></div></div>))}</div>
+            
+            <div className="space-y-3">
+                {wallets.map((w, i) => (
+                    <div key={i} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                                  <CreditCard size={20} className="text-slate-300" />
+                              </div>
+                             <div>
+                                <div className="font-bold uppercase text-white">{w.type}</div>
+                                <div className="text-slate-500 text-sm font-mono">{w.number}</div>
+                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">Expires: {w.expiry}</div>}
+                             </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
