@@ -11,8 +11,10 @@ import uuid
 from datetime import datetime, timezone
 from bson import ObjectId
 import asyncio
+import random
+import string
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandStart, CommandObject
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
 ROOT_DIR = Path(__file__).parent
@@ -26,6 +28,7 @@ db = client[os.environ['DB_NAME']]
 # Bot Setup
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
+BOT_USERNAME = "BuraPay_bot" 
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
@@ -33,31 +36,26 @@ dp = Dispatcher()
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-# Models
-class PyObjectId(str):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-    
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid objectid")
-        return str(v)
+def generate_user_id():
+    """Generate a 7-digit random ID"""
+    return str(random.randint(1000000, 9999999))
 
 class Wallet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: str # 'uzcard', 'humo', 'mostbet_id'
+    type: str 
     number: str
     name: Optional[str] = None
 
 class User(BaseModel):
     telegram_id: int
+    internal_id: str = Field(default_factory=generate_user_id)
     first_name: str
     username: Optional[str] = None
     balance: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
+    referrer_id: Optional[int] = None # Telegram ID of referrer
+    referrals_count: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Transaction(BaseModel):
@@ -65,8 +63,8 @@ class Transaction(BaseModel):
     user_id: int
     type: Literal['deposit', 'withdraw']
     amount: float
-    currency: str # 'UZS', 'USD', 'RUB'
-    method: str # 'uzcard', 'humo', 'mostbet'
+    currency: str
+    method: str
     wallet_number: Optional[str] = None
     status: Literal['pending', 'approved', 'rejected'] = 'pending'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -80,33 +78,54 @@ class TransactionCreate(BaseModel):
     wallet_number: Optional[str] = None
 
 # Bot Handlers
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    # Check if user exists in DB
+@dp.message(CommandStart())
+async def cmd_start(message: types.Message, command: CommandObject):
+    # Check if user exists
     user = await db.users.find_one({"telegram_id": message.from_user.id})
+    referrer_id = None
+    
+    # Handle Referral
+    args = command.args
+    if args and args.isdigit() and not user:
+        ref_internal_id = args
+        referrer = await db.users.find_one({"internal_id": ref_internal_id})
+        if referrer and referrer['telegram_id'] != message.from_user.id:
+            referrer_id = referrer['telegram_id']
+            # Increment referrer count
+            await db.users.update_one(
+                {"telegram_id": referrer['telegram_id']},
+                {"$inc": {"referrals_count": 1}}
+            )
+            # Maybe notify referrer?
+            if bot:
+                try:
+                    await bot.send_message(referrer['telegram_id'], f"🎉 Sizda yangi referal bor: {message.from_user.first_name}")
+                except: pass
+
     if not user:
         new_user = User(
             telegram_id=message.from_user.id,
             first_name=message.from_user.first_name,
             username=message.from_user.username,
-            balance=0.0
+            balance=0.0,
+            referrer_id=referrer_id
         )
         await db.users.insert_one(new_user.model_dump())
     
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📱 Totpay ilovasini ochish", web_app=WebAppInfo(url=os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:3000').replace('/api', '')))]
+        [InlineKeyboardButton(text="📱 BuraPay ilovasini ochish", web_app=WebAppInfo(url=os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:3000').replace('/api', '')))]
     ])
     
     await message.answer(
         f"👋 Salom, {message.from_user.first_name}!\n\n"
-        "Totpay - ishonchli to'lov tizimiga xush kelibsiz.\n"
-        "Hisobni to'ldirish va yechish uchun pastdagi tugmani bosing.",
-        reply_markup=markup
+        "<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\n"
+        "Hisobni to'ldirish, pul yechish va referal tizimidan foydalanish uchun pastdagi tugmani bosing.",
+        reply_markup=markup,
+        parse_mode="HTML"
     )
 
 async def notify_admins(text: str):
     if not bot: return
-    # Get admins from DB (if any marked as is_admin) or from ENV
     admin_users = await db.users.find({"is_admin": True}).to_list(100)
     admin_ids = set(ADMIN_IDS + [u['telegram_id'] for u in admin_users])
     
@@ -117,10 +136,9 @@ async def notify_admins(text: str):
             logging.error(f"Failed to send admin notification to {admin_id}: {e}")
 
 # API Routes
-
 @api_router.get("/")
 async def root():
-    return {"message": "Totpay API Running"}
+    return {"message": "BuraPay API Running"}
 
 @api_router.post("/auth/login")
 async def login(data: dict = Body(...)):
@@ -130,7 +148,6 @@ async def login(data: dict = Body(...)):
     
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     
-    # Check if this ID is in ADMIN_IDS env
     is_admin_env = telegram_id in ADMIN_IDS
     
     if not user:
@@ -144,7 +161,6 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
-    # Update admin status if changed in env
     if is_admin_env and not user.get('is_admin'):
         await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"is_admin": True}})
         user['is_admin'] = True
@@ -161,7 +177,7 @@ async def get_profile(telegram_id: int):
 @api_router.post("/wallets/add")
 async def add_wallet(data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
-    wallet_data = data.get("wallet") # type, number, name
+    wallet_data = data.get("wallet")
     
     if not telegram_id or not wallet_data:
         raise HTTPException(status_code=400, detail="Invalid data")
@@ -180,7 +196,6 @@ async def add_wallet(data: dict = Body(...)):
 
 @api_router.post("/transactions/create")
 async def create_transaction(tx: TransactionCreate):
-    # Check balance for withdraw
     if tx.type == 'withdraw':
         user = await db.users.find_one({"telegram_id": tx.user_id})
         if not user or user.get('balance', 0) < tx.amount:
@@ -194,7 +209,6 @@ async def create_transaction(tx: TransactionCreate):
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
-    # Notify Admins
     if tx.type == 'deposit':
         msg = (f"💰 <b>Yangi to'lov!</b>\n"
                f"👤 User ID: {tx.user_id}\n"
@@ -236,7 +250,6 @@ async def approve_transaction(tx_id: str):
     if tx['status'] != 'pending':
         raise HTTPException(status_code=400, detail="Transaction already processed")
 
-    # If deposit, add to balance
     if tx['type'] == 'deposit':
         await db.users.update_one(
             {"telegram_id": tx['user_id']},
@@ -248,7 +261,6 @@ async def approve_transaction(tx_id: str):
         {"$set": {"status": "approved"}}
     )
     
-    # Notify User
     if bot:
         try:
             await bot.send_message(
@@ -268,7 +280,6 @@ async def reject_transaction(tx_id: str):
     if tx['status'] != 'pending':
         raise HTTPException(status_code=400, detail="Transaction already processed")
 
-    # If withdraw, refund balance
     if tx['type'] == 'withdraw':
         await db.users.update_one(
             {"telegram_id": tx['user_id']},
@@ -280,7 +291,6 @@ async def reject_transaction(tx_id: str):
         {"$set": {"status": "rejected"}}
     )
     
-    # Notify User
     if bot:
         try:
             await bot.send_message(
@@ -303,7 +313,6 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 
-# Start Bot Polling in Background
 @app.on_event("startup")
 async def start_bot():
     if bot:
