@@ -396,7 +396,8 @@ async def update_user_balance(telegram_id: int, data: dict = Body(...)):
     # Notify user
     if bot:
         try:
-            msg = f"💰 Sizning hisobingiz admin tomonidan {amount:,.0f} UZS ga {'to\'ldirildi' if tx_type == 'credit' else 'kamaytirildi'}."
+            action = "to'ldirildi" if tx_type == 'credit' else "kamaytirildi"
+            msg = f"💰 Sizning hisobingiz admin tomonidan {amount:,.0f} UZS ga {action}."
             await bot.send_message(telegram_id, msg)
         except: pass
 
