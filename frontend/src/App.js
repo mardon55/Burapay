@@ -70,7 +70,7 @@ const BottomNav = () => {
   if (location.pathname.startsWith('/admin')) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-midnight/90 backdrop-blur-lg border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-50 h-20">
+    <div className="fixed bottom-0 left-0 right-0 bg-midnight/90 backdrop-blur-lg border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-[10000] h-20">
       {navItems.map((item) => (
         <Link 
           key={item.path} 
