@@ -29,8 +29,6 @@ db = client[os.environ['DB_NAME']]
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
 BOT_USERNAME = "BuraPay_bot" 
-
-# FORCE HTTPS URL for Telegram WebApp
 WEBAPP_URL = "https://manga-shunaqa.preview.emergentagent.com"
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
@@ -84,11 +82,9 @@ class TransactionCreate(BaseModel):
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, command: CommandObject):
     try:
-        # Check if user exists
         user = await db.users.find_one({"telegram_id": message.from_user.id})
         referrer_id = None
         
-        # Handle Referral
         args = command.args
         if args and args.isdigit() and not user:
             ref_internal_id = args
@@ -114,7 +110,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
             )
             await db.users.insert_one(new_user.model_dump())
         
-        # Use the hardcoded HTTPS URL
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="📱 BuraPay ilovasini ochish", web_app=WebAppInfo(url=WEBAPP_URL))]
         ])
@@ -154,9 +149,11 @@ async def login(data: dict = Body(...)):
     
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     
+    # Check Env admin
     is_admin_env = telegram_id in ADMIN_IDS
     
     if not user:
+        # Create new user
         new_user = User(
             telegram_id=telegram_id,
             first_name=data.get("first_name", "User"),
@@ -167,9 +164,23 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
+    # Update existing user if needed (missing ID or admin status changed)
+    update_fields = {}
+    if "internal_id" not in user:
+        update_fields["internal_id"] = generate_user_id()
+        user["internal_id"] = update_fields["internal_id"]
+    
     if is_admin_env and not user.get('is_admin'):
-        await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"is_admin": True}})
+        update_fields["is_admin"] = True
         user['is_admin'] = True
+
+    # Update name if changed
+    if data.get("first_name") and user.get("first_name") != data.get("first_name"):
+        update_fields["first_name"] = data.get("first_name")
+        user["first_name"] = data.get("first_name")
+        
+    if update_fields:
+        await db.users.update_one({"telegram_id": telegram_id}, {"$set": update_fields})
         
     return user
 
@@ -178,6 +189,13 @@ async def get_profile(telegram_id: int):
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Hot-fix for missing ID in existing users
+    if "internal_id" not in user:
+        new_id = generate_user_id()
+        await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"internal_id": new_id}})
+        user["internal_id"] = new_id
+        
     return user
 
 @api_router.post("/wallets/add")

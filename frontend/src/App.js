@@ -24,7 +24,6 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
-const tgUser = tg?.initDataUnsafe?.user;
 
 // Components
 const Button = ({ children, variant = "primary", className = "", ...props }) => {
@@ -242,9 +241,6 @@ const Referral = ({ user }) => {
     );
 };
 
-// ... (Deposit, Withdraw, Wallets, Admin components remain same, just updated text if needed, but logic is fine)
-// Re-using previous components for Deposit, Withdraw, Wallets, Admin but ensuring they use 'user' prop correctly.
-
 const Deposit = ({ user }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
@@ -386,10 +382,19 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // If running in Telegram, use that data, else mock
-    const telegramId = tgUser?.id || 123456789;
-    const firstName = tgUser?.first_name || "Demo User";
-    const username = tgUser?.username || "demouser";
+    // Determine user data
+    // Use window.Telegram.WebApp.initDataUnsafe.user if available
+    // OTHERWISE use a mock user for testing in browser (since we can't login via TG in browser without initData)
+    
+    let telegramId = 123456789;
+    let firstName = "Demo User";
+    let username = "demouser";
+
+    if (tg?.initDataUnsafe?.user) {
+        telegramId = tg.initDataUnsafe.user.id;
+        firstName = tg.initDataUnsafe.user.first_name;
+        username = tg.initDataUnsafe.user.username;
+    }
 
     const login = async () => {
         try {
@@ -404,7 +409,10 @@ function App() {
                 tg.ready();
                 tg.expand();
             }
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e);
+            // Don't show toast on initial load error if it's just connectivity
+        }
     };
     login();
   }, []);
