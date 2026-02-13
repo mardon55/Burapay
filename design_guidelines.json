@@ -1,0 +1,157 @@
+{
+  "design_system": {
+    "name": "Totpay Midnight Gold",
+    "description": "A high-contrast, mobile-first betting utility design system optimized for Telegram Mini Apps in Uzbekistan.",
+    "version": "1.0.0",
+    "theme": "dark",
+    "typography": {
+      "font_family": {
+        "headings": "Barlow Condensed, sans-serif",
+        "body": "Manrope, sans-serif",
+        "mono": "JetBrains Mono, monospace"
+      },
+      "scale": {
+        "h1": "text-4xl font-bold tracking-tight uppercase",
+        "h2": "text-3xl font-bold tracking-tight uppercase",
+        "h3": "text-2xl font-semibold tracking-normal",
+        "body_lg": "text-lg font-medium leading-relaxed",
+        "body_base": "text-base font-normal leading-relaxed",
+        "caption": "text-sm font-medium text-slate-400 uppercase tracking-wider"
+      }
+    },
+    "colors": {
+      "background": {
+        "default": "#020617",
+        "paper": "#0F172A",
+        "subtle": "#1E293B"
+      },
+      "primary": {
+        "default": "#FACC15",
+        "hover": "#EAB308",
+        "foreground": "#020617"
+      },
+      "secondary": {
+        "default": "#1E293B",
+        "hover": "#334155",
+        "foreground": "#F8FAFC"
+      },
+      "accent": {
+        "default": "#3B82F6",
+        "foreground": "#FFFFFF"
+      },
+      "status": {
+        "success": "#22C55E",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6"
+      },
+      "text": {
+        "primary": "#F8FAFC",
+        "secondary": "#94A3B8",
+        "muted": "#64748B",
+        "inverse": "#020617"
+      },
+      "border": {
+        "default": "#1E293B",
+        "active": "#334155"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-4 md:p-6",
+      "section_gap": "gap-6",
+      "item_gap": "gap-3"
+    },
+    "radius": {
+      "default": "rounded-xl",
+      "button": "rounded-full",
+      "card": "rounded-2xl"
+    },
+    "shadows": {
+      "card": "shadow-lg shadow-black/20",
+      "glow": "shadow-[0_0_15px_rgba(250,204,21,0.3)]"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#FACC15] text-[#020617] hover:bg-[#EAB308] font-bold uppercase tracking-wide shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all active:scale-95",
+      "secondary": "bg-[#1E293B] text-white hover:bg-[#334155] border border-slate-700 font-medium transition-all active:scale-95",
+      "ghost": "bg-transparent text-slate-400 hover:text-white hover:bg-white/5 transition-colors",
+      "destructive": "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+    },
+    "cards": {
+      "default": "bg-[#0F172A] border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden",
+      "highlight": "bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-[#FACC15]/20 rounded-2xl p-5 shadow-xl relative overflow-hidden group hover:border-[#FACC15]/40 transition-colors",
+      "glass": "bg-[#0F172A]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-5"
+    },
+    "inputs": {
+      "default": "bg-[#020617] border border-slate-700 text-white placeholder:text-slate-500 focus:border-[#FACC15] focus:ring-1 focus:ring-[#FACC15] rounded-xl h-12 px-4 transition-all",
+      "large": "text-2xl font-bold bg-transparent border-b-2 border-slate-700 focus:border-[#FACC15] rounded-none px-0 h-16 text-center placeholder:text-slate-600"
+    },
+    "navigation": {
+      "bottom_bar": "fixed bottom-0 left-0 right-0 bg-[#020617]/90 backdrop-blur-lg border-t border-slate-800 pb-safe pt-2 px-4 flex justify-around items-center z-50",
+      "nav_item": "flex flex-col items-center gap-1 text-xs font-medium text-slate-500 hover:text-[#FACC15] transition-colors data-[active=true]:text-[#FACC15]"
+    }
+  },
+  "layout_strategies": {
+    "dashboard": {
+      "grid": "grid grid-cols-2 gap-3 p-4 pb-24",
+      "hero": "col-span-2 bg-gradient-to-r from-[#FACC15] to-[#EAB308] text-[#020617] rounded-2xl p-6 relative overflow-hidden",
+      "quick_actions": "grid grid-cols-4 gap-2 col-span-2 my-2",
+      "recent_activity": "col-span-2 flex flex-col gap-2"
+    },
+    "admin_panel": {
+      "layout": "flex h-screen bg-[#020617]",
+      "sidebar": "w-64 border-r border-slate-800 p-4 hidden md:flex flex-col gap-2",
+      "content": "flex-1 overflow-auto p-6",
+      "table": "w-full text-left border-collapse text-sm"
+    }
+  },
+  "assets": {
+    "images": {
+      "hero_bg": "https://images.unsplash.com/photo-1716561388086-cbc1e07f9f65?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "wallet_icon": "https://images.unsplash.com/photo-1622450402097-78e0ab31f370?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "betting_vibe": "https://images.unsplash.com/photo-1552749412-c5cdd33adbb0?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "uzbek_pattern": "https://images.unsplash.com/photo-1717233466144-9f6cb1dab7db?crop=entropy&cs=srgb&fm=jpg&q=85"
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-[1.5px]"
+    }
+  },
+  "instructions_to_main_agent": {
+    "general": [
+      "Implement a 'Mobile-First' approach. The app is primarily a Telegram Mini App.",
+      "Use 'Barlow Condensed' for all headings to give a sporty, betting-app feel.",
+      "Use 'Manrope' for body text for maximum legibility on small screens.",
+      "Ensure all touch targets are at least 44x44px.",
+      "Use the 'Midnight Gold' theme: Deep Navy background (#020617) with Bright Yellow (#FACC15) accents.",
+      "Do NOT use gradients for the main background. Use solid #020617 to prevent banding on low-end screens.",
+      "Use 'sonner' for all toast notifications.",
+      "Use 'lucide-react' for icons."
+    ],
+    "specific_flows": {
+      "dashboard": "Create a 'Bento' style grid. The User Balance should be the most prominent element (Hero). Quick actions (Deposit, Withdraw) should be immediately accessible.",
+      "deposit": "Use a step-by-step wizard or a clean form. Highlight the selected currency (UZS/USD/RUB).",
+      "withdraw": "Emphasize safety. Use a saved wallet list with clear logos (Uzcard/Humo).",
+      "admin": "Dense data display. Use a table component for transactions. Add filters for 'Pending', 'Approved', 'Rejected'."
+    },
+    "animations": {
+      "page_transition": "initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}",
+      "button_press": "whileTap={{ scale: 0.95 }}",
+      "list_item": "initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ staggerChildren: 0.1 }}"
+    }
+  },
+  "universal_guidelines": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) sparingly, mainly for overlays.",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms.",
+    "You MUST NOT center align the app container. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "All interactive and key informational elements MUST include data-testid attribute."
+  ]
+}
