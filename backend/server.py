@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Body
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,10 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional, Literal
 import uuid
 from datetime import datetime, timezone
-
+from bson import ObjectId
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,54 +19,186 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+# Models
+class PyObjectId(str):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
     
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid objectid")
+        return str(v)
+
+class Wallet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    type: str # 'uzcard', 'humo', 'mostbet_id'
+    number: str
+    name: Optional[str] = None
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class User(BaseModel):
+    telegram_id: int
+    first_name: str
+    username: Optional[str] = None
+    balance: float = 0.0
+    wallets: List[Wallet] = []
+    is_admin: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Add your routes to the router instead of directly to app
+class Transaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: int
+    type: Literal['deposit', 'withdraw']
+    amount: float
+    currency: str # 'UZS', 'USD', 'RUB'
+    method: str # 'uzcard', 'humo', 'mostbet'
+    wallet_number: Optional[str] = None
+    status: Literal['pending', 'approved', 'rejected'] = 'pending'
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class TransactionCreate(BaseModel):
+    user_id: int
+    type: Literal['deposit', 'withdraw']
+    amount: float
+    currency: str
+    method: str
+    wallet_number: Optional[str] = None
+
+# Routes
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Totpay API Running"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
+@api_router.post("/auth/login")
+async def login(data: dict = Body(...)):
+    # Mock login or simple telegram auth
+    telegram_id = data.get("telegram_id")
+    if not telegram_id:
+        raise HTTPException(status_code=400, detail="Telegram ID required")
     
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+    user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
+    if not user:
+        new_user = User(
+            telegram_id=telegram_id,
+            first_name=data.get("first_name", "User"),
+            username=data.get("username"),
+            balance=0.0
+        )
+        await db.users.insert_one(new_user.model_dump())
+        return new_user
+    return user
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/user/{telegram_id}")
+async def get_profile(telegram_id: int):
+    user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
-# Include the router in the main app
+@api_router.post("/wallets/add")
+async def add_wallet(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    wallet_data = data.get("wallet") # type, number, name
+    
+    if not telegram_id or not wallet_data:
+        raise HTTPException(status_code=400, detail="Invalid data")
+
+    new_wallet = Wallet(**wallet_data)
+    
+    result = await db.users.update_one(
+        {"telegram_id": telegram_id},
+        {"$push": {"wallets": new_wallet.model_dump()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "Wallet added", "wallet": new_wallet}
+
+@api_router.post("/transactions/create")
+async def create_transaction(tx: TransactionCreate):
+    # Check balance for withdraw
+    if tx.type == 'withdraw':
+        user = await db.users.find_one({"telegram_id": tx.user_id})
+        if not user or user.get('balance', 0) < tx.amount:
+            raise HTTPException(status_code=400, detail="Insufficient funds")
+            
+        # Deduct balance immediately or hold it? Let's hold it by deducing now.
+        # Simple MVP logic: deduct now, refund if rejected.
+        await db.users.update_one(
+            {"telegram_id": tx.user_id},
+            {"$inc": {"balance": -tx.amount}}
+        )
+
+    transaction = Transaction(**tx.model_dump())
+    await db.transactions.insert_one(transaction.model_dump())
+    return transaction
+
+@api_router.get("/transactions/{telegram_id}")
+async def get_history(telegram_id: int):
+    txs = await db.transactions.find(
+        {"user_id": telegram_id}, 
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return txs
+
+@api_router.get("/admin/transactions/pending")
+async def get_pending_transactions():
+    txs = await db.transactions.find(
+        {"status": "pending"}, 
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return txs
+
+@api_router.post("/admin/transactions/{tx_id}/approve")
+async def approve_transaction(tx_id: str):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if tx['status'] != 'pending':
+        raise HTTPException(status_code=400, detail="Transaction already processed")
+
+    # If deposit, add to balance
+    if tx['type'] == 'deposit':
+        await db.users.update_one(
+            {"telegram_id": tx['user_id']},
+            {"$inc": {"balance": tx['amount']}}
+        )
+    
+    await db.transactions.update_one(
+        {"id": tx_id},
+        {"$set": {"status": "approved"}}
+    )
+    return {"status": "approved"}
+
+@api_router.post("/admin/transactions/{tx_id}/reject")
+async def reject_transaction(tx_id: str):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+        
+    if tx['status'] != 'pending':
+        raise HTTPException(status_code=400, detail="Transaction already processed")
+
+    # If withdraw, refund balance
+    if tx['type'] == 'withdraw':
+        await db.users.update_one(
+            {"telegram_id": tx['user_id']},
+            {"$inc": {"balance": tx['amount']}}
+        )
+    
+    await db.transactions.update_one(
+        {"id": tx_id},
+        {"$set": {"status": "rejected"}}
+    )
+    return {"status": "rejected"}
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,13 +209,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+logging.basicConfig(level=logging.INFO)
