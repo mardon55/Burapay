@@ -69,10 +69,10 @@ const BottomNav = ({ isAdmin }) => {
   const isActive = (path) => location.pathname === path;
   
   const navItems = [
-    { icon: <Wallet size={20} />, label: "Home", path: "/" },
-    { icon: <ArrowUpRight size={20} />, label: "Deposit", path: "/deposit" },
-    { icon: <ArrowDownLeft size={20} />, label: "Withdraw", path: "/withdraw" },
-    { icon: <CreditCard size={20} />, label: "Wallets", path: "/wallets" },
+    { icon: <Wallet size={20} />, label: "Asosiy", path: "/" },
+    { icon: <ArrowUpRight size={20} />, label: "To'ldirish", path: "/deposit" },
+    { icon: <ArrowDownLeft size={20} />, label: "Yechish", path: "/withdraw" },
+    { icon: <CreditCard size={20} />, label: "Hamyonlar", path: "/wallets" },
   ];
 
   // If admin, add admin link
@@ -117,7 +117,7 @@ const Home = ({ user }) => {
     }
   };
 
-  if (!user) return <div className="p-8 text-center text-slate-500">Loading...</div>;
+  if (!user) return <div className="p-8 text-center text-slate-500">Yuklanmoqda...</div>;
 
   return (
     <div className="pb-40 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -128,7 +128,7 @@ const Home = ({ user }) => {
                 {user.first_name[0]}
             </div>
             <div>
-                <h2 className="text-sm text-slate-400 font-body uppercase tracking-wider">Welcome back</h2>
+                <h2 className="text-sm text-slate-400 font-body uppercase tracking-wider">Xush kelibsiz</h2>
                 <h1 className="text-xl font-bold leading-none">{user.first_name}</h1>
             </div>
         </div>
@@ -138,19 +138,19 @@ const Home = ({ user }) => {
       {/* Balance Card */}
       <Card highlight className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        <h3 className="text-slate-400 text-sm font-medium mb-1">Total Balance</h3>
+        <h3 className="text-slate-400 text-sm font-medium mb-1">Umumiy hisob</h3>
         <div className="text-4xl font-bold text-white mb-4">
           {user.balance.toLocaleString()} <span className="text-gold text-2xl">UZS</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Link to="/deposit" className="w-full">
             <Button className="w-full text-sm py-2">
-               <ArrowUpRight size={18} /> Deposit
+               <ArrowUpRight size={18} /> To'ldirish
             </Button>
           </Link>
           <Link to="/withdraw" className="w-full">
              <Button variant="secondary" className="w-full text-sm py-2">
-               <ArrowDownLeft size={18} /> Withdraw
+               <ArrowDownLeft size={18} /> Yechish
              </Button>
           </Link>
         </div>
@@ -159,13 +159,13 @@ const Home = ({ user }) => {
       {/* Recent Activity */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-bold">Recent Activity</h3>
-          <button className="text-primary text-sm">View All</button>
+          <h3 className="text-lg font-bold">Oxirgi amallar</h3>
+          <button className="text-primary text-sm">Barchasi</button>
         </div>
         <div className="space-y-3">
           {history.length === 0 ? (
             <div className="text-center py-8 text-slate-600 bg-midnight-light rounded-xl border border-slate-800 border-dashed">
-                No transactions yet
+                Hozircha amallar yo'q
             </div>
           ) : (
             history.map((tx) => (
@@ -177,7 +177,7 @@ const Home = ({ user }) => {
                     {tx.type === 'deposit' ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
                   </div>
                   <div>
-                    <div className="font-bold text-white capitalize">{tx.type}</div>
+                    <div className="font-bold text-white capitalize">{tx.type === 'deposit' ? "Kirim" : "Chiqim"}</div>
                     <div className="text-xs text-slate-500">{new Date(tx.created_at).toLocaleDateString()}</div>
                   </div>
                 </div>
@@ -192,7 +192,7 @@ const Home = ({ user }) => {
                     tx.status === 'rejected' ? 'bg-red-500/10 text-red-500' :
                     'bg-yellow-500/10 text-yellow-500'
                   }`}>
-                    {tx.status}
+                    {tx.status === 'approved' ? "Tasdiqlandi" : tx.status === 'rejected' ? "Bekor qilindi" : "Kutilmoqda"}
                   </div>
                 </div>
               </div>
@@ -210,7 +210,7 @@ const Deposit = ({ user }) => {
   const [currency, setCurrency] = useState("UZS");
 
   const handleDeposit = async () => {
-    if (!amount) return toast.error("Enter amount");
+    if (!amount) return toast.error("Summani kiriting");
     
     try {
       await axios.post(`${API_URL}/transactions/create`, {
@@ -220,16 +220,16 @@ const Deposit = ({ user }) => {
         currency,
         method: "manual_check" 
       });
-      toast.success("Deposit request sent!");
+      toast.success("To'lov so'rovi yuborildi!");
       navigate("/");
     } catch (e) {
-      toast.error("Failed to create deposit");
+      toast.error("Xatolik yuz berdi");
     }
   };
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">Deposit Funds</h1>
+      <h1 className="text-2xl font-bold">Hisobni to'ldirish</h1>
       
       <div className="grid grid-cols-3 gap-3">
         {['UZS', 'USD', 'RUB'].map(c => (
@@ -248,7 +248,7 @@ const Deposit = ({ user }) => {
       </div>
 
       <Card>
-        <label className="text-sm text-slate-400 mb-2 block">Amount to deposit</label>
+        <label className="text-sm text-slate-400 mb-2 block">Kiritiladigan summa</label>
         <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
             <span className="text-2xl font-bold text-slate-500">UZS</span>
             <input 
@@ -263,11 +263,11 @@ const Deposit = ({ user }) => {
 
       <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
         <ShieldCheck className="inline-block mr-2 mb-1" size={16} />
-        Secure transaction. Your funds will be credited after admin approval.
+        Xavfsiz to'lov. Sizning mablag'ingiz admin tasdiqlaganidan keyin tushadi.
       </div>
 
       <Button onClick={handleDeposit} className="w-full py-4 text-lg" data-testid="deposit-submit-btn">
-        Confirm Deposit
+        To'lovni tasdiqlash
       </Button>
     </div>
   );
@@ -291,8 +291,8 @@ const Withdraw = ({ user }) => {
   };
 
   const handleWithdraw = async () => {
-    if (!amount) return toast.error("Enter amount");
-    if (!selectedWallet) return toast.error("Select a wallet");
+    if (!amount) return toast.error("Summani kiriting");
+    if (!selectedWallet) return toast.error("Hamyonni tanlang");
 
     try {
       await axios.post(`${API_URL}/transactions/create`, {
@@ -303,26 +303,26 @@ const Withdraw = ({ user }) => {
         method: selectedWallet.type,
         wallet_number: selectedWallet.number
       });
-      toast.success("Withdrawal request sent!");
+      toast.success("Pul yechish so'rovi yuborildi!");
       navigate("/");
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Failed to withdraw");
+      toast.error(e.response?.data?.detail || "Xatolik yuz berdi");
     }
   };
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">Withdraw Funds</h1>
+      <h1 className="text-2xl font-bold">Mablag'ni yechib olish</h1>
 
       <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="text-sm text-slate-400">Select Wallet</label>
-            <Link to="/wallets" className="text-primary text-xs">Manage Wallets</Link>
+            <label className="text-sm text-slate-400">Hamyonni tanlang</label>
+            <Link to="/wallets" className="text-primary text-xs">Hamyonlarni boshqarish</Link>
           </div>
           <div className="space-y-2">
               {wallets.length === 0 ? (
                   <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">
-                      No wallets added. Please add one first.
+                      Hamyonlar yo'q. Iltimos, avval qo'shing.
                   </div>
               ) : (
                   wallets.map(w => (
@@ -352,7 +352,7 @@ const Withdraw = ({ user }) => {
       </div>
 
       <Card>
-        <label className="text-sm text-slate-400 mb-2 block">Amount to withdraw</label>
+        <label className="text-sm text-slate-400 mb-2 block">Yechiladigan summa</label>
         <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
             <span className="text-2xl font-bold text-slate-500">UZS</span>
             <input 
@@ -366,7 +366,7 @@ const Withdraw = ({ user }) => {
       </Card>
 
       <Button onClick={handleWithdraw} className="w-full py-4 text-lg" disabled={wallets.length === 0} data-testid="withdraw-submit-btn">
-        Request Withdrawal
+        Pul yechishga so'rov
       </Button>
     </div>
   );
@@ -389,7 +389,7 @@ const Wallets = ({ user }) => {
     };
 
     const handleAdd = async () => {
-        if(!newWallet.number) return toast.error("Enter number");
+        if(!newWallet.number) return toast.error("Raqamni kiriting");
         try {
             await axios.post(`${API_URL}/wallets/add`, {
                 telegram_id: user.telegram_id,
@@ -398,20 +398,20 @@ const Wallets = ({ user }) => {
             setIsAdding(false);
             setNewWallet({ type: 'uzcard', number: '', name: '' });
             fetchWallets();
-            toast.success("Wallet added");
-        } catch(e) { toast.error("Failed to add wallet"); }
+            toast.success("Hamyon qo'shildi");
+        } catch(e) { toast.error("Xatolik yuz berdi"); }
     };
 
     return (
         <div className="p-4 space-y-6 pb-24">
-            <h1 className="text-2xl font-bold">My Wallets</h1>
+            <h1 className="text-2xl font-bold">Mening hamyonlarim</h1>
             
             {isAdding ? (
                 <Card className="animate-in zoom-in-95 duration-200">
-                    <h3 className="font-bold mb-4">Add New Wallet</h3>
+                    <h3 className="font-bold mb-4">Yangi hamyon qo'shish</h3>
                     <div className="space-y-4">
                         <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Type</label>
+                            <label className="text-xs text-slate-400 mb-1 block">Tur</label>
                             <select 
                                 className="w-full bg-midnight border border-slate-700 rounded-xl h-12 px-4 text-white outline-none"
                                 value={newWallet.type}
@@ -423,7 +423,7 @@ const Wallets = ({ user }) => {
                             </select>
                         </div>
                         <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Number / ID</label>
+                            <label className="text-xs text-slate-400 mb-1 block">Raqam / ID</label>
                             <Input 
                                 value={newWallet.number}
                                 onChange={e => setNewWallet({...newWallet, number: e.target.value})}
@@ -431,14 +431,14 @@ const Wallets = ({ user }) => {
                             />
                         </div>
                         <div className="flex gap-2 pt-2">
-                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">Cancel</Button>
-                            <Button onClick={handleAdd} className="flex-1">Save</Button>
+                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">Bekor qilish</Button>
+                            <Button onClick={handleAdd} className="flex-1">Saqlash</Button>
                         </div>
                     </div>
                 </Card>
             ) : (
                 <Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">
-                    + Add New Wallet
+                    + Yangi hamyon qo'shish
                 </Button>
             )}
 
@@ -483,31 +483,31 @@ const Admin = ({ user }) => {
         } catch (e) { toast.error("Action failed"); }
     };
 
-    if (!user?.is_admin) return <div className="p-10 text-center">Access Denied</div>;
+    if (!user?.is_admin) return <div className="p-10 text-center">Ruxsat yo'q</div>;
 
     return (
         <div className="p-6 pb-24">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">Admin Panel</h1>
-                <Link to="/" className="text-sm text-slate-500">Back to App</Link>
+                <Link to="/" className="text-sm text-slate-500">Ilovaga qaytish</Link>
             </div>
 
             <div className="space-y-4">
                 {txs.length === 0 ? (
-                    <div className="text-center text-slate-500 py-10">No pending transactions</div>
+                    <div className="text-center text-slate-500 py-10">Kutilayotgan to'lovlar yo'q</div>
                 ) : (
                     txs.map(tx => (
                         <div key={tx.id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <div className={`text-sm font-bold uppercase ${tx.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
-                                        {tx.type} Request
+                                        {tx.type === 'deposit' ? "Kirim" : "Chiqim"} So'rovi
                                     </div>
                                     <div className="text-2xl font-bold">{tx.amount.toLocaleString()} <span className="text-sm text-slate-500">{tx.currency}</span></div>
                                     <div className="text-sm text-slate-400 mt-1">
                                         User ID: {tx.user_id} <br/>
-                                        Method: {tx.method} <br/>
-                                        {tx.wallet_number && `Wallet: ${tx.wallet_number}`}
+                                        Tizim: {tx.method} <br/>
+                                        {tx.wallet_number && `Hamyon: ${tx.wallet_number}`}
                                     </div>
                                 </div>
                                 <div className="text-xs text-slate-600">{new Date(tx.created_at).toLocaleTimeString()}</div>
@@ -517,13 +517,13 @@ const Admin = ({ user }) => {
                                     onClick={() => handleAction(tx.id, 'reject')}
                                     className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition-colors"
                                 >
-                                    Reject
+                                    Rad etish
                                 </button>
                                 <button 
                                     onClick={() => handleAction(tx.id, 'approve')}
                                     className="flex-1 py-2 rounded-lg bg-green-500/10 text-green-500 font-bold hover:bg-green-500/20 transition-colors"
                                 >
-                                    Approve
+                                    Tasdiqlash
                                 </button>
                             </div>
                         </div>

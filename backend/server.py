@@ -94,7 +94,7 @@ async def cmd_start(message: types.Message):
         await db.users.insert_one(new_user.model_dump())
     
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📱 Open Totpay App", web_app=WebAppInfo(url=os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:3000').replace('/api', '')))]
+        [InlineKeyboardButton(text="📱 Totpay ilovasini ochish", web_app=WebAppInfo(url=os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:3000').replace('/api', '')))]
     ])
     
     await message.answer(
@@ -176,7 +176,7 @@ async def add_wallet(data: dict = Body(...)):
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return {"message": "Wallet added", "wallet": new_wallet}
+    return {"message": "Hamyon qo'shildi", "wallet": new_wallet}
 
 @api_router.post("/transactions/create")
 async def create_transaction(tx: TransactionCreate):
@@ -184,7 +184,7 @@ async def create_transaction(tx: TransactionCreate):
     if tx.type == 'withdraw':
         user = await db.users.find_one({"telegram_id": tx.user_id})
         if not user or user.get('balance', 0) < tx.amount:
-            raise HTTPException(status_code=400, detail="Insufficient funds")
+            raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
             
         await db.users.update_one(
             {"telegram_id": tx.user_id},
