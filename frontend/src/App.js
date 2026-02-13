@@ -121,7 +121,7 @@ const Home = () => {
   if (!user) return <div className="p-8 text-center text-slate-500">Loading...</div>;
 
   return (
-    <div className="pb-24 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="pb-40 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
