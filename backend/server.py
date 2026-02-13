@@ -322,6 +322,86 @@ async def reject_transaction(tx_id: str):
 
     return {"status": "rejected"}
 
+@api_router.get("/admin/stats")
+async def get_admin_stats():
+    total_users = await db.users.count_documents({})
+    
+    # Aggregation for balances
+    balance_agg = await db.users.aggregate([
+        {"$group": {"_id": None, "total": {"$sum": "$balance"}}}
+    ]).to_list(1)
+    total_balance = balance_agg[0]['total'] if balance_agg else 0
+    
+    # Aggregation for deposits
+    deposit_agg = await db.transactions.aggregate([
+        {"$match": {"type": "deposit", "status": "approved"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    total_deposits = deposit_agg[0]['total'] if deposit_agg else 0
+
+    pending_count = await db.transactions.count_documents({"status": "pending"})
+
+    return {
+        "total_users": total_users,
+        "total_balance": total_balance,
+        "total_deposits": total_deposits,
+        "pending_count": pending_count
+    }
+
+@api_router.get("/admin/users")
+async def get_all_users(search: str = ""):
+    query = {}
+    if search:
+        # Search by ID (internal or telegram) or Name
+        if search.isdigit():
+             query = {"$or": [{"telegram_id": int(search)}, {"internal_id": search}]}
+        else:
+             query = {"first_name": {"$regex": search, "$options": "i"}}
+    
+    users = await db.users.find(query, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return users
+
+@api_router.post("/admin/users/{telegram_id}/balance")
+async def update_user_balance(telegram_id: int, data: dict = Body(...)):
+    # data: {"amount": 10000, "type": "credit" | "debit", "reason": "Bonus"}
+    amount = float(data.get("amount", 0))
+    tx_type = data.get("type", "credit")
+    
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    inc_amount = amount if tx_type == "credit" else -amount
+    
+    # Update user
+    res = await db.users.update_one(
+        {"telegram_id": telegram_id},
+        {"$inc": {"balance": inc_amount}}
+    )
+    
+    if res.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Log as transaction
+    tx = Transaction(
+        user_id=telegram_id,
+        type="deposit" if tx_type == "credit" else "withdraw",
+        amount=amount,
+        currency="UZS",
+        method="admin_adjustment",
+        status="approved",
+        wallet_number="Admin Adjustment"
+    )
+    await db.transactions.insert_one(tx.model_dump())
+    
+    # Notify user
+    if bot:
+        try:
+            msg = f"💰 Sizning hisobingiz admin tomonidan {amount:,.0f} UZS ga {'to\'ldirildi' if tx_type == 'credit' else 'kamaytirildi'}."
+            await bot.send_message(telegram_id, msg)
+        except: pass
+
+    return {"message": "Balance updated"}
+
 app.include_router(api_router)
 
 app.add_middleware(
