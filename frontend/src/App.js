@@ -20,7 +20,8 @@ import {
   Search,
   LayoutDashboard,
   List,
-  Edit
+  Edit,
+  Globe
 } from "lucide-react";
 import axios from "axios";
 
@@ -29,6 +30,106 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
+
+// Translations
+const translations = {
+  uz: {
+    home: "Asosiy",
+    deposit: "To'ldirish",
+    withdraw: "Yechish",
+    wallets: "Hamyonlar",
+    referral: "Referal",
+    admin: "Admin",
+    welcome: "Xush kelibsiz",
+    total_balance: "Umumiy hisob",
+    recent_activity: "Oxirgi amallar",
+    view_all: "Barchasi",
+    no_tx: "Hozircha amallar yo'q",
+    deposit_title: "Hisobni to'ldirish",
+    enter_amount: "Kiritiladigan summa",
+    confirm_deposit: "To'lovni tasdiqlash",
+    secure_tx: "Xavfsiz to'lov. Sizning mablag'ingiz admin tasdiqlaganidan keyin tushadi.",
+    withdraw_title: "Mablag'ni yechib olish",
+    select_wallet: "Hamyonni tanlang",
+    manage_wallets: "Hamyonlarni boshqarish",
+    no_wallets: "Hamyonlar yo'q. Iltimos, avval qo'shing.",
+    withdraw_amount: "Yechiladigan summa",
+    request_withdraw: "Pul yechishga so'rov",
+    my_wallets: "Mening hamyonlarim",
+    add_wallet: "Yangi hamyon qo'shish",
+    type: "Tur",
+    number_id: "Raqam / ID",
+    card_number: "Karta raqami",
+    expiry: "Amal qilish muddati",
+    cancel: "Bekor qilish",
+    save: "Saqlash",
+    ref_program: "Referal Dasturi",
+    invited_friends: "Taklif qilingan do'stlar",
+    your_ref_link: "Sizning referal havolangiz",
+    ref_desc: "Do'stlaringizni taklif qiling va bonuslarga ega bo'ling.",
+    copied: "Nusxalandi!",
+    error: "Xatolik",
+    success_deposit: "To'lov so'rovi yuborildi!",
+    success_withdraw: "Pul yechish so'rovi yuborildi!",
+    success_wallet: "Hamyon qo'shildi",
+    enter_valid_amount: "Summani kiriting",
+    enter_valid_number: "Raqamni kiriting",
+    approved: "Tasdiqlandi",
+    rejected: "Bekor qilindi",
+    pending: "Kutilmoqda",
+    deposit_in: "Kirim",
+    withdraw_out: "Chiqim",
+    lang_changed: "Til o'zgartirildi"
+  },
+  ru: {
+    home: "Главная",
+    deposit: "Пополнить",
+    withdraw: "Вывести",
+    wallets: "Кошельки",
+    referral: "Реферал",
+    admin: "Админ",
+    welcome: "Добро пожаловать",
+    total_balance: "Общий баланс",
+    recent_activity: "Последние действия",
+    view_all: "Все",
+    no_tx: "Пока нет операций",
+    deposit_title: "Пополнение счета",
+    enter_amount: "Сумма пополнения",
+    confirm_deposit: "Подтвердить платеж",
+    secure_tx: "Безопасный платеж. Средства будут зачислены после подтверждения.",
+    withdraw_title: "Вывод средств",
+    select_wallet: "Выберите кошелек",
+    manage_wallets: "Управление кошельками",
+    no_wallets: "Нет кошельков. Пожалуйста, добавьте.",
+    withdraw_amount: "Сумма вывода",
+    request_withdraw: "Запросить вывод",
+    my_wallets: "Мои кошельки",
+    add_wallet: "Добавить кошелек",
+    type: "Тип",
+    number_id: "Номер / ID",
+    card_number: "Номер карты",
+    expiry: "Срок действия",
+    cancel: "Отмена",
+    save: "Сохранить",
+    ref_program: "Реферальная программа",
+    invited_friends: "Приглашенные друзья",
+    your_ref_link: "Ваша реферальная ссылка",
+    ref_desc: "Приглашайте друзей и получайте бонусы.",
+    copied: "Скопировано!",
+    error: "Ошибка",
+    success_deposit: "Запрос отправлен!",
+    success_withdraw: "Запрос отправлен!",
+    success_wallet: "Кошелек добавлен",
+    enter_valid_amount: "Введите сумму",
+    enter_valid_number: "Введите номер",
+    approved: "Одобрено",
+    rejected: "Отклонено",
+    pending: "Ожидание",
+    deposit_in: "Ввод",
+    withdraw_out: "Вывод",
+    lang_changed: "Язык изменен"
+  }
+};
 
 // Components
 const Button = ({ children, variant = "primary", className = "", ...props }) => {
@@ -66,19 +167,20 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
-const BottomNav = ({ isAdmin }) => {
+const BottomNav = ({ isAdmin, lang }) => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
+  const t = translations[lang];
   
   const navItems = [
-    { icon: <Wallet size={20} />, label: "Asosiy", path: "/" },
-    { icon: <ArrowUpRight size={20} />, label: "To'ldirish", path: "/deposit" },
-    { icon: <ArrowDownLeft size={20} />, label: "Yechish", path: "/withdraw" },
-    { icon: <Users size={20} />, label: "Referal", path: "/referral" },
+    { icon: <Wallet size={20} />, label: t.home, path: "/" },
+    { icon: <ArrowUpRight size={20} />, label: t.deposit, path: "/deposit" },
+    { icon: <ArrowDownLeft size={20} />, label: t.withdraw, path: "/withdraw" },
+    { icon: <Users size={20} />, label: t.referral, path: "/referral" },
   ];
 
   if (isAdmin) {
-      navItems.push({ icon: <UserCheck size={20} />, label: "Admin", path: "/admin" });
+      navItems.push({ icon: <UserCheck size={20} />, label: t.admin, path: "/admin" });
   }
 
   if (location.pathname.startsWith('/admin')) return null;
@@ -102,8 +204,9 @@ const BottomNav = ({ isAdmin }) => {
 };
 
 // Pages
-const Home = ({ user }) => {
+const Home = ({ user, lang, setLang }) => {
   const [history, setHistory] = useState([]);
+  const t = translations[lang];
 
   useEffect(() => {
     if(user?.telegram_id) fetchData();
@@ -113,12 +216,22 @@ const Home = ({ user }) => {
     try {
       const histRes = await axios.get(`${API_URL}/transactions/${user.telegram_id}`);
       setHistory(histRes.data);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
-  if (!user) return <div className="p-8 text-center text-slate-500">Yuklanmoqda...</div>;
+  const toggleLang = async () => {
+      const newLang = lang === 'uz' ? 'ru' : 'uz';
+      setLang(newLang);
+      try {
+          await axios.post(`${API_URL}/user/language`, {
+              telegram_id: user.telegram_id,
+              language: newLang
+          });
+          toast.success(translations[newLang].lang_changed);
+      } catch(e) {}
+  };
+
+  if (!user) return <div className="p-8 text-center text-slate-500">...</div>;
 
   return (
     <div className="pb-40 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -133,27 +246,32 @@ const Home = ({ user }) => {
                 <h1 className="text-xl font-bold leading-none">{user.first_name}</h1>
             </div>
         </div>
-        <Link to="/wallets">
-            <CreditCard size={24} className="text-slate-400 hover:text-white" />
-        </Link>
+        <div className="flex gap-2">
+            <button onClick={toggleLang} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
+                {lang === 'uz' ? '🇺🇿' : '🇷🇺'}
+            </button>
+            <Link to="/wallets" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
+                <CreditCard size={20} />
+            </Link>
+        </div>
       </div>
 
       {/* Balance Card */}
       <Card highlight className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        <h3 className="text-slate-400 text-sm font-medium mb-1">Umumiy hisob</h3>
+        <h3 className="text-slate-400 text-sm font-medium mb-1">{t.total_balance}</h3>
         <div className="text-4xl font-bold text-white mb-4">
           {user.balance.toLocaleString()} <span className="text-gold text-2xl">UZS</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Link to="/deposit" className="w-full">
             <Button className="w-full text-sm py-2">
-               <ArrowUpRight size={18} /> To'ldirish
+               <ArrowUpRight size={18} /> {t.deposit}
             </Button>
           </Link>
           <Link to="/withdraw" className="w-full">
              <Button variant="secondary" className="w-full text-sm py-2">
-               <ArrowDownLeft size={18} /> Yechish
+               <ArrowDownLeft size={18} /> {t.withdraw}
              </Button>
           </Link>
         </div>
@@ -162,13 +280,13 @@ const Home = ({ user }) => {
       {/* Recent Activity */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-bold">Oxirgi amallar</h3>
-          <button className="text-primary text-sm">Barchasi</button>
+          <h3 className="text-lg font-bold">{t.recent_activity}</h3>
+          <button className="text-primary text-sm">{t.view_all}</button>
         </div>
         <div className="space-y-3">
           {history.length === 0 ? (
             <div className="text-center py-8 text-slate-600 bg-midnight-light rounded-xl border border-slate-800 border-dashed">
-                Hozircha amallar yo'q
+                {t.no_tx}
             </div>
           ) : (
             history.map((tx) => (
@@ -180,7 +298,7 @@ const Home = ({ user }) => {
                     {tx.type === 'deposit' ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
                   </div>
                   <div>
-                    <div className="font-bold text-white capitalize">{tx.type === 'deposit' ? "Kirim" : "Chiqim"}</div>
+                    <div className="font-bold text-white capitalize">{tx.type === 'deposit' ? t.deposit_in : t.withdraw_out}</div>
                     <div className="text-xs text-slate-500">{new Date(tx.created_at).toLocaleDateString()}</div>
                   </div>
                 </div>
@@ -195,7 +313,7 @@ const Home = ({ user }) => {
                     tx.status === 'rejected' ? 'bg-red-500/10 text-red-500' :
                     'bg-yellow-500/10 text-yellow-500'
                   }`}>
-                    {tx.status === 'approved' ? "Tasdiqlandi" : tx.status === 'rejected' ? "Bekor qilindi" : "Kutilmoqda"}
+                    {tx.status === 'approved' ? t.approved : tx.status === 'rejected' ? t.rejected : t.pending}
                   </div>
                 </div>
               </div>
@@ -207,29 +325,30 @@ const Home = ({ user }) => {
   );
 };
 
-const Referral = ({ user }) => {
+const Referral = ({ user, lang }) => {
+    const t = translations[lang];
     const refLink = `https://t.me/BuraPay_bot?start=${user?.internal_id}`;
 
     const copyLink = () => {
         navigator.clipboard.writeText(refLink);
-        toast.success("Link nusxalandi!");
+        toast.success(t.copied);
     };
 
     if (!user) return null;
 
     return (
         <div className="p-4 space-y-6 pb-24">
-            <h1 className="text-2xl font-bold">Referal Dasturi</h1>
+            <h1 className="text-2xl font-bold">{t.ref_program}</h1>
             
             <Card highlight>
                 <div className="text-center py-4">
                     <h2 className="text-4xl font-bold text-gold mb-2">{user.referrals_count || 0}</h2>
-                    <p className="text-slate-400 uppercase tracking-wider text-sm">Taklif qilingan do'stlar</p>
+                    <p className="text-slate-400 uppercase tracking-wider text-sm">{t.invited_friends}</p>
                 </div>
             </Card>
 
             <div className="bg-midnight-light p-4 rounded-xl border border-slate-800">
-                <label className="text-sm text-slate-400 mb-2 block">Sizning referal havolangiz</label>
+                <label className="text-sm text-slate-400 mb-2 block">{t.your_ref_link}</label>
                 <div className="flex gap-2">
                     <div className="bg-midnight border border-slate-700 rounded-lg px-3 py-3 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-slate-300 text-sm">
                         {refLink}
@@ -239,20 +358,21 @@ const Referral = ({ user }) => {
                     </button>
                 </div>
                 <p className="text-xs text-slate-500 mt-3">
-                    Do'stlaringizni taklif qiling va bonuslarga ega bo'ling.
+                    {t.ref_desc}
                 </p>
             </div>
         </div>
     );
 };
 
-const Deposit = ({ user }) => {
+const Deposit = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS");
+  const t = translations[lang];
 
   const handleDeposit = async () => {
-    if (!amount) return toast.error("Summani kiriting");
+    if (!amount) return toast.error(t.enter_valid_amount);
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
@@ -261,13 +381,13 @@ const Deposit = ({ user }) => {
         currency,
         method: "manual_check" 
       });
-      toast.success("To'lov so'rovi yuborildi!");
+      toast.success(t.success_deposit);
       navigate("/");
-    } catch (e) { toast.error("Xatolik yuz berdi"); }
+    } catch (e) { toast.error(t.error); }
   };
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">Hisobni to'ldirish</h1>
+      <h1 className="text-2xl font-bold">{t.deposit_title}</h1>
       <div className="grid grid-cols-3 gap-3">
         {['UZS', 'USD', 'RUB'].map(c => (
             <button key={c} onClick={() => setCurrency(c)} className={`p-4 rounded-xl border font-bold transition-all ${currency === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-midnight-light border-slate-700 text-slate-400'}`}>
@@ -276,29 +396,30 @@ const Deposit = ({ user }) => {
         ))}
       </div>
       <Card>
-        <label className="text-sm text-slate-400 mb-2 block">Kiritiladigan summa</label>
+        <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
         <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
             <span className="text-2xl font-bold text-slate-500">UZS</span>
             <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" />
         </div>
       </Card>
-      <Button onClick={handleDeposit} className="w-full py-4 text-lg">To'lovni tasdiqlash</Button>
+      <Button onClick={handleDeposit} className="w-full py-4 text-lg">{t.confirm_deposit}</Button>
     </div>
   );
 };
 
-const Withdraw = ({ user }) => {
+const Withdraw = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [wallets, setWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
+  const t = translations[lang];
 
   useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
   const fetchWallets = async () => { try { const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); setWallets(res.data.wallets || []); } catch (e) { console.error(e); } };
 
   const handleWithdraw = async () => {
-    if (!amount) return toast.error("Summani kiriting");
-    if (!selectedWallet) return toast.error("Hamyonni tanlang");
+    if (!amount) return toast.error(t.enter_valid_amount);
+    if (!selectedWallet) return toast.error(t.select_wallet);
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
@@ -308,21 +429,21 @@ const Withdraw = ({ user }) => {
         method: selectedWallet.type,
         wallet_number: selectedWallet.number
       });
-      toast.success("Pul yechish so'rovi yuborildi!");
+      toast.success(t.success_withdraw);
       navigate("/");
-    } catch (e) { toast.error(e.response?.data?.detail || "Xatolik yuz berdi"); }
+    } catch (e) { toast.error(e.response?.data?.detail || t.error); }
   };
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">Mablag'ni yechib olish</h1>
+      <h1 className="text-2xl font-bold">{t.withdraw_title}</h1>
       <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="text-sm text-slate-400">Hamyonni tanlang</label>
-            <Link to="/wallets" className="text-primary text-xs">Hamyonlarni boshqarish</Link>
+            <label className="text-sm text-slate-400">{t.select_wallet}</label>
+            <Link to="/wallets" className="text-primary text-xs">{t.manage_wallets}</Link>
           </div>
           <div className="space-y-2">
-              {wallets.length === 0 ? <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">Hamyonlar yo'q. Iltimos, avval qo'shing.</div> : wallets.map(w => (
+              {wallets.length === 0 ? <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">{t.no_wallets}</div> : wallets.map(w => (
                   <div key={w.id} onClick={() => setSelectedWallet(w)} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${selectedWallet?.id === w.id ? 'bg-primary/10 border-primary' : 'bg-midnight-light border-slate-800'}`}>
                       <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
@@ -339,45 +460,46 @@ const Withdraw = ({ user }) => {
               ))}
           </div>
       </div>
-      <Card><label className="text-sm text-slate-400 mb-2 block">Yechiladigan summa</label><div className="flex items-center gap-2 border-b border-slate-700 pb-2"><span className="text-2xl font-bold text-slate-500">UZS</span><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" /></div></Card>
-      <Button onClick={handleWithdraw} className="w-full py-4 text-lg" disabled={wallets.length === 0}>Pul yechishga so'rov</Button>
+      <Card><label className="text-sm text-slate-400 mb-2 block">{t.withdraw_amount}</label><div className="flex items-center gap-2 border-b border-slate-700 pb-2"><span className="text-2xl font-bold text-slate-500">UZS</span><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" /></div></Card>
+      <Button onClick={handleWithdraw} className="w-full py-4 text-lg" disabled={wallets.length === 0}>{t.request_withdraw}</Button>
     </div>
   );
 };
 
-const Wallets = ({ user }) => {
+const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
     const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
+    const t = translations[lang];
     
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
     
     const fetchWallets = async () => { try { const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); setWallets(res.data.wallets || []); } catch (e) { console.error(e); } };
     
     const handleAdd = async () => {
-        if(!newWallet.number) return toast.error("Raqamni kiriting");
-        if(newWallet.type !== 'mostbet' && !newWallet.expiry) return toast.error("Amal qilish muddatini kiriting");
+        if(!newWallet.number) return toast.error(t.enter_valid_number);
+        if(newWallet.type !== 'mostbet' && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
             await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
             setIsAdding(false); 
             setNewWallet({ type: 'uzcard', number: '', expiry: '', name: '' }); 
             fetchWallets(); 
-            toast.success("Hamyon qo'shildi"); 
-        } catch(e) { toast.error("Xatolik yuz berdi"); }
+            toast.success(t.success_wallet); 
+        } catch(e) { toast.error(t.error); }
     };
     
     const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
 
     return (
         <div className="p-4 space-y-6 pb-24">
-            <h1 className="text-2xl font-bold">Mening hamyonlarim</h1>
+            <h1 className="text-2xl font-bold">{t.my_wallets}</h1>
             {isAdding ? (
                 <Card className="animate-in zoom-in-95 duration-200">
-                    <h3 className="font-bold mb-4">Yangi hamyon qo'shish</h3>
+                    <h3 className="font-bold mb-4">{t.add_wallet}</h3>
                     <div className="space-y-4">
                         <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Tur</label>
+                            <label className="text-xs text-slate-400 mb-1 block">{t.type}</label>
                             <select 
                                 className="w-full bg-midnight border border-slate-700 rounded-xl h-12 px-4 text-white outline-none" 
                                 value={newWallet.type} 
@@ -390,7 +512,7 @@ const Wallets = ({ user }) => {
                         </div>
                         <div>
                             <label className="text-xs text-slate-400 mb-1 block">
-                                {isCard ? "Karta raqami" : "Mostbet ID raqami"}
+                                {isCard ? t.card_number : t.number_id}
                             </label>
                             <Input 
                                 value={newWallet.number} 
@@ -401,7 +523,7 @@ const Wallets = ({ user }) => {
                         
                         {isCard && (
                             <div>
-                                <label className="text-xs text-slate-400 mb-1 block">Amal qilish muddati</label>
+                                <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
                                 <div className="relative">
                                     <Input 
                                         value={newWallet.expiry} 
@@ -415,12 +537,12 @@ const Wallets = ({ user }) => {
                         )}
 
                         <div className="flex gap-2 pt-2">
-                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">Bekor qilish</Button>
-                            <Button onClick={handleAdd} className="flex-1">Saqlash</Button>
+                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">{t.cancel}</Button>
+                            <Button onClick={handleAdd} className="flex-1">{t.save}</Button>
                         </div>
                     </div>
                 </Card>
-            ) : (<Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">+ Yangi hamyon qo'shish</Button>)}
+            ) : (<Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">+ {t.add_wallet}</Button>)}
             
             <div className="space-y-3">
                 {wallets.map((w, i) => (
@@ -432,7 +554,7 @@ const Wallets = ({ user }) => {
                              <div>
                                 <div className="font-bold uppercase text-white">{w.type}</div>
                                 <div className="text-slate-500 text-sm font-mono">{w.number}</div>
-                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">Expires: {w.expiry}</div>}
+                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
                              </div>
                         </div>
                     </div>
@@ -467,7 +589,6 @@ const Admin = ({ user }) => {
 
     const handleSearch = (e) => {
         setSearch(e.target.value);
-        // Debounce simple implementation
         setTimeout(() => fetchUsers(), 500);
     };
 
@@ -618,12 +739,9 @@ const Admin = ({ user }) => {
 
 function App() {
   const [user, setUser] = useState(null);
+  const [lang, setLang] = useState('uz'); // Default 'uz'
 
   useEffect(() => {
-    // Determine user data
-    // Use window.Telegram.WebApp.initDataUnsafe.user if available
-    // OTHERWISE use a mock user for testing in browser (since we can't login via TG in browser without initData)
-    
     let telegramId = 123456789;
     let firstName = "Demo User";
     let username = "demouser";
@@ -642,6 +760,7 @@ function App() {
                 username: username
             });
             setUser(res.data);
+            if(res.data.language) setLang(res.data.language);
             
             if(tg) {
                 tg.ready();
@@ -649,7 +768,6 @@ function App() {
             }
         } catch(e) { 
             console.error(e);
-            // Don't show toast on initial load error if it's just connectivity
         }
     };
     login();
@@ -659,14 +777,14 @@ function App() {
     <div className="App min-h-screen bg-midnight text-white font-body selection:bg-gold selection:text-black">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home user={user} />} />
-          <Route path="/deposit" element={<Deposit user={user} />} />
-          <Route path="/withdraw" element={<Withdraw user={user} />} />
-          <Route path="/wallets" element={<Wallets user={user} />} />
+          <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
+          <Route path="/deposit" element={<Deposit user={user} lang={lang} />} />
+          <Route path="/withdraw" element={<Withdraw user={user} lang={lang} />} />
+          <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
-          <Route path="/referral" element={<Referral user={user} />} />
+          <Route path="/referral" element={<Referral user={user} lang={lang} />} />
         </Routes>
-        <BottomNav isAdmin={user?.is_admin} />
+        <BottomNav isAdmin={user?.is_admin} lang={lang} />
       </BrowserRouter>
       <Toaster position="top-center" theme="dark" />
     </div>
