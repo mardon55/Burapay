@@ -607,15 +607,19 @@ async def get_all_users(search: str = ""):
 async def update_user_balance(telegram_id: int, data: dict = Body(...)):
     amount = float(data.get("amount", 0))
     tx_type = data.get("type", "credit")
+    currency = data.get("currency", "UZS")  # Default to UZS
     if amount <= 0: raise HTTPException(status_code=400, detail="Invalid amount")
 
+    # Determine balance field based on currency
+    balance_field = 'balance_uzs' if currency == 'UZS' else 'balance_usd'
+    
     inc_amount = amount if tx_type == "credit" else -amount
-    res = await db.users.update_one({"telegram_id": telegram_id}, {"$inc": {"balance": inc_amount}})
+    res = await db.users.update_one({"telegram_id": telegram_id}, {"$inc": {balance_field: inc_amount}})
     if res.modified_count == 0: raise HTTPException(status_code=404, detail="User not found")
     
     tx = Transaction(
         user_id=telegram_id, type="deposit" if tx_type == "credit" else "withdraw",
-        amount=amount, currency="UZS", method="admin_adjustment", status="approved", wallet_number="Admin Adjustment"
+        amount=amount, currency=currency, method="admin_adjustment", status="approved", wallet_number="Admin Adjustment"
     )
     await db.transactions.insert_one(tx.model_dump())
     
