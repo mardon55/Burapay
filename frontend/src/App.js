@@ -1209,6 +1209,31 @@ const Admin = ({ user }) => {
                             <Button onClick={handleSaveSettings}>Saqlash</Button>
                         </div>
                     </Card>
+
+                    {/* Kassa Info */}
+                    <Card className="border-yellow-500/30 bg-yellow-500/5">
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                            <Key size={20} className="text-yellow-500" />
+                            Mostbet Kassa
+                        </h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Kassa ID</label>
+                                <div className="bg-slate-800 rounded-lg p-3 font-mono text-sm text-yellow-500 break-all">
+                                    3d83ac24-7fd2-498d-84b4-f2a7e80401fb
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Login</label>
+                                <div className="bg-slate-800 rounded-lg p-3 font-mono text-sm text-slate-300">
+                                    murodjonraximov769@gmail.com
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                                Depozit tasdiqlashda kassa orqali pul o'tkazish uchun
+                            </p>
+                        </div>
+                    </Card>
                 </div>
             )}
 
