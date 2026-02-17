@@ -20,11 +20,17 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 
 ## What's Been Implemented ✅
 
+### 2025-02-17 - Hamyon O'chirish Funksiyasi
+- [x] Hamyonlarni o'chirish tugmasi qo'shildi
+- [x] Tasdiqlash dialogu (✓/✕ tugmalari)
+- [x] POST /api/wallets/delete API endpoint
+- [x] Multi-language toast xabarlari
+
 ### 2025-02-17 - Full System Verification
 - [x] Home page - balans va tranzaksiya tarixi
 - [x] Deposit page - UZS/USD toggle, admin kartalari
 - [x] Withdraw page - Mostbet hamyonlari, maxfiy kod
-- [x] Wallets page - hamyon qo'shish/ko'rish
+- [x] Wallets page - hamyon qo'shish/ko'rish/o'chirish
 - [x] Admin panel - ruxsat nazorati
 - [x] Multi-language support (uz/ru)
 - [x] Bottom navigation
@@ -44,7 +50,7 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.js     # All React components (1129 lines)
+│   │   ├── App.js     # All React components
 │   │   ├── index.js
 │   │   └── index.css
 │   └── .env           # REACT_APP_BACKEND_URL
@@ -55,6 +61,8 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 ## Key API Endpoints
 - `POST /api/auth/login` - User login/create
 - `GET /api/user/{telegram_id}` - User profile
+- `POST /api/wallets/add` - Add wallet
+- `POST /api/wallets/delete` - Delete wallet ✅ NEW
 - `POST /api/transactions/create` - Create deposit/withdraw
 - `GET /api/admin/cards` - Get payment cards
 - `GET/POST /api/admin/settings` - System settings
