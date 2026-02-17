@@ -10,6 +10,7 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 4. **Withdrawal Flow**: Faqat Mostbet hamyonlariga, 8 xonali maxfiy kod
 5. **Admin Panel**: Foydalanuvchilar, tranzaksiyalar, sozlamalar, kartalar boshqaruvi
 6. **Multi-language**: O'zbek va Rus tillari
+7. **Mandatory Card**: Uzcard/Humo karta qo'shish majburiy
 
 ## Tech Stack
 - **Backend**: FastAPI, Python
@@ -20,25 +21,19 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 
 ## What's Been Implemented ✅
 
-### 2025-02-17 - Hamyon Tahrirlash va O'chirish
-- [x] ✏️ Hamyonni tahrirlash modal oynasi
-- [x] 🗑️ Hamyonni o'chirish (tasdiqlash bilan)
-- [x] POST /api/wallets/update API endpoint
-- [x] POST /api/wallets/delete API endpoint
-- [x] Multi-language toast xabarlari
+### 2025-02-17 - Majburiy Karta va Admin Panel Tuzatish
+- [x] Uzcard/Humo karta majburiy qilindi (transaction yaratishdan oldin)
+- [x] has_card field user API ga qo'shildi
+- [x] Home sahifada sariq ogohlantirish banner qo'shildi
+- [x] short_id (8 belgi) Telegram callback uchun qo'shildi
+- [x] Admin action handler tuzatildi (short_id va id bo'yicha qidirish)
+- [x] Admin panel to'liq ishlayapti
 
-### 2025-02-17 - Full System Verification
-- [x] Home page - balans va tranzaksiya tarixi
-- [x] Deposit page - UZS/USD toggle, admin kartalari
-- [x] Withdraw page - Mostbet hamyonlari, maxfiy kod
-- [x] Wallets page - hamyon qo'shish/ko'rish/tahrirlash/o'chirish
-- [x] Admin panel - ruxsat nazorati
-- [x] Multi-language support (uz/ru)
-- [x] Bottom navigation
-
-### Testing Results
-- Backend: 100% (tests passed)
-- Frontend: 100% (all features working)
+### Oldingi Yangilanishlar
+- [x] Hamyon tahrirlash/o'chirish funksiyalari
+- [x] Deposit/Withdraw flow
+- [x] Multi-language (uz/ru)
+- [x] Admin panel (stats, pending tx, cards, users, settings)
 
 ## Architecture
 
@@ -59,25 +54,30 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 ```
 
 ## Key API Endpoints
-- `POST /api/auth/login` - User login/create
-- `GET /api/user/{telegram_id}` - User profile
+- `POST /api/auth/login` - User login/create (returns has_card, is_admin)
+- `GET /api/user/{telegram_id}` - User profile (returns has_card)
 - `POST /api/wallets/add` - Add wallet
-- `POST /api/wallets/update` - Update wallet ✅ NEW
-- `POST /api/wallets/delete` - Delete wallet ✅
-- `POST /api/transactions/create` - Create deposit/withdraw
-- `GET /api/admin/cards` - Get payment cards
+- `POST /api/wallets/update` - Update wallet
+- `POST /api/wallets/delete` - Delete wallet
+- `POST /api/transactions/create` - Create deposit/withdraw (requires Uzcard/Humo)
+- `GET /api/admin/stats` - Admin statistics
+- `GET /api/admin/transactions/pending` - Pending transactions
+- `GET/POST /api/admin/cards` - Admin payment cards
 - `GET/POST /api/admin/settings` - System settings
 
 ## Database Schema
 - **users**: telegram_id, internal_id, first_name, balance, wallets[], is_admin, language
-- **transactions**: id, user_id, type, amount, currency, status, secret_code
+- **transactions**: id, short_id, user_id, type, amount, currency, status, secret_code
 - **settings**: deposit_channel_id, withdraw_channel_id, exchange_rate
 - **admin_cards**: id, type, number
+
+## Telegram Callback Data
+- short_id (8 belgi) ishlatiladi (UUID 64 bayt chegarasidan oshmasligi uchun)
+- Format: `admin_approve_{short_id}` yoki `admin_reject_{short_id}`
 
 ## Future/Backlog Tasks
 - [ ] App.js ni alohida komponentlarga refactor qilish
 - [ ] data-testid atributlarini qo'shish
-- [ ] Error handling yaxshilash
 
 ## Credentials
 - Admin Telegram ID: 1617111900
