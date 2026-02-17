@@ -383,6 +383,36 @@ async def delete_wallet(data: dict = Body(...)):
         raise HTTPException(status_code=404, detail="Wallet not found")
     return {"message": "Hamyon o'chirildi"}
 
+@api_router.post("/wallets/update")
+async def update_wallet(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    wallet_id = data.get("wallet_id")
+    wallet_data = data.get("wallet")
+    
+    if not telegram_id or not wallet_id or not wallet_data:
+        raise HTTPException(status_code=400, detail="Invalid data")
+
+    # Build update query for nested array element
+    update_fields = {}
+    if wallet_data.get("number"):
+        update_fields["wallets.$.number"] = wallet_data["number"]
+    if wallet_data.get("expiry") is not None:
+        update_fields["wallets.$.expiry"] = wallet_data["expiry"]
+    if wallet_data.get("type"):
+        update_fields["wallets.$.type"] = wallet_data["type"]
+
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    result = await db.users.update_one(
+        {"telegram_id": telegram_id, "wallets.id": wallet_id},
+        {"$set": update_fields}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    return {"message": "Hamyon yangilandi"}
+
 @api_router.post("/transactions/create")
 async def create_transaction(tx: TransactionCreate):
     user = await db.users.find_one({"telegram_id": tx.user_id})
