@@ -490,7 +490,8 @@ async def create_transaction(tx: TransactionCreate):
                f"🔑 <b>Kod:</b> {tx.secret_code if tx.secret_code else 'Kiritilmagan'}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
     
-    await send_notification(msg, tx.type, transaction.id)
+    # Use short_id for callback data (Telegram limit is 64 bytes)
+    await send_notification(msg, tx.type, transaction.short_id)
     return transaction
 
 @api_router.get("/transactions/{telegram_id}")
