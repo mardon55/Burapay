@@ -67,8 +67,13 @@ class User(BaseModel):
     language: str = "uz" # 'uz' or 'ru'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+def generate_short_id():
+    """Generate a short 8-character ID for callback data"""
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
 class Transaction(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    short_id: str = Field(default_factory=generate_short_id)
     user_id: int
     type: Literal['deposit', 'withdraw']
     amount: float
