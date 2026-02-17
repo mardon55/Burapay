@@ -368,7 +368,7 @@ async def add_wallet(data: dict = Body(...)):
     if result.modified_count == 0: raise HTTPException(status_code=404, detail="User not found")
     return {"message": "Hamyon qo'shildi", "wallet": new_wallet}
 
-@api_router.delete("/wallets/delete")
+@api_router.post("/wallets/delete")
 async def delete_wallet(data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
     wallet_id = data.get("wallet_id")
