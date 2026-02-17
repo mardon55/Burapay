@@ -26,7 +26,9 @@ import {
   Megaphone,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Key
+  Key,
+  Banknote,
+  Coins
 } from "lucide-react";
 import axios from "axios";
 
@@ -92,7 +94,10 @@ const translations = {
     mostbet_id: "Mostbet ID raqami",
     secret_code: "Tasdiqlash kodi",
     code_placeholder: "Mostbet kodi (8 xonali)",
-    add_card_required: "Iltimos, avval Uzcard yoki Humo karta qo'shing!"
+    add_card_required: "Iltimos, avval Uzcard yoki Humo karta qo'shing!",
+    choose_currency: "Valyutani tanlang",
+    choose_payment: "To'lov usulini tanlang",
+    admin_card_not_set: "Admin kartasi kiritilmagan"
   },
   ru: {
     home: "Главная",
@@ -148,7 +153,10 @@ const translations = {
     mostbet_id: "Номер Mostbet ID",
     secret_code: "Код подтверждения",
     code_placeholder: "Код Mostbet (8 знаков)",
-    add_card_required: "Пожалуйста, сначала добавьте карту Uzcard или Humo!"
+    add_card_required: "Пожалуйста, сначала добавьте карту Uzcard или Humo!",
+    choose_currency: "Выберите валюту",
+    choose_payment: "Выберите способ оплаты",
+    admin_card_not_set: "Карта админа не установлена"
   }
 };
 
@@ -389,14 +397,14 @@ const Referral = ({ user, lang }) => {
 const Deposit = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState(""); // selected wallet id
+  const [currency, setCurrency] = useState(""); // UZS, USD, RUB
+  const [selectedAdminCard, setSelectedAdminCard] = useState(""); // Only for UZS
   const [step, setStep] = useState(1); 
-  const [userWallets, setUserWallets] = useState([]);
   const [adminSettings, setAdminSettings] = useState({});
   const t = translations[lang];
 
   useEffect(() => {
-      // Check for card presence
+      // Check for card presence - User must have at least one card added
       if (user?.wallets) {
           const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
           if (!hasCard) {
@@ -404,14 +412,6 @@ const Deposit = ({ user, lang }) => {
               navigate('/wallets');
               return;
           }
-          // Filter wallets for deposit (Include Cards + Mostbet)
-          // Actually, we want to allow depositing via Cards OR via Mostbet transfer?
-          // Prompt says: "to select these currencies, they must be entered in wallet".
-          // So we show User's wallets as source.
-          const available = user.wallets.filter(w => 
-              ['uzcard', 'humo', 'mostbet_uzs', 'mostbet_usd', 'mostbet_rub'].includes(w.type)
-          );
-          setUserWallets(available);
       }
       fetchSettings();
   }, [user, navigate, t.add_card_required]);
@@ -420,26 +420,26 @@ const Deposit = ({ user, lang }) => {
       try { const res = await axios.get(`${API_URL}/admin/settings`); setAdminSettings(res.data); } catch(e) {}
   };
 
-  const selectedWalletObj = userWallets.find(w => w.id === method);
-  const currency = selectedWalletObj?.type.includes('usd') ? 'USD' : selectedWalletObj?.type.includes('rub') ? 'RUB' : 'UZS';
-  const symbol = currency === 'USD' ? '$' : currency === 'RUB' ? '₽' : 'UZS';
-
   const handleNext = () => {
-      if(!method) return toast.error(t.select_wallet);
-      if(!amount) return toast.error(t.enter_valid_amount);
-      if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
+      if(!currency) return toast.error(t.choose_currency);
+      // If UZS, user needs to pick Uzcard or Humo admin card
+      if(currency === 'UZS' && !selectedAdminCard) return toast.error(t.choose_payment);
+      
       setStep(2);
   };
 
   const handleDeposit = async () => {
+    if(!amount) return toast.error(t.enter_valid_amount);
+    if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
+
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
         type: "deposit",
         amount: Number(amount),
         currency: currency,
-        method: selectedWalletObj.type,
-        wallet_number: selectedWalletObj.number, // The user's wallet they are sending FROM
+        method: currency === 'UZS' ? (selectedAdminCard === adminSettings.admin_card_uzcard ? 'UZCARD' : 'HUMO') : `Mostbet ${currency}`,
+        wallet_number: "External", // Just marking as external transfer
         manual_check: true
       });
       toast.success(t.success_deposit);
@@ -447,19 +447,15 @@ const Deposit = ({ user, lang }) => {
     } catch (e) { toast.error(t.error); }
   };
 
-  // Determine Admin Account to show
-  let adminAccount = "";
-  if(selectedWalletObj) {
-      if(selectedWalletObj.type === 'uzcard') adminAccount = adminSettings.admin_card_uzcard;
-      else if(selectedWalletObj.type === 'humo') adminAccount = adminSettings.admin_card_humo;
-      else if(selectedWalletObj.type === 'mostbet_uzs') adminAccount = adminSettings.admin_mostbet_uzs;
-      else if(selectedWalletObj.type === 'mostbet_usd') adminAccount = adminSettings.admin_mostbet_usd;
-      else if(selectedWalletObj.type === 'mostbet_rub') adminAccount = adminSettings.admin_mostbet_rub;
-  }
+  // Determine what to show to user to transfer TO
+  let transferTarget = "";
+  if (currency === 'UZS') transferTarget = selectedAdminCard;
+  else if (currency === 'USD') transferTarget = adminSettings.admin_mostbet_usd;
+  else if (currency === 'RUB') transferTarget = adminSettings.admin_mostbet_rub;
 
   const copyAccount = () => {
-      if(adminAccount) {
-          navigator.clipboard.writeText(adminAccount);
+      if(transferTarget) {
+          navigator.clipboard.writeText(transferTarget);
           toast.success(t.copied);
       }
   };
@@ -469,31 +465,95 @@ const Deposit = ({ user, lang }) => {
       <h1 className="text-2xl font-bold">{t.deposit_title}</h1>
       
       {step === 1 ? (
-          <>
-            <div className="space-y-2 mb-4">
-                <label className="text-xs text-slate-400 ml-1">Qaysi hamyondan to'ldirasiz?</label>
-                <div className="grid grid-cols-2 gap-2">
-                    {userWallets.map(w => (
+          <div className="space-y-6 animate-in fade-in">
+            {/* Currency Selection */}
+            <div>
+                <label className="text-sm text-slate-400 mb-2 block">{t.choose_currency}</label>
+                <div className="grid grid-cols-3 gap-3">
+                    {['UZS', 'USD', 'RUB'].map(c => (
                         <button
-                            key={w.id}
-                            onClick={() => setMethod(w.id)}
-                            className={`p-3 rounded-xl border text-left transition-all ${
-                                method === w.id 
-                                ? 'bg-primary/20 border-primary text-white' 
+                            key={c}
+                            onClick={() => { setCurrency(c); setSelectedAdminCard(""); }}
+                            className={`p-4 rounded-xl border font-bold text-center transition-all ${
+                                currency === c 
+                                ? 'bg-primary text-black border-primary' 
                                 : 'bg-midnight-light border-slate-700 text-slate-400'
                             }`}
                         >
-                            <div className="font-bold text-sm uppercase">{w.type.replace('_', ' ')}</div>
-                            <div className="text-xs opacity-70 truncate">{w.number}</div>
+                            {c}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <Card>
+            {/* If UZS, show Admin Cards options */}
+            {currency === 'UZS' && (
+                <div className="animate-in slide-in-from-top-2">
+                    <label className="text-sm text-slate-400 mb-2 block">{t.choose_payment}</label>
+                    <div className="space-y-2">
+                        {adminSettings.admin_card_uzcard && (
+                            <button 
+                                onClick={() => setSelectedAdminCard(adminSettings.admin_card_uzcard)}
+                                className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
+                                    selectedAdminCard === adminSettings.admin_card_uzcard
+                                    ? 'bg-blue-600/20 border-blue-500 text-white'
+                                    : 'bg-midnight-light border-slate-700 text-slate-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <CreditCard className="text-blue-500" />
+                                    <div className="text-left">
+                                        <div className="font-bold">UZCARD</div>
+                                        <div className="text-xs opacity-70">Admin kartasi</div>
+                                    </div>
+                                </div>
+                                {selectedAdminCard === adminSettings.admin_card_uzcard && <CheckCircle2 size={20} className="text-blue-500" />}
+                            </button>
+                        )}
+                        {adminSettings.admin_card_humo && (
+                            <button 
+                                onClick={() => setSelectedAdminCard(adminSettings.admin_card_humo)}
+                                className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
+                                    selectedAdminCard === adminSettings.admin_card_humo
+                                    ? 'bg-orange-600/20 border-orange-500 text-white'
+                                    : 'bg-midnight-light border-slate-700 text-slate-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <CreditCard className="text-orange-500" />
+                                    <div className="text-left">
+                                        <div className="font-bold">HUMO</div>
+                                        <div className="text-xs opacity-70">Admin kartasi</div>
+                                    </div>
+                                </div>
+                                {selectedAdminCard === adminSettings.admin_card_humo && <CheckCircle2 size={20} className="text-orange-500" />}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
+          </div>
+      ) : (
+          <div className="space-y-4 animate-in slide-in-from-right">
+              <Card highlight className="text-center py-8">
+                  <p className="text-slate-400 mb-2">{t.transfer_to}</p>
+                  <div className="text-2xl font-mono font-bold tracking-wider mb-4 text-white break-all">
+                      {transferTarget || t.admin_card_not_set}
+                  </div>
+                  {transferTarget && (
+                      <Button variant="secondary" onClick={copyAccount} className="mx-auto text-sm h-9">
+                          <Copy size={16} className="mr-2" />
+                          {t.copy_num}
+                      </Button>
+                  )}
+              </Card>
+
+              <Card>
                 <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
                 <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-                    <span className="text-2xl font-bold text-slate-500">{symbol}</span>
+                    <span className="text-2xl font-bold text-slate-500">{currency === 'USD' ? '$' : currency === 'RUB' ? '₽' : 'UZS'}</span>
                     <input 
                         type="number" 
                         value={amount} 
@@ -503,22 +563,6 @@ const Deposit = ({ user, lang }) => {
                     />
                 </div>
                 {currency === 'UZS' && <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>}
-            </Card>
-            <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
-          </>
-      ) : (
-          <div className="space-y-4 animate-in slide-in-from-right">
-              <Card highlight className="text-center py-8">
-                  <p className="text-slate-400 mb-2">{t.transfer_to}</p>
-                  <div className="text-2xl font-mono font-bold tracking-wider mb-4 text-white break-all">
-                      {adminAccount || "Admin hisobi kiritilmagan"}
-                  </div>
-                  {adminAccount && (
-                      <Button variant="secondary" onClick={copyAccount} className="mx-auto text-sm h-9">
-                          <Copy size={16} className="mr-2" />
-                          {t.copy_num}
-                      </Button>
-                  )}
               </Card>
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
