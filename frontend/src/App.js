@@ -688,12 +688,18 @@ const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
     const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
+    const [editingWallet, setEditingWallet] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
     const t = translations[lang];
     
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
     
-    const fetchWallets = async () => { try { const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); setWallets(res.data.wallets || []); } catch (e) { console.error(e); } };
+    const fetchWallets = async () => { 
+        try { 
+            const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); 
+            setWallets(res.data.wallets || []); 
+        } catch (e) { console.error(e); } 
+    };
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
@@ -721,12 +727,38 @@ const Wallets = ({ user, lang }) => {
         }
         setDeletingId(null);
     };
+
+    const handleUpdate = async () => {
+        if(!editingWallet.number) return toast.error(t.enter_valid_number);
+        const isCard = editingWallet.type === 'uzcard' || editingWallet.type === 'humo';
+        if(isCard && !editingWallet.expiry) return toast.error("Expiry required");
+        
+        try {
+            await axios.post(`${API_URL}/wallets/update`, {
+                telegram_id: user.telegram_id,
+                wallet_id: editingWallet.id,
+                wallet: {
+                    number: editingWallet.number,
+                    expiry: editingWallet.expiry || '',
+                    type: editingWallet.type
+                }
+            });
+            toast.success(lang === 'uz' ? "Hamyon yangilandi" : "Кошелек обновлен");
+            setEditingWallet(null);
+            fetchWallets();
+        } catch(e) {
+            toast.error(t.error);
+        }
+    };
     
     const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
+    const isEditCard = editingWallet?.type === 'uzcard' || editingWallet?.type === 'humo';
 
     return (
         <div className="p-4 space-y-6 pb-24">
             <h1 className="text-2xl font-bold">{t.my_wallets}</h1>
+            
+            {/* Add Wallet Form */}
             {isAdding ? (
                 <Card className="animate-in zoom-in-95 duration-200">
                     <h3 className="font-bold mb-4">{t.add_wallet}</h3>
@@ -777,46 +809,111 @@ const Wallets = ({ user, lang }) => {
                     </div>
                 </Card>
             ) : (<Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">+ {t.add_wallet}</Button>)}
-            
-            <div className="space-y-3">
-                {wallets.map((w, i) => (
-                    <div key={w.id || i} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                                  <CreditCard size={20} className="text-slate-300" />
-                              </div>
-                             <div>
-                                <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
-                                <div className="text-slate-500 text-sm font-mono">{w.number}</div>
-                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
-                             </div>
-                        </div>
-                        {deletingId === w.id ? (
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => handleDelete(w.id)}
-                                    className="p-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
-                                >
-                                    <CheckCircle2 size={18} />
-                                </button>
-                                <button 
-                                    onClick={() => setDeletingId(null)}
-                                    className="p-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
-                                >
-                                    <X size={18} />
-                                </button>
+
+            {/* Edit Wallet Modal */}
+            {editingWallet && (
+                <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm bg-midnight border-slate-700 animate-in zoom-in-95">
+                        <h3 className="font-bold text-lg mb-4">{lang === 'uz' ? "Hamyonni tahrirlash" : "Редактировать кошелек"}</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">{t.type}</label>
+                                <div className="w-full bg-slate-800 border border-slate-700 rounded-xl h-12 px-4 text-slate-400 flex items-center uppercase">
+                                    {editingWallet.type.replace('_', ' ')}
+                                </div>
                             </div>
-                        ) : (
-                            <button 
-                                onClick={() => setDeletingId(w.id)}
-                                className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                data-testid={`delete-wallet-${w.id}`}
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">
+                                    {isEditCard ? t.card_number : t.mostbet_id}
+                                </label>
+                                <Input 
+                                    value={editingWallet.number} 
+                                    onChange={e => setEditingWallet({...editingWallet, number: e.target.value})} 
+                                    placeholder={isEditCard ? "8600 0000 0000 0000" : "123456789"} 
+                                />
+                            </div>
+                            
+                            {isEditCard && (
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
+                                    <div className="relative">
+                                        <Input 
+                                            value={editingWallet.expiry || ''} 
+                                            onChange={e => setEditingWallet({...editingWallet, expiry: e.target.value})} 
+                                            placeholder="MM/YY" 
+                                            maxLength={5}
+                                        />
+                                        <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="secondary" onClick={() => setEditingWallet(null)} className="flex-1">{t.cancel}</Button>
+                                <Button onClick={handleUpdate} className="flex-1">{t.save}</Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+            
+            {/* Wallets List */}
+            <div className="space-y-3">
+                {wallets.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 border border-dashed border-slate-700 rounded-xl">
+                        {lang === 'uz' ? "Hamyonlar yo'q" : "Нет кошельков"}
                     </div>
-                ))}
+                ) : (
+                    wallets.map((w) => (
+                        <div key={w.id} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                                    <CreditCard size={20} className="text-slate-300" />
+                                </div>
+                                <div>
+                                    <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
+                                    <div className="text-slate-500 text-sm font-mono">{w.number}</div>
+                                    {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
+                                </div>
+                            </div>
+                            
+                            {deletingId === w.id ? (
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => handleDelete(w.id)}
+                                        className="p-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
+                                        data-testid={`confirm-delete-${w.id}`}
+                                    >
+                                        <CheckCircle2 size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setDeletingId(null)}
+                                        className="p-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-1">
+                                    <button 
+                                        onClick={() => setEditingWallet({...w})}
+                                        className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                        data-testid={`edit-wallet-${w.id}`}
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setDeletingId(w.id)}
+                                        className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        data-testid={`delete-wallet-${w.id}`}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
