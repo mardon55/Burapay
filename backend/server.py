@@ -312,32 +312,57 @@ async def admin_action_handler(callback: CallbackQuery):
         balance_field = 'balance_uzs' if tx['currency'] == 'UZS' else 'balance_usd'
 
         if action == "approve":
-            if tx['type'] == 'deposit':
-                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
-            await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
-            status_text = "✅ TASDIQLANDI"
-            
             # Get user's Mostbet ID for kassa transfer
             user = await db.users.find_one({"telegram_id": tx['user_id']})
             mostbet_type = 'mostbet_uzs' if tx['currency'] == 'UZS' else 'mostbet_usd'
-            mostbet_id = "Topilmadi"
+            mostbet_id = None
             for w in user.get('wallets', []):
                 if w['type'] == mostbet_type:
                     mostbet_id = w['number']
                     break
-            if mostbet_id == "Topilmadi":
+            if not mostbet_id:
                 for w in user.get('wallets', []):
                     if w['type'].startswith('mostbet'):
                         mostbet_id = w['number']
                         break
             
-            # Send kassa transfer info to admin
-            kassa_msg = (f"💰 <b>KASSA ORQALI O'TKAZISH:</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
-                        f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"📋 ID ni bosib nusxa oling")
+            # Auto transfer via Mostbet Kassa API
+            kassa_result = None
+            if mostbet_id and tx['type'] == 'deposit':
+                kassa_result = await mostbet_deposit(mostbet_id, tx['amount'], tx['currency'])
+                logging.info(f"Mostbet Kassa Result: {kassa_result}")
+            
+            if tx['type'] == 'deposit':
+                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
+            await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
+            
+            # Status text based on kassa result
+            if kassa_result and kassa_result.get('success'):
+                status_text = "✅ TASDIQLANDI (Kassadan o'tkazildi)"
+                kassa_msg = (f"✅ <b>KASSA O'TKAZISH MUVAFFAQIYATLI!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
+                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Avtomatik o'tkazildi!")
+            elif kassa_result and not kassa_result.get('success'):
+                status_text = "✅ TASDIQLANDI (Kassa xato)"
+                error_msg = kassa_result.get('error', 'Noma\'lum xato')
+                kassa_msg = (f"⚠️ <b>KASSA XATOLIK!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
+                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
+                            f"❌ <b>Xato:</b> {error_msg}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📋 Qo'lda o'tkazing!")
+            else:
+                status_text = "✅ TASDIQLANDI"
+                kassa_msg = (f"💰 <b>KASSA ORQALI O'TKAZISH:</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id or 'Topilmadi'}</code>\n"
+                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📋 Qo'lda o'tkazing!")
             
             try:
                 await bot.send_message(callback.from_user.id, kassa_msg, parse_mode="HTML")
