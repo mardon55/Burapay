@@ -786,7 +786,28 @@ async def delete_admin_card(id: str):
 @api_router.get("/admin/settings")
 async def get_settings():
     settings = await db.settings.find_one({}, {"_id": 0})
-    return settings or {}
+    result = settings or {}
+    result["mostbet_api_key"] = MOSTBET_API_KEY[:8] + "..." if MOSTBET_API_KEY else ""
+    result["mostbet_cashpoint_id"] = MOSTBET_CASHPOINT_ID
+    return result
+
+@api_router.get("/admin/kassa/balance")
+async def get_kassa_balance():
+    """Check Mostbet Kassa balance via API."""
+    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY or not MOSTBET_CASHPOINT_ID:
+        return {"success": False, "error": "Kassa credentials not configured"}
+    try:
+        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_CASHPOINT_ID}/balance"
+        url = f"https://apimb.com{path}"
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        headers = mostbet_headers(MOSTBET_API_KEY, MOSTBET_SECRET_KEY, path, "", timestamp)
+        async with httpx.AsyncClient(timeout=15.0) as http_client:
+            response = await http_client.get(url, headers=headers)
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            return {"success": False, "error": f"{response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @api_router.post("/admin/settings")
 async def update_settings(data: Settings):
