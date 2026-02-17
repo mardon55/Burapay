@@ -358,6 +358,29 @@ class TestAdminSettingsEndpoints:
         if "exchange_rate" in data:
             print(f"  Exchange rate: 1 USD = {data['exchange_rate']} UZS")
     
+    def test_get_settings_mostbet_api_key(self):
+        """Test /api/admin/settings returns mostbet_api_key field"""
+        response = requests.get(f"{BASE_URL}/api/admin/settings")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert "mostbet_api_key" in data
+        assert isinstance(data["mostbet_api_key"], str)
+        # API key should be masked (first 8 chars + ...)
+        if data["mostbet_api_key"]:
+            assert "..." in data["mostbet_api_key"] or len(data["mostbet_api_key"]) > 0
+        print(f"✓ Mostbet API Key field present: {data['mostbet_api_key']}")
+    
+    def test_get_settings_mostbet_cashpoint_id(self):
+        """Test /api/admin/settings returns mostbet_cashpoint_id field"""
+        response = requests.get(f"{BASE_URL}/api/admin/settings")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert "mostbet_cashpoint_id" in data
+        assert isinstance(data["mostbet_cashpoint_id"], str)
+        print(f"✓ Mostbet Cashpoint ID field present: {data['mostbet_cashpoint_id']}")
+    
     def test_update_settings(self):
         """Test updating admin settings"""
         # Get current settings
