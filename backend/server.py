@@ -50,7 +50,7 @@ class Wallet(BaseModel):
 
 class AdminCard(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: str # 'uzcard', 'humo'
+    type: str # 'uzcard', 'humo', 'mostbet_uzs', 'mostbet_usd'
     number: str
     holder_name: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -91,7 +91,7 @@ class TransactionCreate(BaseModel):
 class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
-    exchange_rate: float = 12800.0 # Default USD rate
+    exchange_rate: float = 12800.0
 
 # Messages
 MESSAGES = {
@@ -117,7 +117,7 @@ MESSAGES = {
 
 # Bot Handlers
 @dp.message(CommandStart())
-async def cmd_start(message: types.Message, command: CommandObject):
+async def cmd_start(message: types.Message):
     try:
         user_data = await db.users.find_one({"telegram_id": message.from_user.id})
         
