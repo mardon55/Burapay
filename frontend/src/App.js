@@ -36,7 +36,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
 
-// Admin Cards
+// Admin Cards (Only for Deposit info display)
 const ADMIN_CARDS = {
     humo: "9860 1601 3375 2081",
     uzcard: "8600 0102 0304 0506"
@@ -538,7 +538,6 @@ const Withdraw = ({ user, lang }) => {
                           <div>
                               <div className="font-bold text-white uppercase">{w.type.replace('_', ' ')}</div>
                               <div className="text-xs text-slate-500">{w.number}</div>
-                              {w.expiry && <div className="text-[10px] text-slate-600">{w.expiry}</div>}
                           </div>
                       </div>
                       {selectedWallet?.id === w.id && <div className="w-4 h-4 rounded-full bg-primary" />}
@@ -578,7 +577,7 @@ const Withdraw = ({ user, lang }) => {
 const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
-    const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
+    const [newWallet, setNewWallet] = useState({ type: 'mostbet_uzs', number: '', expiry: '', name: '' });
     const t = translations[lang];
     
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
@@ -587,19 +586,16 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
-        if((newWallet.type !== 'mostbet_uzs' && newWallet.type !== 'mostbet_usd') && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
             await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
             setIsAdding(false); 
-            setNewWallet({ type: 'uzcard', number: '', expiry: '', name: '' }); 
+            setNewWallet({ type: 'mostbet_uzs', number: '', expiry: '', name: '' }); 
             fetchWallets(); 
             toast.success(t.success_wallet); 
         } catch(e) { toast.error(t.error); }
     };
     
-    const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
-
     return (
         <div className="p-4 space-y-6 pb-24">
             <h1 className="text-2xl font-bold">{t.my_wallets}</h1>
@@ -614,38 +610,22 @@ const Wallets = ({ user, lang }) => {
                                 value={newWallet.type} 
                                 onChange={e => setNewWallet({...newWallet, type: e.target.value})}
                             >
-                                <option value="uzcard">Uzcard</option>
-                                <option value="humo">Humo</option>
                                 <option value="mostbet_uzs">Mostbet UZS</option>
                                 <option value="mostbet_usd">Mostbet USD</option>
+                                <option value="mostbet_rub">Mostbet RUB</option>
                             </select>
                         </div>
                         <div>
                             <label className="text-xs text-slate-400 mb-1 block">
-                                {isCard ? t.card_number : t.number_id}
+                                {t.mostbet_id}
                             </label>
                             <Input 
                                 value={newWallet.number} 
                                 onChange={e => setNewWallet({...newWallet, number: e.target.value})} 
-                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"} 
+                                placeholder="123456789" 
                             />
                         </div>
                         
-                        {isCard && (
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
-                                <div className="relative">
-                                    <Input 
-                                        value={newWallet.expiry} 
-                                        onChange={e => setNewWallet({...newWallet, expiry: e.target.value})} 
-                                        placeholder="MM/YY" 
-                                        maxLength={5}
-                                    />
-                                    <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
-                                </div>
-                            </div>
-                        )}
-
                         <div className="flex gap-2 pt-2">
                             <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">{t.cancel}</Button>
                             <Button onClick={handleAdd} className="flex-1">{t.save}</Button>
@@ -664,7 +644,6 @@ const Wallets = ({ user, lang }) => {
                              <div>
                                 <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
                                 <div className="text-slate-500 text-sm font-mono">{w.number}</div>
-                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
                              </div>
                         </div>
                     </div>
