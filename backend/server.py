@@ -657,13 +657,14 @@ async def start_bot():
         # Delete any existing webhook and set new one
         await bot.delete_webhook(drop_pending_updates=True)
         
-        # Get webhook URL from frontend env
-        webhook_url = os.environ.get('WEBHOOK_URL', WEBAPP_URL.replace('https://', 'https://').rstrip('/') + '/api/webhook')
+        # Get webhook URL - use base URL without /api prefix
+        base_url = WEBAPP_URL.rstrip('/')
+        webhook_url = f"{base_url}/api/webhook"
         
         # Set webhook
         try:
-            await bot.set_webhook(webhook_url)
-            logging.info(f"Webhook set to: {webhook_url}")
+            result = await bot.set_webhook(webhook_url)
+            logging.info(f"Webhook set to: {webhook_url}, result: {result}")
         except Exception as e:
             logging.error(f"Failed to set webhook: {e}")
             # Fallback to polling if webhook fails
