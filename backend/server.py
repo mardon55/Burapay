@@ -239,9 +239,12 @@ async def admin_action_handler(callback: CallbackQuery):
             await callback.message.edit_reply_markup(reply_markup=None)
             return
 
+        # Determine balance field based on currency
+        balance_field = 'balance_uzs' if tx['currency'] == 'UZS' else 'balance_usd'
+
         if action == "approve":
             if tx['type'] == 'deposit':
-                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
             await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
             status_text = "✅ TASDIQLANDI"
             
@@ -254,7 +257,7 @@ async def admin_action_handler(callback: CallbackQuery):
 
         elif action == "reject":
             if tx['type'] == 'withdraw':
-                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
             await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "rejected"}})
             status_text = "❌ RAD ETILDI"
             
