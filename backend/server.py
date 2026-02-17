@@ -42,59 +42,59 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # Mostbet Kassa API Configuration
-MOSTBET_API_KEY = os.environ.get('MOSTBET_KASSA_ID', '')
+MOSTBET_API_KEY = os.environ.get('MOSTBET_API_KEY', '')
 MOSTBET_SECRET_KEY = os.environ.get('MOSTBET_SECRET_KEY', '')
-MOSTBET_API_BASE = "https://apimb.com/mbc/gateway/v1/api/cashpoint"
+MOSTBET_CASHPOINT_ID = os.environ.get('MOSTBET_CASHPOINT_ID', '')
+
+def mostbet_sign(api_key: str, secret: str, path: str, body_str: str, timestamp: str) -> str:
+    """Generate HMAC SHA3-256 signature per Mostbet API docs."""
+    sign_string = f"api-key:{api_key}{path}{body_str}{timestamp}"
+    return hmac.new(
+        secret.encode('utf-8'),
+        sign_string.encode('utf-8'),
+        hashlib.sha3_256
+    ).hexdigest()
+
+def mostbet_headers(api_key: str, secret: str, path: str, body_str: str, timestamp: str, project: str = None) -> dict:
+    """Build required Mostbet API headers."""
+    sig = mostbet_sign(api_key, secret, path, body_str, timestamp)
+    h = {
+        "X-Api-Key": f"api-key:{api_key}",
+        "X-Timestamp": timestamp,
+        "X-Signature": sig,
+    }
+    if project:
+        h["X-Project"] = project
+        h["Content-Type"] = "application/json"
+    return h
 
 async def mostbet_deposit(player_id: str, amount: float, currency: str = "UZS") -> dict:
-    """
-    Transfer money to player's Mostbet account via Kassa API
-    """
-    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY:
+    """Transfer money to player's Mostbet account via Kassa API."""
+    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY or not MOSTBET_CASHPOINT_ID:
         return {"success": False, "error": "Kassa credentials not configured"}
     
     try:
-        # API endpoint
-        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_API_KEY}/player/deposit"
+        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_CASHPOINT_ID}/player/deposit"
         url = f"https://apimb.com{path}"
         
-        # Request body
         body = {
             "brandId": 1,
-            "playerId": player_id,
+            "playerId": str(player_id),
             "amount": int(amount),
             "currency": currency
         }
-        body_str = str(body).replace("'", '"').replace(" ", "")
+        body_str = json.dumps(body, separators=(',', ':'))
         
-        # Timestamp in UTC
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         
-        # Create signature string: api-key + path + body + timestamp
-        signature_string = f"{MOSTBET_API_KEY}{path}{body_str}{timestamp}"
-        
-        # HMAC SHA3-256 signature
-        signature = hmac.new(
-            MOSTBET_SECRET_KEY.encode('utf-8'),
-            signature_string.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-        
-        # Headers
-        headers = {
-            "Content-Type": "application/json",
-            "X-Api-Key": MOSTBET_API_KEY,
-            "X-Timestamp": timestamp,
-            "X-Signature": signature,
-            "X-Project": "MBC"
-        }
+        headers = mostbet_headers(MOSTBET_API_KEY, MOSTBET_SECRET_KEY, path, body_str, timestamp, project="MBC")
         
         logging.info(f"Mostbet API Request: {url}")
-        logging.info(f"Body: {body}")
+        logging.info(f"Body: {body_str}")
+        logging.info(f"Timestamp: {timestamp}")
         
-        # Make request
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=body, headers=headers)
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            response = await http_client.post(url, content=body_str, headers=headers)
             
             logging.info(f"Mostbet API Response: {response.status_code} - {response.text}")
             
