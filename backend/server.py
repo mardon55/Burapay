@@ -345,9 +345,11 @@ async def login(data: dict = Body(...)):
     if "language" not in user:
         update_fields["language"] = "uz"
         user["language"] = "uz"
+    # Set is_admin from env OR keep existing is_admin status
     if is_admin_env and not user.get('is_admin'):
         update_fields["is_admin"] = True
         user['is_admin'] = True
+    # Keep existing is_admin if already set (don't reset to false)
     if data.get("first_name") and user.get("first_name") != data.get("first_name"):
         update_fields["first_name"] = data.get("first_name")
         user["first_name"] = data.get("first_name")
