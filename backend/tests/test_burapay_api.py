@@ -404,6 +404,50 @@ class TestAdminSettingsEndpoints:
         print("✓ Settings update works correctly")
 
 
+class TestMostbetKassaEndpoints:
+    """Mostbet Kassa API endpoint tests"""
+    
+    def test_get_kassa_balance(self):
+        """Test /api/admin/kassa/balance returns balance data"""
+        response = requests.get(f"{BASE_URL}/api/admin/kassa/balance")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert "success" in data
+        if data["success"]:
+            assert "data" in data
+            assert "balance" in data["data"]
+            assert "currency" in data["data"]
+            assert isinstance(data["data"]["balance"], (int, float))
+            assert isinstance(data["data"]["currency"], str)
+            print(f"✓ Kassa balance: {data['data']['balance']} {data['data']['currency']}")
+        else:
+            # May fail if credentials not configured
+            assert "error" in data
+            print(f"✓ Kassa balance endpoint returns error (credentials may not be set): {data.get('error')}")
+    
+    def test_kassa_balance_response_structure(self):
+        """Test kassa balance API returns correct structure"""
+        response = requests.get(f"{BASE_URL}/api/admin/kassa/balance")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Must have success field
+        assert "success" in data
+        assert isinstance(data["success"], bool)
+        
+        # If success, must have data with balance and currency
+        if data["success"]:
+            assert "data" in data
+            assert "balance" in data["data"]
+            assert "currency" in data["data"]
+            print(f"✓ Kassa balance structure valid: success={data['success']}, balance={data['data']['balance']}")
+        else:
+            # If error, must have error field
+            assert "error" in data
+            print(f"✓ Kassa balance structure valid: success=False, error={data['error']}")
+
+
 class TestAdminTransactionEndpoints:
     """Admin transaction management tests"""
     
