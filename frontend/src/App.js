@@ -22,7 +22,8 @@ import {
   List,
   Edit,
   Globe,
-  CheckCircle2
+  CheckCircle2,
+  Megaphone
 } from "lucide-react";
 import axios from "axios";
 
@@ -90,7 +91,8 @@ const translations = {
     min_amount: "Eng kam summa 20,000 UZS",
     transfer_to: "Quyidagi kartaga o'tkazing:",
     copy_card: "Karta raqamidan nusxa olish",
-    i_paid: "To'lov qildim"
+    i_paid: "To'lov qildim",
+    mostbet_id: "Mostbet ID raqami"
   },
   ru: {
     home: "Главная",
@@ -142,7 +144,8 @@ const translations = {
     min_amount: "Минимальная сумма 20,000 UZS",
     transfer_to: "Переведите на эту карту:",
     copy_card: "Копировать номер карты",
-    i_paid: "Я оплатил"
+    i_paid: "Я оплатил",
+    mostbet_id: "Номер Mostbet ID"
   }
 };
 
@@ -522,7 +525,7 @@ const Withdraw = ({ user, lang }) => {
                               <CreditCard size={20} className="text-slate-300" />
                           </div>
                           <div>
-                              <div className="font-bold text-white uppercase">{w.type}</div>
+                              <div className="font-bold text-white uppercase">{w.type.replace('_', ' ')}</div>
                               <div className="text-xs text-slate-500">{w.number}</div>
                               {w.expiry && <div className="text-[10px] text-slate-600">{w.expiry}</div>}
                           </div>
@@ -550,7 +553,7 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
-        if(newWallet.type !== 'mostbet' && !newWallet.expiry) return toast.error("Expiry required");
+        if((newWallet.type !== 'mostbet_uzs' && newWallet.type !== 'mostbet_usd') && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
             await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
@@ -579,7 +582,8 @@ const Wallets = ({ user, lang }) => {
                             >
                                 <option value="uzcard">Uzcard</option>
                                 <option value="humo">Humo</option>
-                                <option value="mostbet">Mostbet ID</option>
+                                <option value="mostbet_uzs">Mostbet UZS</option>
+                                <option value="mostbet_usd">Mostbet USD</option>
                             </select>
                         </div>
                         <div>
@@ -624,7 +628,7 @@ const Wallets = ({ user, lang }) => {
                                   <CreditCard size={20} className="text-slate-300" />
                               </div>
                              <div>
-                                <div className="font-bold uppercase text-white">{w.type}</div>
+                                <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
                                 <div className="text-slate-500 text-sm font-mono">{w.number}</div>
                                 {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
                              </div>
@@ -644,18 +648,21 @@ const Admin = ({ user }) => {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
+    const [settings, setSettings] = useState({ admin_group_id: '' });
 
     useEffect(() => { 
         if(user?.is_admin) {
             fetchStats();
             fetchPending();
             fetchUsers();
+            fetchSettings();
         }
     }, [user]);
 
     const fetchStats = async () => { try { const res = await axios.get(`${API_URL}/admin/stats`); setStats(res.data); } catch (e) { console.error(e); } };
     const fetchPending = async () => { try { const res = await axios.get(`${API_URL}/admin/transactions/pending`); setTxs(res.data); } catch (e) { console.error(e); } };
     const fetchUsers = async () => { try { const res = await axios.get(`${API_URL}/admin/users?search=${search}`); setUsers(res.data); } catch (e) { console.error(e); } };
+    const fetchSettings = async () => { try { const res = await axios.get(`${API_URL}/admin/settings`); setSettings(res.data); } catch (e) { console.error(e); } };
 
     const handleAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/transactions/${id}/${action}`); toast.success(`Transaction ${action}ed`); fetchPending(); fetchStats(); } catch (e) { toast.error("Action failed"); } };
 
@@ -675,6 +682,13 @@ const Admin = ({ user }) => {
         } catch(e) { toast.error("Xatolik"); }
     };
 
+    const handleSaveSettings = async () => {
+        try {
+            await axios.post(`${API_URL}/admin/settings`, settings);
+            toast.success("Sozlamalar saqlandi");
+        } catch(e) { toast.error("Xatolik"); }
+    };
+
     if (!user?.is_admin) return <div className="p-10 text-center">Ruxsat yo'q</div>;
 
     return (
@@ -686,6 +700,7 @@ const Admin = ({ user }) => {
                     { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
                     { id: 'pending', icon: List, label: `To'lovlar (${stats?.pending_count || 0})` },
                     { id: 'users', icon: Users, label: 'Foydalanuvchilar' },
+                    { id: 'settings', icon: Settings, label: 'Sozlamalar' },
                 ].map(tab => (
                     <button 
                         key={tab.id}
@@ -759,6 +774,34 @@ const Admin = ({ user }) => {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'settings' && (
+                <div className="animate-in fade-in">
+                    <Card>
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                            <Megaphone size={20} className="text-gold" />
+                            Bildirishnomalar Sozlamasi
+                        </h3>
+                        <p className="text-sm text-slate-400 mb-4">
+                            Bu yerda Telegram Kanal yoki Guruh ID sini kiriting. Barcha zayavkalar shu guruhga tushadi.
+                            <br/>
+                            <span className="text-xs text-slate-500">(Masalan: -100123456789. Bot guruhda admin bo'lishi shart)</span>
+                        </p>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Guruh / Kanal ID</label>
+                                <Input 
+                                    value={settings.admin_group_id || ''}
+                                    onChange={e => setSettings({...settings, admin_group_id: e.target.value})}
+                                    placeholder="-100..."
+                                />
+                            </div>
+                            <Button onClick={handleSaveSettings}>Saqlash</Button>
+                        </div>
+                    </Card>
                 </div>
             )}
 

@@ -80,6 +80,9 @@ class TransactionCreate(BaseModel):
     method: str
     wallet_number: Optional[str] = None
 
+class Settings(BaseModel):
+    admin_group_id: Optional[str] = None
+
 # Messages
 MESSAGES = {
     "uz": {
@@ -190,15 +193,26 @@ async def cb_set_lang(callback: CallbackQuery):
     )
     await callback.answer(msg_text)
 
-async def notify_admins(text: str):
+async def send_notification(msg: str):
     if not bot: return
+    
+    # 1. Send to individual admins
     admin_users = await db.users.find({"is_admin": True}).to_list(100)
     admin_ids = set(ADMIN_IDS + [u['telegram_id'] for u in admin_users])
+    
     for admin_id in admin_ids:
         try:
-            await bot.send_message(admin_id, text)
+            await bot.send_message(admin_id, msg, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Failed to send admin notification to {admin_id}: {e}")
+
+    # 2. Send to Admin Group/Channel if configured
+    settings = await db.settings.find_one({})
+    if settings and settings.get('admin_group_id'):
+        try:
+            await bot.send_message(settings['admin_group_id'], msg, parse_mode="HTML")
+        except Exception as e:
+            logging.error(f"Failed to send to group: {e}")
 
 # API Routes
 @api_router.get("/")
@@ -285,21 +299,40 @@ async def add_wallet(data: dict = Body(...)):
 
 @api_router.post("/transactions/create")
 async def create_transaction(tx: TransactionCreate):
+    user = await db.users.find_one({"telegram_id": tx.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     if tx.type == 'withdraw':
-        user = await db.users.find_one({"telegram_id": tx.user_id})
-        if not user or user.get('balance', 0) < tx.amount:
+        if user.get('balance', 0) < tx.amount:
             raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
         await db.users.update_one({"telegram_id": tx.user_id}, {"$inc": {"balance": -tx.amount}})
 
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
+    # Send Notification to Admin/Group
+    user_name = user.get("first_name", "Unknown")
+    user_internal_id = user.get("internal_id", "---")
+    
     msg = ""
     if tx.type == 'deposit':
-        msg = f"💰 <b>Yangi to'lov! (Depozit)</b>\n👤 ID: {tx.user_id}\n💵 {tx.amount:,.0f} {tx.currency}\n🏦 {tx.method}"
+        msg = (f"📥 <b>Yangi Depozit!</b>\n\n"
+               f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
+               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
+               f"🏦 <b>Tizim:</b> {tx.method}\n"
+               f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
     elif tx.type == 'withdraw':
-        msg = f"💸 <b>Pul yechish!</b>\n👤 ID: {tx.user_id}\n💵 {tx.amount:,.0f} {tx.currency}\n💳 {tx.wallet_number}\n🏦 {tx.method}"
-    await notify_admins(msg)
+        msg = (f"📤 <b>Pul Yechish!</b>\n\n"
+               f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
+               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
+               f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
+               f"🏦 <b>Tizim:</b> {tx.method}\n"
+               f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
+               
+    await send_notification(msg)
     return transaction
 
 @api_router.get("/transactions/{telegram_id}")
@@ -399,6 +432,17 @@ async def update_user_balance(telegram_id: int, data: dict = Body(...)):
             await bot.send_message(telegram_id, msg)
         except: pass
     return {"message": "Balance updated"}
+
+# Settings API
+@api_router.get("/admin/settings")
+async def get_settings():
+    settings = await db.settings.find_one({}, {"_id": 0})
+    return settings or {}
+
+@api_router.post("/admin/settings")
+async def update_settings(data: Settings):
+    await db.settings.update_one({}, {"$set": data.model_dump()}, upsert=True)
+    return {"status": "updated"}
 
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
