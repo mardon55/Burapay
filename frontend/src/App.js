@@ -960,6 +960,20 @@ const Wallets = ({ user, lang }) => {
     );
 };
 
+const KassaBalance = () => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => {
+        fetch(`${API_URL}/admin/kassa/balance`).then(r => r.json()).then(r => {
+            if (r.success) setData(r.data);
+            setLoading(false);
+        }).catch(() => setLoading(false));
+    }, []);
+    if (loading) return <div className="bg-slate-800 rounded-lg p-3 text-sm text-slate-400">Yuklanmoqda...</div>;
+    if (!data) return <div className="bg-slate-800 rounded-lg p-3 text-sm text-red-400">Olinmadi</div>;
+    return <div className="bg-slate-800 rounded-lg p-3 font-mono text-sm text-green-400">{data.balance?.toLocaleString()} {data.currency}</div>;
+};
+
 const Admin = ({ user }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [stats, setStats] = useState(null);
