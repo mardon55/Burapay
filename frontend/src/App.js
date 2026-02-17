@@ -1019,7 +1019,18 @@ const Admin = ({ user }) => {
         } catch(e) { toast.error("Xatolik"); }
     };
 
-    if (!user?.is_admin) return <div className="p-10 text-center">Ruxsat yo'q</div>;
+    if (!user?.is_admin) return (
+        <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                <Shield size={40} className="text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Ruxsat yo'q</h2>
+            <p className="text-slate-500 mb-6">Admin paneliga kirish uchun admin huquqi kerak</p>
+            <Link to="/" className="px-6 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-colors">
+                Bosh sahifaga qaytish
+            </Link>
+        </div>
+    );
 
     return (
         <div className="p-6 pb-24">
