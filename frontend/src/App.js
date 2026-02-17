@@ -228,6 +228,7 @@ const BottomNav = ({ isAdmin, lang }) => {
 // Pages
 const Home = ({ user, lang, setLang }) => {
   const [history, setHistory] = useState([]);
+  const navigate = useNavigate();
   const t = translations[lang];
 
   useEffect(() => {
@@ -253,10 +254,38 @@ const Home = ({ user, lang, setLang }) => {
       } catch(e) {}
   };
 
+  // Check if user has Uzcard/Humo card
+  const hasCard = user?.wallets?.some(w => w.type === 'uzcard' || w.type === 'humo') || user?.has_card;
+
   if (!user) return <div className="p-8 text-center text-slate-500">...</div>;
 
   return (
     <div className="pb-40 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Mandatory Card Warning */}
+      {!hasCard && (
+        <div 
+          onClick={() => navigate('/wallets')}
+          className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 cursor-pointer hover:bg-yellow-500/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+              <CreditCard size={20} className="text-yellow-500" />
+            </div>
+            <div>
+              <div className="font-bold text-yellow-500">
+                {lang === 'uz' ? "Karta qo'shish majburiy!" : "Добавьте карту!"}
+              </div>
+              <div className="text-xs text-yellow-500/70">
+                {lang === 'uz' 
+                  ? "Uzcard yoki Humo karta qo'shing" 
+                  : "Добавьте карту Uzcard или Humo"}
+              </div>
+            </div>
+            <ChevronRight className="ml-auto text-yellow-500" size={20} />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
