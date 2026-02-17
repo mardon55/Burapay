@@ -710,8 +710,9 @@ const Wallets = ({ user, lang }) => {
 
     const handleDelete = async (walletId) => {
         try {
-            await axios.delete(`${API_URL}/wallets/delete`, { 
-                data: { telegram_id: user.telegram_id, wallet_id: walletId } 
+            await axios.post(`${API_URL}/wallets/delete`, { 
+                telegram_id: user.telegram_id, 
+                wallet_id: walletId 
             });
             toast.success(lang === 'uz' ? "Hamyon o'chirildi" : "Кошелек удален");
             fetchWallets();
