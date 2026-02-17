@@ -441,6 +441,12 @@ async def create_transaction(tx: TransactionCreate):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Check for mandatory Uzcard/Humo card
+    user_wallets = user.get('wallets', [])
+    has_card = any(w['type'] in ['uzcard', 'humo'] for w in user_wallets)
+    if not has_card:
+        raise HTTPException(status_code=400, detail="Avval Uzcard yoki Humo karta qo'shing")
+
     if tx.type == 'withdraw':
         if user.get('balance', 0) < tx.amount:
             raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
