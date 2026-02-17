@@ -16,6 +16,7 @@ import string
 import hashlib
 import hmac
 import httpx
+import json
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart, CommandObject
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
