@@ -418,13 +418,12 @@ async def create_transaction(tx: TransactionCreate):
     user_name = user.get("first_name", "Unknown")
     user_internal_id = user.get("internal_id", "---")
     
-    msg = ""
     if tx.type == 'deposit':
         msg = (f"📥 <b>Yangi Depozit!</b>\n\n"
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
                f"🆔 <b>ID:</b> {user_internal_id}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
-               f"🏦 <b>Tizim:</b> {tx.method}\n"
+               f"🏦 <b>Tizim:</b> {method_name}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
     elif tx.type == 'withdraw':
         msg = (f"📤 <b>Pul Yechish!</b>\n\n"
@@ -432,7 +431,7 @@ async def create_transaction(tx: TransactionCreate):
                f"🆔 <b>ID:</b> {user_internal_id}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
-               f"🏦 <b>Tizim:</b> {tx.method}\n"
+               f"🏦 <b>Tizim:</b> {method_name}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
                
     
