@@ -88,6 +88,6 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 ## Credentials
 - **Admin Telegram ID**: 1617111900
 - **Bot Token**: 8544155186:AAGpP6ubXqmJHrQQ4MAt6CwNLgd2Nry1R68
-- **Preview URL**: https://miniwalletbot.preview.emergentagent.com
+- **Preview URL**: https://wallet-app-22.preview.emergentagent.com
 - **Depozit Kanali**: -1003351379612
 - **Yechish Kanali**: -1003243642663

@@ -1,133 +1,117 @@
-<analysis>**original_problem_statement:** The user requested the creation of a Telegram bot. Through an iterative process, this evolved into a full-stack Telegram Mini App named BuraPay for handling deposits and withdrawals with specific business logic.
+<analysis>**original_problem_statement:** The user requested the creation of a Telegram Mini App named BuraPay for handling deposits and withdrawals. This evolved to include multi-language support (Uzbek/Russian), user/wallet management, and a full admin panel. Recent requests focused on implementing a dual-currency balance system (UZS/USD), making Uzcard/Humo wallets mandatory, and integrating a Mostbet Kassa API for automated payouts upon admin approval.
 
 **PRODUCT REQUIREMENTS:**
-1.  **Application:** A Telegram Mini App with a FastAPI backend and React frontend.
-2.  **Languages:** The UI and bot must support both Uzbek and Russian.
-3.  **User Management:**
-    *   Authenticate users via their Telegram ID.
-    *   Display the user's real Telegram name (not Demo User).
-    *   Assign a unique 7-digit user ID.
-    *   Admin functionality is controlled by  in the  file.
-4.  **Wallet System:**
-    *   Users can add , , , and  wallets.
-    *   It is mandatory for a user to have at least one  or  wallet before they can deposit or withdraw funds.
-5.  **Deposit Flow:**
-    *   Users choose a currency ( or ) and enter an amount.
-    *   If  is selected, the app displays the equivalent  amount based on an admin-set exchange rate.
-    *   The app then shows a list of the admin's payment cards/wallets (which are managed in the admin panel) for the user to transfer money to.
-    *   Upon user confirmation, a deposit request is sent to a specific Telegram channel for admin approval.
-6.  **Withdrawal Flow:**
-    *   Users can only withdraw funds to their  and  wallets.
-    *   The flow requires the user to input an 8-character alphanumeric secret code (from Mostbet).
-    *   A withdrawal request is sent to a separate Telegram channel for admin approval.
-7.  **Admin Panel:**
-    *   View users and transactions.
-    *   Manually adjust user balances.
-    *   Configure system settings: deposit channel ID, withdrawal channel ID, and USD exchange rate.
-    *   Manage a list of payment cards (Uzcard, Humo, Mostbet) that are displayed to users for making deposits.
-8.  **Notifications:**
-    *   Deposit and withdrawal requests trigger notifications in their respective, admin-configured Telegram channels.
-    *   Notifications must contain comprehensive details: User's Telegram name, ID, amount, currency, and the user's primary card number. For withdrawals, the secret code is also included.
-    *   Admins must be able to Approve or Reject transactions directly from Telegram via inline buttons.
-9.  **Removed Features:** The previously implemented Referral System and  currency support have been removed per user request.
+1.  **Application:** Telegram Mini App (React frontend, FastAPI backend).
+2.  **User Management:** Authenticate via Telegram ID, assign a unique 7-digit ID. Admin access is controlled via  in the  file.
+3.  **Wallet System:**
+    *   Supports , , , .
+    *   Users can add, edit, and delete their wallets.
+    *   **Mandatory Card:** A user must have at least one  or  wallet to perform any deposit or withdrawal.
+4.  **Dual-Currency Balance:** User balances must be maintained and displayed separately for  and .
+5.  **Deposit/Withdrawal Flow:**
+    *   Requests are sent to a Telegram channel for admin approval.
+    *   Telegram notifications for deposit requests must show the user's corresponding Mostbet ID ( or  wallet number).
+    *   Admin approval/rejection buttons in Telegram must work reliably.
+6.  **Mostbet Kassa Integration:**
+    *   When an admin approves a withdrawal request in Telegram, the system should automatically trigger a payout from the specified Mostbet Kassa to the user's Mostbet account using the provided Kassa API.
+    *   Kassa credentials (API Key, Secret Key, Cashpoint ID) are stored in the backend environment.
+7.  **Admin Panel:** Manage users, transactions, system settings (channel IDs, exchange rate), and the list of admin-owned payment cards for user deposits. It should also display the Mostbet Kassa credentials for reference.
 
 **User's preferred language**: **Uzbek**. The next agent MUST respond in Uzbek only.
 
 **what currently exists?**
-A full-stack application with a FastAPI backend, a React frontend, and an  Telegram bot. The database is MongoDB. Most of the core features like user management, multi-language support, deposit/withdrawal flows, and a detailed admin panel are implemented. However, the frontend is currently in a broken state.
+A full-stack application (FastAPI, React, MongoDB) with an  Telegram bot operating on webhooks. The application is functional. Key features like user management, multi-language support, dual-currency balances (UZS/USD), mandatory card checks, and wallet CRUD operations are implemented and working. The Mostbet Kassa integration has been added to the backend, but the API calls are failing. The current fallback is a manual process where the admin receives detailed instructions for the payout upon approving a request.
 
 **Last working item**:
-*   **Last item agent was working**: The agent was attempting to fix a critical error in the frontend. The user reported that the application shows a white screen and that  is throwing an error, likely due to a faulty  file (missing a default export or having incorrect component structure). The agent's last few actions were repeated, unsuccessful attempts to rewrite .
+*   **Last item agent was working**: Debugging the automatic payout integration with the Mostbet Kassa API. The agent was trying various signature generation methods and API endpoint variations based on documentation provided by the user in screenshots. All attempts to call the API resulted in a  error.
 *   **Status**: BLOCKED
-*   **Agent Testing Done**: N
-*   **Which testing method agent to use?**: Frontend testing agent. The issue is a critical frontend compilation/runtime error. A comprehensive check of the component structure, imports, and exports is required.
-*   **User Testing Done**: Y (User reported the application is not working)
+*   **Agent Testing Done**: Y (Agent ran multiple Python scripts to test different signature and request formats, all failed.)
+*   **Which testing method agent to use?**: Backend testing using  to isolate and fix the API call. No frontend changes are needed.
+*   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-*   **Issue 1**: **(P0)** The entire frontend application is non-functional, displaying a white screen. The user has reported errors related to  and , and is frustrated with the agent's repeated failed attempts to fix it. This is a recurring problem stemming from the poor structure of the frontend code.
-    *   **Attempted fixes**: The agent tried to rewrite  multiple times. These attempts failed and seem to have further corrupted the file's structure, likely by removing or misplacing the main  component and its  statement.
+*   **Issue 1**: **(P0)** Mostbet Kassa API integration fails with .
+    *   **Attempted fixes**: The agent tried numerous variations for the HMAC signature and request structure based on user-provided screenshots. These included: different base URLs ( vs. ), different hashing algorithms (HMAC-SHA256 vs. SHA3-256), different timestamp formats (ISO string vs. Unix), and including/excluding an  prefix in the signature payload. All attempts were unsuccessful.
     *   **Next debug checklist**:
-        1.  **Propose Refactoring:** Inform the user that the single  file is the root cause of the instability and that you will refactor it into separate component files for stability.
-        2.  **Create Directory:** Create a  directory.
-        3.  **Refactor Components:** Systematically extract each major UI section (e.g., , , , , ) from  into its own file within the new  directory (e.g., ).
-        4.  **Rebuild App.js:** Rewrite  to serve as the main router/container. It should import the new components and handle navigation/state to render the correct component.
-        5.  **Verify Export:** Ensure the main  component in  has the correct  statement at the end.
-        6.  **Restart & Test:** Restart the frontend (frontend: ERROR (not running)
-frontend: started) and check logs (==> /var/log/supervisor/frontend.err.log <==
-
-==> /var/log/supervisor/frontend.out.log <==
-yarn run v1.22.22
-$ craco start). Use the screenshot tool to verify the UI is rendering.
-    *   **Why fix this issue and what will be achieved with the fix?**: The application is completely unusable. This fix will restore functionality and, more importantly, create a stable foundation for future changes by resolving the architectural flaw.
+        1.  Holistically re-analyze all provided screenshots for the API documentation (, , , , etc.) in parallel. Look for subtle details about headers, request body structure, or the signature string that might have been missed.
+        2.  The last successful example in the docs used  but the agent's attempts with it failed. Re-verify the implementation of the HMAC-SHA3-256 signature generation.
+        3.  The agent concluded the API key might not be active or might be IP-restricted. **Propose a clear, structured question to the user**: Ask them to contact Mostbet support and confirm that the **API Key** (), **Secret Key** (), and **Cashpoint ID** () are active for API access and have no IP whitelisting limitations.
+        4.  If the API call continues to fail, confirm with the user that the system will retain the current working fallback: providing the admin with detailed manual transfer instructions upon approval.
+    *   **Why fix this issue and what will be achieved?**: The user wants fully automated payouts. Fixing this will eliminate the need for the admin to manually log into the Mostbet Kassa panel to complete withdrawals.
     *   **Status**: IN PROGRESS
     *   **Is recurring issue?**: Y
-    *   **Should Test frontend/backend/both after fix?**: Frontend
-    *   **Blocked on other issue**: None
+    *   **Should Test frontend/backend/both after fix?**: Backend
+    *   **Blocked on other issue**: Potentially blocked by an external factor (API key inactivity or incorrect credentials).
 
 **In progress Task List**:
-None. The focus is solely on fixing the critical frontend issue.
+None.
 
 **Upcoming and Future Tasks**
-*   There are no new feature requests. The immediate and only priority is to stabilize the application by fixing the broken frontend.
+*   **(P1) Refactor Frontend & Backend Monoliths:** Both  (1200+ lines) and  are large, monolithic files. They are fragile and hard to maintain. Propose to the user that you will break them down into a proper component-based architecture (for frontend) and a route/service-based structure (for backend) to improve stability.
+*   **(P2) Add  Attributes:** As recommended by the testing agent, add  attributes to all interactive UI elements to improve automated testing capabilities.
+*   **(P2) Mask Card Numbers in UI:** Enhance security and user experience by masking parts of card numbers displayed in the wallet list (e.g., ).
+*   **(P3) Add Confirmation Modal for Wallet Deletion:** Improve the user experience by adding a confirmation dialog before a wallet is permanently deleted.
 
 **Completed work in this session**
--   **Telegram Bot & Mini App:** Created the initial bot and web app structure.
--   **Core Logic:** Implemented deposit, withdrawal, wallet management, and admin panel features.
--   **Multi-language:** Added Uzbek and Russian language support.
--   **Admin Controls:** Built features for managing users, transactions, settings (channels, exchange rate), and payment cards.
--   **Interactive Notifications:** Implemented approve/reject buttons in admin Telegram notifications.
--   **Feature Removal:** Successfully removed the referral system and RUB currency support from all parts of the application.
--   **Branding:** Removed Emergent branding from .
+-   **System Stabilization:** Fixed the critical frontend white screen error from the previous session.
+-   **Wallet CRUD:** Implemented features for users to add, **edit**, and **delete** their wallets.
+-   **Mandatory Card Logic:** Added a system-wide check requiring users to have an Uzcard/Humo before making transactions.
+-   **Dual-Currency Balance:** Refactored the entire application (DB schema, backend logic, frontend UI) to support separate balances for UZS and USD.
+-   **Telegram Bot Reliability:**
+    - Fixed transaction not found errors by shortening callback data using a .
+    - Switched the bot from polling to **webhooks** to resolve .
+-   **Admin Panel Improvements:**
+    - Fixed an access control bug that removed admin rights on re-login.
+    - Added a Mostbet Kassa section to the settings page to display credentials.
+    - Improved the Access Denied page with better UI.
+-   **Mostbet Integration (Manual):** Configured the backend to send detailed payout instructions (Player ID, Amount) to the admin upon withdrawal approval, serving as a fallback for the failing API.
 
 **Earlier issues found/mentioned but not fixed**
-None. All efforts are concentrated on the current P0 issue.
+*   The monolithic structure of  was identified in a test report but has not been refactored. This is a significant source of technical debt.
 
 **Known issue recurrence from previous fork**
-*   **Issue recurrence in previous fork**: N/A
-*   **Recurrence count**: N/A
-*   **Status**: N/A
+*   **Issue recurrence in previous fork**: The frontend white screen issue.
+*   **Recurrence count**: 1
+*   **Status**: RESOLVED (but the root cause, the monolithic , still exists).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-*   **Backend:** Python, FastAPI
-*   **Frontend:** React.js, JavaScript
-*   **Database:** MongoDB (via  driver)
-*   **Telegram Bot:** 
-*   **Styling:** Tailwind CSS
+*   **Backend:** Python, FastAPI, Motor (async MongoDB)
+*   **Frontend:** React.js
+*   **Telegram:**  library configured with Webhooks.
+*   **API Integration:**  for async external API calls, HMAC-SHA256/SHA3-256 for signature generation.
 
 **key DB schema**
 *   **users**: 
 *   **transactions**: 
 *   **settings**: 
-*   **admin_cards**: 
 
 **changes in tech stack**
-*   None.
+*    was added to  for making API calls to the Mostbet API.
 
 **All files of reference**
-*   : Contains the entire backend logic. It has been modified extensively throughout the session.
-*   : Contains the entire (currently broken) frontend application. This is the primary file that needs to be fixed and refactored.
-*   : Contains all secrets and configuration variables (, , etc.).
-*   : Modified to remove default branding.
+*   : Contains all backend logic, including the failing Mostbet Kassa API call.
+*   : Contains the entire frontend application.
+*   : Stores all secrets, including the new Mostbet credentials.
+*   User-provided images of API documentation (e.g., , ).
 
 **Areas that need refactoring**:
-*   **/app/frontend/src/App.js**: **CRITICAL REFACTORING NEEDED**. This single file contains the entire frontend application, making it extremely fragile and difficult to maintain. It is the direct cause of the current system failure. The file must be broken down into a proper component-based architecture (e.g., , , etc.) with  acting as a router.
+*   ** (CRITICAL):** This file is over 1200 lines and contains the logic for every single page and component. It is extremely fragile and must be broken down into a proper component architecture (e.g., , ).
+*   ** (HIGH):** This file contains all API routes, Telegram bot handlers, and database models. It should be separated into different modules (e.g., , , ).
 
 **key api endpoints**
-*   : Get current user's data.
-*   : Create a new deposit or withdrawal request.
-*   : Get list of all users.
-*   : Get list of all transactions.
-*   : Get/update admin settings.
-*   : CRUD endpoints for managing admin payment cards.
+*   : Endpoint for receiving Telegram bot updates.
+*   :  to delete a wallet.
+*   :  to edit a wallet.
+*   :  to verify if a user has a mandatory card.
+*   :  to adjust a user's balance (now handles currency).
 
 **Critical Info for New Agent**
-*   The user is highly frustrated due to repeated application failures. Your top priority is to stabilize the app and regain user trust.
-*   **Do not attempt to patch  again.** The file is too complex. You must inform the user (in Uzbek) that you will refactor the frontend into smaller components to ensure stability, and then proceed with that plan.
-*   All communication with the user must be in **Uzbek**.
-*   The backend logic in  is also monolithic but appears to be functional. Focus all initial efforts on the broken frontend.
+*   **Mostbet API is the Blocker:** Do not waste time on random signature attempts. Your first step should be to formulate a clear request to the user to get their API credentials verified by Mostbet support. The current implementation has a working manual fallback.
+*   **Monolithic Codebase:** The application is extremely fragile due to the monolithic nature of  and . After resolving the API issue, you must prioritize and propose refactoring to the user to ensure future stability.
+*   **Language:** All communication with the user must be in **Uzbek**.
 
 **documents and test reports created in this job**
 *   
@@ -135,33 +119,36 @@ None. All efforts are concentrated on the current P0 issue.
 *   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.   (index.js is giving an error, fix all the errors) - **Pending**
-2.   (check the whole system, why are you intentionally writing a faulty file, fix it all) - **Pending**
-3.   (fix the error, all of it) + screenshot of white screen - **Pending**
-4.   (uzcard and humo cards should also appear in the usd deposit section, fix everything) - **Attempted, but failed, breaking the app.**
-5.   (the bot stopped working, check the whole system...) - **Attempted, but failed, breaking the app.**
-6.   (fix the bot, it's not working) - **Attempted, but failed, breaking the app.**
-7.   (add the currency exchange rate to the withdrawal section as well...) - **Completed (but likely lost in the broken app state).**
-8.   (uzcard and humo should also be available for usd, do it) - **Completed (but likely lost).**
-9.   (remove ruble from wallets... remove the referral system) - **Completed (but likely lost).**
-10.  (add usd/uzs buttons to the top of this section...) - **Completed (but likely lost).**
+10.  (explain in simple language) - User asking for clarification on API issues.
+9.   + screenshot - User provides login for the Kassa app.
+8.   + screenshot - User provides first screenshot of API docs.
+7.   + screenshot - User provides screenshot with the Secret Key.
+6.   (continue) - User urging agent to proceed with debugging.
+5.   + screenshot - User provides screenshot showing the Cashpoint ID.
+4.   (permission granted, fix the whole system) - User gives go-ahead to proceed.
+3.   + 2 screenshots - User provides more screenshots of the Kassa panel.
+2.   + 5 screenshots - User provides a batch of API documentation screenshots.
+1.  **Pending**: User is waiting for the Mostbet Kassa automatic payout to be fixed.
 
 **Project Health Check:**
-*   **Broken**: Frontend. The React application fails to compile/render.
+*   **Broken**: Mostbet Kassa API integration.
 *   **Mocked**: None.
 
 **3rd Party Integrations**
-*   **aiogram**: Used for Telegram Bot API communication.
+*   **aiogram**: For Telegram Bot communication (via Webhook).
+*   **Mostbet Kassa API**: For automatic payouts. **(Currently not working)**.
 
 **Testing status**
-*   **Testing agent used after significant changes**: No, not for the most recent breaking changes.
+*   **Testing agent used after significant changes**: YES (after implementing mandatory card and fixing admin panel).
 *   **Troubleshoot agent used after agent stuck in loop**: No.
 *   **Test files created**: None.
-*   **Known regressions**: The entire frontend is non-functional.
+*   **Known regressions**: None.
 
 **Credentials to test flow:**
 *   **Admin Telegram ID:** 
-*   **Telegram Bot Token:** 
+*   **Mostbet API Key:** 
+*   **Mostbet Secret Key:** 
+*   **Mostbet Cashpoint ID:** 
 
 **What agent forgot to execute**
-*   The agent failed to adopt a sustainable development approach. Instead of refactoring the increasingly complex  file, it continued to apply patches, which eventually led to a complete failure of the frontend. It forgot to use the testing agent when faced with recurring critical failures.</analysis>
+*   The agent did not propose refactoring the monolithic  and  files, despite this being a recurring source of instability and being pointed out in test reports and the initial handoff summary. This technical debt needs to be addressed.</analysis>
