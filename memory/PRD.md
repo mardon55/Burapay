@@ -20,9 +20,10 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 
 ## What's Been Implemented ✅
 
-### 2025-02-17 - Hamyon O'chirish Funksiyasi
-- [x] Hamyonlarni o'chirish tugmasi qo'shildi
-- [x] Tasdiqlash dialogu (✓/✕ tugmalari)
+### 2025-02-17 - Hamyon Tahrirlash va O'chirish
+- [x] ✏️ Hamyonni tahrirlash modal oynasi
+- [x] 🗑️ Hamyonni o'chirish (tasdiqlash bilan)
+- [x] POST /api/wallets/update API endpoint
 - [x] POST /api/wallets/delete API endpoint
 - [x] Multi-language toast xabarlari
 
@@ -30,14 +31,13 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 - [x] Home page - balans va tranzaksiya tarixi
 - [x] Deposit page - UZS/USD toggle, admin kartalari
 - [x] Withdraw page - Mostbet hamyonlari, maxfiy kod
-- [x] Wallets page - hamyon qo'shish/ko'rish/o'chirish
+- [x] Wallets page - hamyon qo'shish/ko'rish/tahrirlash/o'chirish
 - [x] Admin panel - ruxsat nazorati
 - [x] Multi-language support (uz/ru)
 - [x] Bottom navigation
-- [x] All API endpoints working
 
 ### Testing Results
-- Backend: 100% (29/29 tests passed)
+- Backend: 100% (tests passed)
 - Frontend: 100% (all features working)
 
 ## Architecture
@@ -62,7 +62,8 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 - `POST /api/auth/login` - User login/create
 - `GET /api/user/{telegram_id}` - User profile
 - `POST /api/wallets/add` - Add wallet
-- `POST /api/wallets/delete` - Delete wallet ✅ NEW
+- `POST /api/wallets/update` - Update wallet ✅ NEW
+- `POST /api/wallets/delete` - Delete wallet ✅
 - `POST /api/transactions/create` - Create deposit/withdraw
 - `GET /api/admin/cards` - Get payment cards
 - `GET/POST /api/admin/settings` - System settings
@@ -72,10 +73,6 @@ Telegram Mini App yaratish - "BuraPay" nomli to'lov tizimi. Foydalanuvchilar pul
 - **transactions**: id, user_id, type, amount, currency, status, secret_code
 - **settings**: deposit_channel_id, withdraw_channel_id, exchange_rate
 - **admin_cards**: id, type, number
-
-## Known Technical Debt
-1. App.js juda katta (1129 qator) - komponentlarga ajratish kerak
-2. data-testid atributlari qo'shilishi kerak
 
 ## Future/Backlog Tasks
 - [ ] App.js ni alohida komponentlarga refactor qilish
