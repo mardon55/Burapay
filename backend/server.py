@@ -206,51 +206,68 @@ async def cb_set_lang(callback: CallbackQuery):
 # ADMIN ACTION HANDLERS
 @dp.callback_query(F.data.startswith("admin_"))
 async def admin_action_handler(callback: CallbackQuery):
-    action, tx_id = callback.data.split("_")[1], callback.data.split("_")[2]
-    
-    tx = await db.transactions.find_one({"id": tx_id})
-    if not tx:
-        await callback.answer("Tranzaksiya topilmadi", show_alert=True)
-        return
+    try:
+        parts = callback.data.split("_")
+        if len(parts) < 3:
+            await callback.answer("Noto'g'ri format", show_alert=True)
+            return
         
-    if tx['status'] != 'pending':
-        await callback.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
-        await callback.message.edit_reply_markup(reply_markup=None)
-        return
-
-    if action == "approve":
-        if tx['type'] == 'deposit':
-            await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
-        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "approved"}})
-        status_text = "✅ TASDIQLANDI"
+        action = parts[1]  # approve or reject
+        tx_id = "_".join(parts[2:])  # Join remaining parts for UUID
         
-        try:
-            user = await db.users.find_one({"telegram_id": tx['user_id']})
-            lang = user.get("language", "uz")
-            msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
-            await bot.send_message(tx['user_id'], msg)
-        except: pass
-
-    elif action == "reject":
-        if tx['type'] == 'withdraw':
-            await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
-        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "rejected"}})
-        status_text = "❌ RAD ETILDI"
+        logging.info(f"Admin action: {action} for tx_id: {tx_id}")
         
-        try:
-            user = await db.users.find_one({"telegram_id": tx['user_id']})
-            lang = user.get("language", "uz")
-            msg = MESSAGES[lang]["rejected"].format(amount=tx['amount'], currency=tx['currency'])
-            await bot.send_message(tx['user_id'], msg)
-        except: pass
+        tx = await db.transactions.find_one({"id": tx_id})
+        if not tx:
+            # Try to find by short_id if full id not found
+            tx = await db.transactions.find_one({"short_id": tx_id})
+        
+        if not tx:
+            logging.error(f"Transaction not found: {tx_id}")
+            await callback.answer("Tranzaksiya topilmadi", show_alert=True)
+            return
+            
+        if tx['status'] != 'pending':
+            await callback.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
+            await callback.message.edit_reply_markup(reply_markup=None)
+            return
 
-    original_text = callback.message.html_text
-    await callback.message.edit_text(
-        f"{original_text}\n\n<b>Holat: {status_text}</b>\n👮‍♂️ Admin: {callback.from_user.first_name}",
-        parse_mode="HTML",
-        reply_markup=None
-    )
-    await callback.answer(f"Zayavka {action} qilindi")
+        if action == "approve":
+            if tx['type'] == 'deposit':
+                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+            await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
+            status_text = "✅ TASDIQLANDI"
+            
+            try:
+                user = await db.users.find_one({"telegram_id": tx['user_id']})
+                lang = user.get("language", "uz")
+                msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
+                await bot.send_message(tx['user_id'], msg)
+            except: pass
+
+        elif action == "reject":
+            if tx['type'] == 'withdraw':
+                await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+            await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "rejected"}})
+            status_text = "❌ RAD ETILDI"
+            
+            try:
+                user = await db.users.find_one({"telegram_id": tx['user_id']})
+                lang = user.get("language", "uz")
+                msg = MESSAGES[lang]["rejected"].format(amount=tx['amount'], currency=tx['currency'])
+                await bot.send_message(tx['user_id'], msg)
+            except: pass
+
+        original_text = callback.message.html_text
+        await callback.message.edit_text(
+            f"{original_text}\n\n<b>Holat: {status_text}</b>\n👮‍♂️ Admin: {callback.from_user.first_name}",
+            parse_mode="HTML",
+            reply_markup=None
+        )
+        await callback.answer(f"Zayavka {action} qilindi")
+    except Exception as e:
+        logging.error(f"Error in admin_action_handler: {e}")
+        await callback.answer("Xatolik yuz berdi", show_alert=True)
 
 
 async def send_notification(msg: str, tx_type: str, tx_id: str = None):
