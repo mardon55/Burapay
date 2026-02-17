@@ -642,10 +642,12 @@ app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], 
 logging.basicConfig(level=logging.INFO)
 
 # Webhook endpoint for Telegram
-@app.post("/webhook")
+@api_router.post("/webhook")
 async def telegram_webhook(request: Request):
     try:
-        update = types.Update.model_validate(await request.json())
+        data = await request.json()
+        logging.info(f"Webhook received: {data.get('update_id', 'no update_id')}")
+        update = types.Update.model_validate(data)
         await dp.feed_update(bot, update)
     except Exception as e:
         logging.error(f"Webhook error: {e}")
