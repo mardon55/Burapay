@@ -36,12 +36,6 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
 
-// Admin Cards (Only for Deposit info display)
-const ADMIN_CARDS = {
-    humo: "9860 1601 3375 2081",
-    uzcard: "8600 0102 0304 0506"
-};
-
 // Translations
 const translations = {
   uz: {
@@ -92,8 +86,8 @@ const translations = {
     withdraw_out: "Chiqim",
     lang_changed: "Til o'zgartirildi",
     min_amount: "Eng kam summa 20,000 UZS",
-    transfer_to: "Quyidagi kartaga o'tkazing:",
-    copy_card: "Karta raqamidan nusxa olish",
+    transfer_to: "Quyidagi hisobga o'tkazing:",
+    copy_num: "Raqamdan nusxa olish",
     i_paid: "To'lov qildim",
     mostbet_id: "Mostbet ID raqami",
     secret_code: "Tasdiqlash kodi",
@@ -148,8 +142,8 @@ const translations = {
     withdraw_out: "Вывод",
     lang_changed: "Язык изменен",
     min_amount: "Минимальная сумма 20,000 UZS",
-    transfer_to: "Переведите на эту карту:",
-    copy_card: "Копировать номер карты",
+    transfer_to: "Переведите на этот счет:",
+    copy_num: "Копировать номер",
     i_paid: "Я оплатил",
     mostbet_id: "Номер Mostbet ID",
     secret_code: "Код подтверждения",
@@ -333,7 +327,7 @@ const Home = ({ user, lang, setLang }) => {
                   <div className={`font-bold ${
                     tx.type === 'deposit' ? 'text-green-500' : 'text-white'
                   }`}>
-                    {tx.type === 'deposit' ? '+' : '-'}{tx.amount.toLocaleString()} UZS
+                    {tx.type === 'deposit' ? '+' : '-'}{tx.amount.toLocaleString()} {tx.currency}
                   </div>
                   <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${
                     tx.status === 'approved' ? 'bg-green-500/10 text-green-500' :
@@ -395,23 +389,45 @@ const Referral = ({ user, lang }) => {
 const Deposit = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("uzcard"); // uzcard or humo
-  const [step, setStep] = useState(1); // 1: Amount, 2: Payment
+  const [method, setMethod] = useState(""); // selected wallet id
+  const [step, setStep] = useState(1); 
+  const [userWallets, setUserWallets] = useState([]);
+  const [adminSettings, setAdminSettings] = useState({});
   const t = translations[lang];
 
   useEffect(() => {
-      // Check for card
+      // Check for card presence
       if (user?.wallets) {
           const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
           if (!hasCard) {
               toast.error(t.add_card_required);
               navigate('/wallets');
+              return;
           }
+          // Filter wallets for deposit (Include Cards + Mostbet)
+          // Actually, we want to allow depositing via Cards OR via Mostbet transfer?
+          // Prompt says: "to select these currencies, they must be entered in wallet".
+          // So we show User's wallets as source.
+          const available = user.wallets.filter(w => 
+              ['uzcard', 'humo', 'mostbet_uzs', 'mostbet_usd', 'mostbet_rub'].includes(w.type)
+          );
+          setUserWallets(available);
       }
+      fetchSettings();
   }, [user, navigate, t.add_card_required]);
 
+  const fetchSettings = async () => {
+      try { const res = await axios.get(`${API_URL}/admin/settings`); setAdminSettings(res.data); } catch(e) {}
+  };
+
+  const selectedWalletObj = userWallets.find(w => w.id === method);
+  const currency = selectedWalletObj?.type.includes('usd') ? 'USD' : selectedWalletObj?.type.includes('rub') ? 'RUB' : 'UZS';
+  const symbol = currency === 'USD' ? '$' : currency === 'RUB' ? '₽' : 'UZS';
+
   const handleNext = () => {
-      if(!amount || Number(amount) < 20000) return toast.error(t.min_amount);
+      if(!method) return toast.error(t.select_wallet);
+      if(!amount) return toast.error(t.enter_valid_amount);
+      if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
       setStep(2);
   };
 
@@ -421,8 +437,9 @@ const Deposit = ({ user, lang }) => {
         user_id: user.telegram_id,
         type: "deposit",
         amount: Number(amount),
-        currency: "UZS",
-        method: method,
+        currency: currency,
+        method: selectedWalletObj.type,
+        wallet_number: selectedWalletObj.number, // The user's wallet they are sending FROM
         manual_check: true
       });
       toast.success(t.success_deposit);
@@ -430,9 +447,21 @@ const Deposit = ({ user, lang }) => {
     } catch (e) { toast.error(t.error); }
   };
 
-  const copyCard = () => {
-      navigator.clipboard.writeText(ADMIN_CARDS[method]);
-      toast.success(t.copied);
+  // Determine Admin Account to show
+  let adminAccount = "";
+  if(selectedWalletObj) {
+      if(selectedWalletObj.type === 'uzcard') adminAccount = adminSettings.admin_card_uzcard;
+      else if(selectedWalletObj.type === 'humo') adminAccount = adminSettings.admin_card_humo;
+      else if(selectedWalletObj.type === 'mostbet_uzs') adminAccount = adminSettings.admin_mostbet_uzs;
+      else if(selectedWalletObj.type === 'mostbet_usd') adminAccount = adminSettings.admin_mostbet_usd;
+      else if(selectedWalletObj.type === 'mostbet_rub') adminAccount = adminSettings.admin_mostbet_rub;
+  }
+
+  const copyAccount = () => {
+      if(adminAccount) {
+          navigator.clipboard.writeText(adminAccount);
+          toast.success(t.copied);
+      }
   };
 
   return (
@@ -441,10 +470,30 @@ const Deposit = ({ user, lang }) => {
       
       {step === 1 ? (
           <>
+            <div className="space-y-2 mb-4">
+                <label className="text-xs text-slate-400 ml-1">Qaysi hamyondan to'ldirasiz?</label>
+                <div className="grid grid-cols-2 gap-2">
+                    {userWallets.map(w => (
+                        <button
+                            key={w.id}
+                            onClick={() => setMethod(w.id)}
+                            className={`p-3 rounded-xl border text-left transition-all ${
+                                method === w.id 
+                                ? 'bg-primary/20 border-primary text-white' 
+                                : 'bg-midnight-light border-slate-700 text-slate-400'
+                            }`}
+                        >
+                            <div className="font-bold text-sm uppercase">{w.type.replace('_', ' ')}</div>
+                            <div className="text-xs opacity-70 truncate">{w.number}</div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <Card>
                 <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
                 <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-                    <span className="text-2xl font-bold text-slate-500">UZS</span>
+                    <span className="text-2xl font-bold text-slate-500">{symbol}</span>
                     <input 
                         type="number" 
                         value={amount} 
@@ -453,38 +502,23 @@ const Deposit = ({ user, lang }) => {
                         placeholder="0" 
                     />
                 </div>
-                <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>
+                {currency === 'UZS' && <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>}
             </Card>
             <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
           </>
       ) : (
           <div className="space-y-4 animate-in slide-in-from-right">
-              <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => setMethod('uzcard')}
-                    className={`p-4 rounded-xl border font-bold transition-all flex flex-col items-center gap-2 ${method === 'uzcard' ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-midnight-light border-slate-700 text-slate-400'}`}
-                  >
-                      <CreditCard size={24} />
-                      UZCARD
-                  </button>
-                  <button 
-                    onClick={() => setMethod('humo')}
-                    className={`p-4 rounded-xl border font-bold transition-all flex flex-col items-center gap-2 ${method === 'humo' ? 'bg-orange-600/20 border-orange-500 text-orange-400' : 'bg-midnight-light border-slate-700 text-slate-400'}`}
-                  >
-                      <CreditCard size={24} />
-                      HUMO
-                  </button>
-              </div>
-
               <Card highlight className="text-center py-8">
                   <p className="text-slate-400 mb-2">{t.transfer_to}</p>
-                  <div className="text-3xl font-mono font-bold tracking-wider mb-4 text-white">
-                      {ADMIN_CARDS[method]}
+                  <div className="text-2xl font-mono font-bold tracking-wider mb-4 text-white break-all">
+                      {adminAccount || "Admin hisobi kiritilmagan"}
                   </div>
-                  <Button variant="secondary" onClick={copyCard} className="mx-auto text-sm h-9">
-                      <Copy size={16} className="mr-2" />
-                      {t.copy_card}
-                  </Button>
+                  {adminAccount && (
+                      <Button variant="secondary" onClick={copyAccount} className="mx-auto text-sm h-9">
+                          <Copy size={16} className="mr-2" />
+                          {t.copy_num}
+                      </Button>
+                  )}
               </Card>
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
@@ -512,7 +546,6 @@ const Withdraw = ({ user, lang }) => {
 
   useEffect(() => { 
       if(user?.telegram_id) fetchWallets();
-      // Check for card presence even for withdraw, if policy requires at least one card
       if (user?.wallets) {
           const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
           if (!hasCard) {
@@ -537,12 +570,14 @@ const Withdraw = ({ user, lang }) => {
     if (!selectedWallet) return toast.error(t.select_wallet);
     if (!code || code.length < 8) return toast.error("Kodni kiriting (8 xonali)");
 
+    const currency = selectedWallet.type.includes('usd') ? 'USD' : selectedWallet.type.includes('rub') ? 'RUB' : 'UZS';
+
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
         type: "withdraw",
         amount: Number(amount),
-        currency: "UZS",
+        currency: currency,
         method: selectedWallet.type,
         wallet_number: selectedWallet.number,
         secret_code: code
@@ -550,6 +585,13 @@ const Withdraw = ({ user, lang }) => {
       toast.success(t.success_withdraw);
       navigate("/");
     } catch (e) { toast.error(e.response?.data?.detail || t.error); }
+  };
+
+  const getCurrencySymbol = () => {
+      if(!selectedWallet) return 'UZS';
+      if(selectedWallet.type.includes('usd')) return '$';
+      if(selectedWallet.type.includes('rub')) return '₽';
+      return 'UZS';
   };
 
   return (
@@ -596,7 +638,7 @@ const Withdraw = ({ user, lang }) => {
             <div>
                 <label className="text-sm text-slate-400 mb-2 block">{t.withdraw_amount}</label>
                 <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-                    <span className="text-2xl font-bold text-slate-500">UZS</span>
+                    <span className="text-2xl font-bold text-slate-500">{getCurrencySymbol()}</span>
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" />
                 </div>
             </div>
@@ -729,7 +771,11 @@ const Admin = ({ user }) => {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
-    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '' });
+    const [settings, setSettings] = useState({ 
+        deposit_channel_id: '', withdraw_channel_id: '',
+        admin_card_uzcard: '', admin_card_humo: '',
+        admin_mostbet_uzs: '', admin_mostbet_usd: '', admin_mostbet_rub: ''
+    });
 
     useEffect(() => { 
         if(user?.is_admin) {
@@ -859,43 +905,27 @@ const Admin = ({ user }) => {
             )}
 
             {activeTab === 'settings' && (
-                <div className="animate-in fade-in">
+                <div className="animate-in fade-in pb-10">
                     <Card>
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                             <Megaphone size={20} className="text-gold" />
                             Kanal Sozlamalari
                         </h3>
-                        <p className="text-sm text-slate-400 mb-4">
-                            Zayavkalar tushadigan kanallar ID sini kiriting.
-                            <br/>
-                            <span className="text-xs text-slate-500">(Bot kanalda admin bo'lishi shart. ID olish uchun botni kanalga qo'shing)</span>
-                        </p>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block flex items-center gap-1">
-                                    <ArrowDownToLine size={14} className="text-green-500"/>
-                                    Depozit (Kirim) Kanali ID
-                                </label>
-                                <Input 
-                                    value={settings.deposit_channel_id || ''}
-                                    onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})}
-                                    placeholder="-100..."
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block flex items-center gap-1">
-                                    <ArrowUpFromLine size={14} className="text-red-500"/>
-                                    Pul Yechish (Chiqim) Kanali ID
-                                </label>
-                                <Input 
-                                    value={settings.withdraw_channel_id || ''}
-                                    onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})}
-                                    placeholder="-100..."
-                                />
-                            </div>
+                        <div className="space-y-4 mb-6">
+                            <div><label className="text-xs text-slate-400 mb-1 block">Depozit Kanali ID</label><Input value={settings.deposit_channel_id || ''} onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})} placeholder="-100..." /></div>
+                            <div><label className="text-xs text-slate-400 mb-1 block">Pul Yechish Kanali ID</label><Input value={settings.withdraw_channel_id || ''} onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})} placeholder="-100..." /></div>
+                        </div>
 
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                            <Wallet size={20} className="text-gold" />
+                            Admin Hamyonlari (Qabul qilish uchun)
+                        </h3>
+                        <div className="space-y-4">
+                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Uzcard</label><Input value={settings.admin_card_uzcard || ''} onChange={e => setSettings({...settings, admin_card_uzcard: e.target.value})} /></div>
+                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Humo</label><Input value={settings.admin_card_humo || ''} onChange={e => setSettings({...settings, admin_card_humo: e.target.value})} /></div>
+                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet UZS ID</label><Input value={settings.admin_mostbet_uzs || ''} onChange={e => setSettings({...settings, admin_mostbet_uzs: e.target.value})} /></div>
+                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet USD ID</label><Input value={settings.admin_mostbet_usd || ''} onChange={e => setSettings({...settings, admin_mostbet_usd: e.target.value})} /></div>
+                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet RUB ID</label><Input value={settings.admin_mostbet_rub || ''} onChange={e => setSettings({...settings, admin_mostbet_rub: e.target.value})} /></div>
                             <Button onClick={handleSaveSettings}>Saqlash</Button>
                         </div>
                     </Card>

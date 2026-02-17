@@ -87,6 +87,12 @@ class Settings(BaseModel):
     admin_group_id: Optional[str] = None
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
+    # Payment Details
+    admin_card_uzcard: Optional[str] = "8600 0000 0000 0000"
+    admin_card_humo: Optional[str] = "9860 0000 0000 0000"
+    admin_mostbet_uzs: Optional[str] = None
+    admin_mostbet_usd: Optional[str] = None
+    admin_mostbet_rub: Optional[str] = None
 
 # Messages
 MESSAGES = {
@@ -118,6 +124,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
     try:
         user_data = await db.users.find_one({"telegram_id": message.from_user.id})
         
+        # Referral
         args = command.args
         referrer_id = None
         if args and args.isdigit() and not user_data:
@@ -150,6 +157,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
         
         lang = user_data.get("language", "uz")
         
+        # Main Menu
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")]
@@ -164,6 +172,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
         logging.error(f"Error in cmd_start: {e}")
         await message.answer("Error / Xatolik")
 
+# Helper to find ID
 @dp.message(F.text | F.forward_from_chat)
 async def get_chat_id(message: types.Message):
     if message.chat.type == 'private' and message.from_user.id in ADMIN_IDS:
