@@ -53,7 +53,7 @@ class User(BaseModel):
     internal_id: str = Field(default_factory=generate_user_id)
     first_name: str
     username: Optional[str] = None
-    phone_number: Optional[str] = None # Added phone number field
+    phone_number: Optional[str] = None
     balance: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
@@ -118,7 +118,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
     try:
         user_data = await db.users.find_one({"telegram_id": message.from_user.id})
         
-        # Referral
         args = command.args
         referrer_id = None
         if args and args.isdigit() and not user_data:
@@ -151,7 +150,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
         
         lang = user_data.get("language", "uz")
         
-        # Main Menu
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")]
@@ -166,7 +164,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
         logging.error(f"Error in cmd_start: {e}")
         await message.answer("Error / Xatolik")
 
-# Helper to find ID
 @dp.message(F.text | F.forward_from_chat)
 async def get_chat_id(message: types.Message):
     if message.chat.type == 'private' and message.from_user.id in ADMIN_IDS:
@@ -336,7 +333,6 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
-    # Migrations & Updates
     update_fields = {}
     if "internal_id" not in user:
         update_fields["internal_id"] = generate_user_id()
@@ -415,6 +411,13 @@ async def create_transaction(tx: TransactionCreate):
     user_internal_id = user.get("internal_id", "---")
     user_phone = user.get("phone_number", "Kiritilmagan")
     
+    # Find user's attached card (Uzcard/Humo)
+    user_attached_card = "Kiritilmagan"
+    for w in user.get('wallets', []):
+        if w['type'] in ['uzcard', 'humo']:
+            user_attached_card = f"{w['type'].upper()} {w['number']}"
+            break
+
     method_name = tx.method.replace('_', ' ').upper()
     if tx.method.startswith('mostbet') and tx.wallet_number:
         method_name += f" ({tx.wallet_number})"
@@ -425,6 +428,8 @@ async def create_transaction(tx: TransactionCreate):
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
                f"🔗 <b>Username:</b> {user_username}\n"
                f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"📞 <b>Tel:</b> {user_phone}\n"
+               f"💳 <b>Karta:</b> {user_attached_card}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"🏦 <b>Tizim:</b> {method_name}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
@@ -433,6 +438,8 @@ async def create_transaction(tx: TransactionCreate):
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
                f"🔗 <b>Username:</b> {user_username}\n"
                f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"📞 <b>Tel:</b> {user_phone}\n"
+               f"💳 <b>Karta:</b> {user_attached_card}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
                f"🏦 <b>Tizim:</b> {method_name}\n"

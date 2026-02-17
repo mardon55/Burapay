@@ -97,7 +97,8 @@ const translations = {
     i_paid: "To'lov qildim",
     mostbet_id: "Mostbet ID raqami",
     secret_code: "Tasdiqlash kodi",
-    code_placeholder: "Mostbet kodi (8 xonali)"
+    code_placeholder: "Mostbet kodi (8 xonali)",
+    add_card_required: "Iltimos, avval Uzcard yoki Humo karta qo'shing!"
   },
   ru: {
     home: "Главная",
@@ -152,7 +153,8 @@ const translations = {
     i_paid: "Я оплатил",
     mostbet_id: "Номер Mostbet ID",
     secret_code: "Код подтверждения",
-    code_placeholder: "Код Mostbet (8 знаков)"
+    code_placeholder: "Код Mostbet (8 знаков)",
+    add_card_required: "Пожалуйста, сначала добавьте карту Uzcard или Humo!"
   }
 };
 
@@ -397,6 +399,17 @@ const Deposit = ({ user, lang }) => {
   const [step, setStep] = useState(1); // 1: Amount, 2: Payment
   const t = translations[lang];
 
+  useEffect(() => {
+      // Check for card
+      if (user?.wallets) {
+          const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
+          if (!hasCard) {
+              toast.error(t.add_card_required);
+              navigate('/wallets');
+          }
+      }
+  }, [user, navigate, t.add_card_required]);
+
   const handleNext = () => {
       if(!amount || Number(amount) < 20000) return toast.error(t.min_amount);
       setStep(2);
@@ -498,8 +511,16 @@ const Withdraw = ({ user, lang }) => {
   const t = translations[lang];
 
   useEffect(() => { 
-      if(user?.telegram_id) fetchWallets(); 
-  }, [user]);
+      if(user?.telegram_id) fetchWallets();
+      // Check for card presence even for withdraw, if policy requires at least one card
+      if (user?.wallets) {
+          const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
+          if (!hasCard) {
+              toast.error(t.add_card_required);
+              navigate('/wallets');
+          }
+      }
+  }, [user, navigate, t.add_card_required]);
 
   const fetchWallets = async () => { 
       try { 
