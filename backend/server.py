@@ -368,6 +368,21 @@ async def add_wallet(data: dict = Body(...)):
     if result.modified_count == 0: raise HTTPException(status_code=404, detail="User not found")
     return {"message": "Hamyon qo'shildi", "wallet": new_wallet}
 
+@api_router.delete("/wallets/delete")
+async def delete_wallet(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    wallet_id = data.get("wallet_id")
+    if not telegram_id or not wallet_id: 
+        raise HTTPException(status_code=400, detail="Invalid data")
+
+    result = await db.users.update_one(
+        {"telegram_id": telegram_id},
+        {"$pull": {"wallets": {"id": wallet_id}}}
+    )
+    if result.modified_count == 0: 
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    return {"message": "Hamyon o'chirildi"}
+
 @api_router.post("/transactions/create")
 async def create_transaction(tx: TransactionCreate):
     user = await db.users.find_one({"telegram_id": tx.user_id})
