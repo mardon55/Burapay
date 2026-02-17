@@ -458,6 +458,17 @@ async def approve_transaction(tx_id: str):
     tx = await db.transactions.find_one({"id": tx_id})
     if not tx or tx['status'] != 'pending': raise HTTPException(status_code=400, detail="Invalid tx")
 
+    
+    # Append User Wallets for reference
+    user_wallets = []
+    for w in user.get('wallets', []):
+        w_type = w['type'].replace('_', ' ').upper()
+        w_num = w['number']
+        user_wallets.append(f"{w_type}: {w_num}")
+    
+    if user_wallets:
+        msg += "\n\n📋 <b>Foydalanuvchi Hamyonlari:</b>\n" + "\n".join(user_wallets)
+
     if tx['type'] == 'deposit':
         await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
     
