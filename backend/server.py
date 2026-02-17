@@ -275,15 +275,15 @@ async def admin_action_handler(callback: CallbackQuery):
         await callback.answer("Xatolik yuz berdi", show_alert=True)
 
 
-async def send_notification(msg: str, tx_type: str, tx_id: str = None):
+async def send_notification(msg: str, tx_type: str, short_id: str = None):
     if not bot: return
     
     markup = None
-    if tx_id:
+    if short_id:
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_approve_{tx_id}"),
-                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admin_reject_{tx_id}")
+                InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_approve_{short_id}"),
+                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admin_reject_{short_id}")
             ]
         ])
 
