@@ -29,7 +29,8 @@ import {
   Key,
   Trash2,
   Plus,
-  Coins
+  Coins,
+  Shield
 } from "lucide-react";
 import axios from "axios";
 
