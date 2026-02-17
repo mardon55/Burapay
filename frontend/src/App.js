@@ -1218,19 +1218,23 @@ const Admin = ({ user }) => {
                         </h3>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs text-slate-400 mb-1 block">Kassa ID</label>
+                                <label className="text-xs text-slate-400 mb-1 block">API Key</label>
                                 <div className="bg-slate-800 rounded-lg p-3 font-mono text-sm text-yellow-500 break-all">
-                                    3d83ac24-7fd2-498d-84b4-f2a7e80401fb
+                                    {settings?.mostbet_api_key || 'Sozlanmagan'}
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs text-slate-400 mb-1 block">Login</label>
+                                <label className="text-xs text-slate-400 mb-1 block">Cashpoint ID</label>
                                 <div className="bg-slate-800 rounded-lg p-3 font-mono text-sm text-slate-300">
-                                    murodjonraximov769@gmail.com
+                                    {settings?.mostbet_cashpoint_id || 'Sozlanmagan'}
                                 </div>
                             </div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Kassa Balansi</label>
+                                <KassaBalance />
+                            </div>
                             <p className="text-xs text-slate-500">
-                                Depozit tasdiqlashda kassa orqali pul o'tkazish uchun
+                                Depozit tasdiqlashda kassa orqali avtomatik o'tkaziladi
                             </p>
                         </div>
                     </Card>
