@@ -63,7 +63,7 @@ const translations = {
     withdraw_title: "Mablag'ni yechib olish",
     select_wallet: "Hamyonni tanlang",
     manage_wallets: "Hamyonlarni boshqarish",
-    no_wallets: "Hamyonlar yo'q. Iltimos, avval qo'shing.",
+    no_wallets: "Yechib olish uchun Mostbet hamyonlari yo'q. Iltimos, qo'shing.",
     withdraw_amount: "Yechiladigan summa",
     request_withdraw: "Pul yechishga so'rov",
     my_wallets: "Mening hamyonlarim",
@@ -118,7 +118,7 @@ const translations = {
     withdraw_title: "Вывод средств",
     select_wallet: "Выберите кошелек",
     manage_wallets: "Управление кошельками",
-    no_wallets: "Нет кошельков. Пожалуйста, добавьте.",
+    no_wallets: "Нет Mostbet кошельков для вывода. Пожалуйста, добавьте.",
     withdraw_amount: "Сумма вывода",
     request_withdraw: "Запросить вывод",
     my_wallets: "Мои кошельки",
@@ -497,8 +497,19 @@ const Withdraw = ({ user, lang }) => {
   const [selectedWallet, setSelectedWallet] = useState(null);
   const t = translations[lang];
 
-  useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
-  const fetchWallets = async () => { try { const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); setWallets(res.data.wallets || []); } catch (e) { console.error(e); } };
+  useEffect(() => { 
+      if(user?.telegram_id) fetchWallets(); 
+  }, [user]);
+
+  const fetchWallets = async () => { 
+      try { 
+          const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); 
+          // Filter to show ONLY Mostbet wallets for withdrawal
+          const allWallets = res.data.wallets || [];
+          const mostbetWallets = allWallets.filter(w => w.type.startsWith('mostbet'));
+          setWallets(mostbetWallets); 
+      } catch (e) { console.error(e); } 
+  };
 
   const handleWithdraw = async () => {
     if (!amount) return toast.error(t.enter_valid_amount);
@@ -529,20 +540,34 @@ const Withdraw = ({ user, lang }) => {
             <Link to="/wallets" className="text-primary text-xs">{t.manage_wallets}</Link>
           </div>
           <div className="space-y-2">
-              {wallets.length === 0 ? <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">{t.no_wallets}</div> : wallets.map(w => (
-                  <div key={w.id} onClick={() => setSelectedWallet(w)} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${selectedWallet?.id === w.id ? 'bg-primary/10 border-primary' : 'bg-midnight-light border-slate-800'}`}>
-                      <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                              <CreditCard size={20} className="text-slate-300" />
-                          </div>
-                          <div>
-                              <div className="font-bold text-white uppercase">{w.type.replace('_', ' ')}</div>
-                              <div className="text-xs text-slate-500">{w.number}</div>
-                          </div>
-                      </div>
-                      {selectedWallet?.id === w.id && <div className="w-4 h-4 rounded-full bg-primary" />}
+              {wallets.length === 0 ? (
+                  <div className="text-center p-4 border border-dashed border-slate-700 rounded-xl text-slate-500 text-sm">
+                      {t.no_wallets}
                   </div>
-              ))}
+              ) : (
+                  wallets.map(w => (
+                      <div 
+                        key={w.id}
+                        onClick={() => setSelectedWallet(w)}
+                        className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                            selectedWallet?.id === w.id
+                            ? 'bg-primary/10 border-primary'
+                            : 'bg-midnight-light border-slate-800'
+                        }`}
+                      >
+                          <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                                  <CreditCard size={20} className="text-slate-300" />
+                              </div>
+                              <div>
+                                  <div className="font-bold text-white uppercase">{w.type.replace('_', ' ')}</div>
+                                  <div className="text-xs text-slate-500">{w.number}</div>
+                              </div>
+                          </div>
+                          {selectedWallet?.id === w.id && <div className="w-4 h-4 rounded-full bg-primary" />}
+                      </div>
+                  ))
+              )}
           </div>
       </div>
       <Card>
@@ -577,7 +602,7 @@ const Withdraw = ({ user, lang }) => {
 const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
-    const [newWallet, setNewWallet] = useState({ type: 'mostbet_uzs', number: '', expiry: '', name: '' });
+    const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
     const t = translations[lang];
     
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
@@ -586,16 +611,20 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
+        // Expiry check only for cards
+        if((newWallet.type === 'uzcard' || newWallet.type === 'humo') && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
             await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
             setIsAdding(false); 
-            setNewWallet({ type: 'mostbet_uzs', number: '', expiry: '', name: '' }); 
+            setNewWallet({ type: 'uzcard', number: '', expiry: '', name: '' }); 
             fetchWallets(); 
             toast.success(t.success_wallet); 
         } catch(e) { toast.error(t.error); }
     };
     
+    const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
+
     return (
         <div className="p-4 space-y-6 pb-24">
             <h1 className="text-2xl font-bold">{t.my_wallets}</h1>
@@ -610,6 +639,8 @@ const Wallets = ({ user, lang }) => {
                                 value={newWallet.type} 
                                 onChange={e => setNewWallet({...newWallet, type: e.target.value})}
                             >
+                                <option value="uzcard">Uzcard</option>
+                                <option value="humo">Humo</option>
                                 <option value="mostbet_uzs">Mostbet UZS</option>
                                 <option value="mostbet_usd">Mostbet USD</option>
                                 <option value="mostbet_rub">Mostbet RUB</option>
@@ -617,15 +648,30 @@ const Wallets = ({ user, lang }) => {
                         </div>
                         <div>
                             <label className="text-xs text-slate-400 mb-1 block">
-                                {t.mostbet_id}
+                                {isCard ? t.card_number : t.mostbet_id}
                             </label>
                             <Input 
                                 value={newWallet.number} 
                                 onChange={e => setNewWallet({...newWallet, number: e.target.value})} 
-                                placeholder="123456789" 
+                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"} 
                             />
                         </div>
                         
+                        {isCard && (
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
+                                <div className="relative">
+                                    <Input 
+                                        value={newWallet.expiry} 
+                                        onChange={e => setNewWallet({...newWallet, expiry: e.target.value})} 
+                                        placeholder="MM/YY" 
+                                        maxLength={5}
+                                    />
+                                    <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-2 pt-2">
                             <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">{t.cancel}</Button>
                             <Button onClick={handleAdd} className="flex-1">{t.save}</Button>
@@ -644,6 +690,7 @@ const Wallets = ({ user, lang }) => {
                              <div>
                                 <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
                                 <div className="text-slate-500 text-sm font-mono">{w.number}</div>
+                                {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
                              </div>
                         </div>
                     </div>

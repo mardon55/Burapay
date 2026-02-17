@@ -53,6 +53,7 @@ class User(BaseModel):
     internal_id: str = Field(default_factory=generate_user_id)
     first_name: str
     username: Optional[str] = None
+    phone_number: Optional[str] = None # Added phone number field
     balance: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
@@ -69,7 +70,7 @@ class Transaction(BaseModel):
     currency: str
     method: str
     wallet_number: Optional[str] = None
-    secret_code: Optional[str] = None  # Added Secret Code
+    secret_code: Optional[str] = None
     status: Literal['pending', 'approved', 'rejected'] = 'pending'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -80,7 +81,7 @@ class TransactionCreate(BaseModel):
     currency: str
     method: str
     wallet_number: Optional[str] = None
-    secret_code: Optional[str] = None # Added Secret Code
+    secret_code: Optional[str] = None
 
 class Settings(BaseModel):
     admin_group_id: Optional[str] = None
@@ -335,6 +336,7 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
+    # Migrations & Updates
     update_fields = {}
     if "internal_id" not in user:
         update_fields["internal_id"] = generate_user_id()
@@ -348,6 +350,9 @@ async def login(data: dict = Body(...)):
     if data.get("first_name") and user.get("first_name") != data.get("first_name"):
         update_fields["first_name"] = data.get("first_name")
         user["first_name"] = data.get("first_name")
+    if data.get("username") and user.get("username") != data.get("username"):
+        update_fields["username"] = data.get("username")
+        user["username"] = data.get("username")
         
     if update_fields:
         await db.users.update_one({"telegram_id": telegram_id}, {"$set": update_fields})
@@ -404,8 +409,11 @@ async def create_transaction(tx: TransactionCreate):
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
+    # Notification Details
     user_name = user.get("first_name", "Unknown")
+    user_username = f"@{user.get('username')}" if user.get('username') else "Mavjud emas"
     user_internal_id = user.get("internal_id", "---")
+    user_phone = user.get("phone_number", "Kiritilmagan")
     
     method_name = tx.method.replace('_', ' ').upper()
     if tx.method.startswith('mostbet') and tx.wallet_number:
@@ -415,6 +423,7 @@ async def create_transaction(tx: TransactionCreate):
     if tx.type == 'deposit':
         msg = (f"📥 <b>Yangi Depozit!</b>\n\n"
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
+               f"🔗 <b>Username:</b> {user_username}\n"
                f"🆔 <b>ID:</b> {user_internal_id}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"🏦 <b>Tizim:</b> {method_name}\n"
@@ -422,6 +431,7 @@ async def create_transaction(tx: TransactionCreate):
     elif tx.type == 'withdraw':
         msg = (f"📤 <b>Pul Yechish!</b>\n\n"
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
+               f"🔗 <b>Username:</b> {user_username}\n"
                f"🆔 <b>ID:</b> {user_internal_id}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
@@ -429,15 +439,6 @@ async def create_transaction(tx: TransactionCreate):
                f"🔑 <b>Kod:</b> {tx.secret_code if tx.secret_code else 'Kiritilmagan'}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
     
-    user_wallets = []
-    for w in user.get('wallets', []):
-        w_type = w['type'].replace('_', ' ').upper()
-        w_num = w['number']
-        user_wallets.append(f"{w_type}: {w_num}")
-    
-    if user_wallets:
-        msg += "\n\n📋 <b>Foydalanuvchi Hamyonlari:</b>\n" + "\n".join(user_wallets)
-
     await send_notification(msg, tx.type, transaction.id)
     return transaction
 
@@ -539,6 +540,7 @@ async def update_user_balance(telegram_id: int, data: dict = Body(...)):
         except: pass
     return {"message": "Balance updated"}
 
+# Settings API
 @api_router.get("/admin/settings")
 async def get_settings():
     settings = await db.settings.find_one({}, {"_id": 0})
