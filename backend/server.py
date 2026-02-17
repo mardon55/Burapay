@@ -248,8 +248,33 @@ async def admin_action_handler(callback: CallbackQuery):
             await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
             status_text = "✅ TASDIQLANDI"
             
+            # Get user's Mostbet ID for kassa transfer
+            user = await db.users.find_one({"telegram_id": tx['user_id']})
+            mostbet_type = 'mostbet_uzs' if tx['currency'] == 'UZS' else 'mostbet_usd'
+            mostbet_id = "Topilmadi"
+            for w in user.get('wallets', []):
+                if w['type'] == mostbet_type:
+                    mostbet_id = w['number']
+                    break
+            if mostbet_id == "Topilmadi":
+                for w in user.get('wallets', []):
+                    if w['type'].startswith('mostbet'):
+                        mostbet_id = w['number']
+                        break
+            
+            # Send kassa transfer info to admin
+            kassa_msg = (f"💰 <b>KASSA ORQALI O'TKAZISH:</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
+                        f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"📋 ID ni bosib nusxa oling")
+            
             try:
-                user = await db.users.find_one({"telegram_id": tx['user_id']})
+                await bot.send_message(callback.from_user.id, kassa_msg, parse_mode="HTML")
+            except: pass
+            
+            try:
                 lang = user.get("language", "uz")
                 msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
                 await bot.send_message(tx['user_id'], msg)
