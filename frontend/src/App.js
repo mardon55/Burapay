@@ -25,7 +25,8 @@ import {
   CheckCircle2,
   Megaphone,
   ArrowDownToLine,
-  ArrowUpFromLine
+  ArrowUpFromLine,
+  Key
 } from "lucide-react";
 import axios from "axios";
 
@@ -94,7 +95,9 @@ const translations = {
     transfer_to: "Quyidagi kartaga o'tkazing:",
     copy_card: "Karta raqamidan nusxa olish",
     i_paid: "To'lov qildim",
-    mostbet_id: "Mostbet ID raqami"
+    mostbet_id: "Mostbet ID raqami",
+    secret_code: "Tasdiqlash kodi",
+    code_placeholder: "Mostbet kodi (8 xonali)"
   },
   ru: {
     home: "Главная",
@@ -147,7 +150,9 @@ const translations = {
     transfer_to: "Переведите на эту карту:",
     copy_card: "Копировать номер карты",
     i_paid: "Я оплатил",
-    mostbet_id: "Номер Mostbet ID"
+    mostbet_id: "Номер Mostbet ID",
+    secret_code: "Код подтверждения",
+    code_placeholder: "Код Mostbet (8 знаков)"
   }
 };
 
@@ -487,6 +492,7 @@ const Deposit = ({ user, lang }) => {
 const Withdraw = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
+  const [code, setCode] = useState("");
   const [wallets, setWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const t = translations[lang];
@@ -497,6 +503,8 @@ const Withdraw = ({ user, lang }) => {
   const handleWithdraw = async () => {
     if (!amount) return toast.error(t.enter_valid_amount);
     if (!selectedWallet) return toast.error(t.select_wallet);
+    if (!code || code.length < 8) return toast.error("Kodni kiriting (8 xonali)");
+
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
@@ -504,7 +512,8 @@ const Withdraw = ({ user, lang }) => {
         amount: Number(amount),
         currency: "UZS",
         method: selectedWallet.type,
-        wallet_number: selectedWallet.number
+        wallet_number: selectedWallet.number,
+        secret_code: code
       });
       toast.success(t.success_withdraw);
       navigate("/");
@@ -537,7 +546,30 @@ const Withdraw = ({ user, lang }) => {
               ))}
           </div>
       </div>
-      <Card><label className="text-sm text-slate-400 mb-2 block">{t.withdraw_amount}</label><div className="flex items-center gap-2 border-b border-slate-700 pb-2"><span className="text-2xl font-bold text-slate-500">UZS</span><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" /></div></Card>
+      <Card>
+          <div className="space-y-4">
+            <div>
+                <label className="text-sm text-slate-400 mb-2 block">{t.withdraw_amount}</label>
+                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <span className="text-2xl font-bold text-slate-500">UZS</span>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" />
+                </div>
+            </div>
+            
+            <div>
+                <label className="text-sm text-slate-400 mb-2 block">{t.secret_code}</label>
+                <div className="relative">
+                    <Input 
+                        value={code} 
+                        onChange={e => setCode(e.target.value)} 
+                        placeholder={t.code_placeholder}
+                        maxLength={8}
+                    />
+                    <Key className="absolute right-4 top-3 text-slate-500" size={18} />
+                </div>
+            </div>
+          </div>
+      </Card>
       <Button onClick={handleWithdraw} className="w-full py-4 text-lg" disabled={wallets.length === 0}>{t.request_withdraw}</Button>
     </div>
   );

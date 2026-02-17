@@ -69,6 +69,7 @@ class Transaction(BaseModel):
     currency: str
     method: str
     wallet_number: Optional[str] = None
+    secret_code: Optional[str] = None  # Added Secret Code
     status: Literal['pending', 'approved', 'rejected'] = 'pending'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -79,8 +80,10 @@ class TransactionCreate(BaseModel):
     currency: str
     method: str
     wallet_number: Optional[str] = None
+    secret_code: Optional[str] = None # Added Secret Code
 
 class Settings(BaseModel):
+    admin_group_id: Optional[str] = None
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
 
@@ -173,12 +176,9 @@ async def get_chat_id(message: types.Message):
 
 @dp.my_chat_member()
 async def on_my_chat_member(event: types.ChatMemberUpdated):
-    # If bot is added to a channel/group and promoted to admin
     if event.new_chat_member.status in ['administrator', 'member']:
         chat_id = event.chat.id
         chat_title = event.chat.title
-        
-        # Just inform, don't auto-set anymore since we have 2 channels
         try:
             await bot.send_message(
                 chat_id, 
@@ -208,7 +208,6 @@ async def cb_set_lang(callback: CallbackQuery):
     
     msg_text = MESSAGES[lang_code]["lang_selected"]
     
-    # Back to main menu
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=MESSAGES[lang_code]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")]
@@ -221,10 +220,9 @@ async def cb_set_lang(callback: CallbackQuery):
     )
     await callback.answer(msg_text)
 
-# ADMIN ACTION HANDLERS (Approve/Reject from Telegram)
+# ADMIN ACTION HANDLERS
 @dp.callback_query(F.data.startswith("admin_"))
 async def admin_action_handler(callback: CallbackQuery):
-    # Check if user is admin or chat admin (omitted for simplicity, trusting context)
     action, tx_id = callback.data.split("_")[1], callback.data.split("_")[2]
     
     tx = await db.transactions.find_one({"id": tx_id})
@@ -243,7 +241,6 @@ async def admin_action_handler(callback: CallbackQuery):
         await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "approved"}})
         status_text = "✅ TASDIQLANDI"
         
-        # Notify User
         try:
             user = await db.users.find_one({"telegram_id": tx['user_id']})
             lang = user.get("language", "uz")
@@ -257,7 +254,6 @@ async def admin_action_handler(callback: CallbackQuery):
         await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "rejected"}})
         status_text = "❌ RAD ETILDI"
         
-        # Notify User
         try:
             user = await db.users.find_one({"telegram_id": tx['user_id']})
             lang = user.get("language", "uz")
@@ -265,7 +261,6 @@ async def admin_action_handler(callback: CallbackQuery):
             await bot.send_message(tx['user_id'], msg)
         except: pass
 
-    # Update the admin message
     original_text = callback.message.html_text
     await callback.message.edit_text(
         f"{original_text}\n\n<b>Holat: {status_text}</b>\n👮‍♂️ Admin: {callback.from_user.first_name}",
@@ -287,7 +282,6 @@ async def send_notification(msg: str, tx_type: str, tx_id: str = None):
             ]
         ])
 
-    # 1. Send to Specific Channel based on type
     settings = await db.settings.find_one({})
     target_channel = None
     
@@ -296,19 +290,16 @@ async def send_notification(msg: str, tx_type: str, tx_id: str = None):
             target_channel = settings.get('deposit_channel_id')
         elif tx_type == 'withdraw':
             target_channel = settings.get('withdraw_channel_id')
-            
-        # Fallback to old field if present and new ones are empty
         if not target_channel:
             target_channel = settings.get('admin_group_id')
 
     if target_channel:
         try:
             await bot.send_message(target_channel, msg, parse_mode="HTML", reply_markup=markup)
-            return # If sent to channel, we are good
+            return
         except Exception as e:
             logging.error(f"Failed to send to channel {target_channel}: {e}")
 
-    # 2. Fallback: Send to individual admins if channel fails or not set
     admin_users = await db.users.find({"is_admin": True}).to_list(100)
     admin_ids = set(ADMIN_IDS + [u['telegram_id'] for u in admin_users])
     
@@ -344,7 +335,6 @@ async def login(data: dict = Body(...)):
         await db.users.insert_one(new_user.model_dump())
         return new_user
     
-    # Migrations & Updates
     update_fields = {}
     if "internal_id" not in user:
         update_fields["internal_id"] = generate_user_id()
@@ -369,7 +359,6 @@ async def get_profile(telegram_id: int):
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     if not user: raise HTTPException(status_code=404, detail="User not found")
     
-    # Hot-fix for fields
     if "internal_id" not in user:
         new_id = generate_user_id()
         await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"internal_id": new_id}})
@@ -415,11 +404,9 @@ async def create_transaction(tx: TransactionCreate):
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
-    # Send Notification to Admin/Group
     user_name = user.get("first_name", "Unknown")
     user_internal_id = user.get("internal_id", "---")
     
-    # Format Method Name
     method_name = tx.method.replace('_', ' ').upper()
     if tx.method.startswith('mostbet') and tx.wallet_number:
         method_name += f" ({tx.wallet_number})"
@@ -439,9 +426,9 @@ async def create_transaction(tx: TransactionCreate):
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
                f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
                f"🏦 <b>Tizim:</b> {method_name}\n"
+               f"🔑 <b>Kod:</b> {tx.secret_code if tx.secret_code else 'Kiritilmagan'}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
     
-    # Append User Wallets for reference
     user_wallets = []
     for w in user.get('wallets', []):
         w_type = w['type'].replace('_', ' ').upper()
@@ -552,7 +539,6 @@ async def update_user_balance(telegram_id: int, data: dict = Body(...)):
         except: pass
     return {"message": "Balance updated"}
 
-# Settings API
 @api_router.get("/admin/settings")
 async def get_settings():
     settings = await db.settings.find_one({}, {"_id": 0})
@@ -560,8 +546,6 @@ async def get_settings():
 
 @api_router.post("/admin/settings")
 async def update_settings(data: Settings):
-    # Ensure all fields are set (or keep existing)
-    # Actually simpler: just update what's passed
     update_data = data.model_dump(exclude_unset=True)
     if update_data:
         await db.settings.update_one({}, {"$set": update_data}, upsert=True)
