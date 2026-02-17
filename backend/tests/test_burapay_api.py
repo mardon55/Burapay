@@ -518,10 +518,10 @@ class TestTransactionApprovalFlow:
     """Test transaction approval/rejection flow"""
     
     def test_approve_deposit_increases_balance(self):
-        """Test approving deposit increases user balance"""
-        # Get initial balance
+        """Test approving deposit increases user balance_uzs"""
+        # Get initial balance (use balance_uzs for UZS currency)
         user_before = requests.get(f"{BASE_URL}/api/user/{TEST_TELEGRAM_ID}").json()
-        initial_balance = user_before["balance"]
+        initial_balance_uzs = user_before.get("balance_uzs", 0)
         
         # Create a deposit
         deposit_response = requests.post(f"{BASE_URL}/api/transactions/create", json={
@@ -539,16 +539,16 @@ class TestTransactionApprovalFlow:
         approve_response = requests.post(f"{BASE_URL}/api/admin/transactions/{tx_id}/approve")
         assert approve_response.status_code == 200
         
-        # Verify balance increased
+        # Verify balance_uzs increased
         user_after = requests.get(f"{BASE_URL}/api/user/{TEST_TELEGRAM_ID}").json()
-        assert user_after["balance"] == initial_balance + 25000
-        print(f"✓ Deposit approval: Balance {initial_balance} -> {user_after['balance']}")
+        assert user_after.get("balance_uzs", 0) == initial_balance_uzs + 25000
+        print(f"✓ Deposit approval: Balance UZS {initial_balance_uzs} -> {user_after.get('balance_uzs', 0)}")
     
     def test_reject_deposit_no_balance_change(self):
         """Test rejecting deposit doesn't change balance"""
-        # Get initial balance
+        # Get initial balance (use balance_uzs)
         user_before = requests.get(f"{BASE_URL}/api/user/{TEST_TELEGRAM_ID}").json()
-        initial_balance = user_before["balance"]
+        initial_balance_uzs = user_before.get("balance_uzs", 0)
         
         # Create a deposit
         deposit_response = requests.post(f"{BASE_URL}/api/transactions/create", json={
@@ -568,8 +568,8 @@ class TestTransactionApprovalFlow:
         
         # Verify balance unchanged
         user_after = requests.get(f"{BASE_URL}/api/user/{TEST_TELEGRAM_ID}").json()
-        assert user_after["balance"] == initial_balance
-        print(f"✓ Deposit rejection: Balance unchanged at {user_after['balance']}")
+        assert user_after.get("balance_uzs", 0) == initial_balance_uzs
+        print(f"✓ Deposit rejection: Balance unchanged at {user_after.get('balance_uzs', 0)}")
 
 
 if __name__ == "__main__":
