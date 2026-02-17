@@ -29,7 +29,7 @@ db = client[os.environ['DB_NAME']]
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
 BOT_USERNAME = "BuraPay_bot" 
-WEBAPP_URL = "https://manga-shunaqa.preview.emergentagent.com"
+WEBAPP_URL = "https://miniwalletbot.preview.emergentagent.com"
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
