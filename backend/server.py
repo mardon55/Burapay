@@ -134,7 +134,6 @@ async def cmd_start(message: types.Message):
         
         lang = user_data.get("language", "uz")
         
-        # Main Menu
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")]
@@ -343,12 +342,6 @@ async def login(data: dict = Body(...)):
 async def get_profile(telegram_id: int):
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     if not user: raise HTTPException(status_code=404, detail="User not found")
-    
-    if "internal_id" not in user:
-        new_id = generate_user_id()
-        await db.users.update_one({"telegram_id": telegram_id}, {"$set": {"internal_id": new_id}})
-        user["internal_id"] = new_id
-        
     return user
 
 @api_router.post("/user/language")

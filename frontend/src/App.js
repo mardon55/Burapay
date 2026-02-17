@@ -5,14 +5,8 @@ import {
   Wallet, 
   ArrowUpRight, 
   ArrowDownLeft, 
-  History, 
   Settings, 
-  ShieldCheck, 
   CreditCard,
-  ChevronRight,
-  LogOut,
-  Menu,
-  X,
   UserCheck,
   Users,
   Copy,
@@ -21,13 +15,12 @@ import {
   LayoutDashboard,
   List,
   Edit,
-  Globe,
-  CheckCircle,
+  CheckCircle2,
   Megaphone,
-  ArrowDown,
-  ArrowUp,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   Key,
-  Trash,
+  Trash2,
   Plus,
   Coins
 } from "lucide-react";
@@ -358,7 +351,6 @@ const Deposit = ({ user, lang }) => {
   const t = translations[lang];
 
   useEffect(() => {
-      // Check for card presence
       if (user?.wallets) {
           const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
           if (!hasCard) {
@@ -498,7 +490,7 @@ const Deposit = ({ user, lang }) => {
                                         <div className="text-xs opacity-70">{card.number}</div>
                                     </div>
                                 </div>
-                                {selectedAdminCard?.id === card.id && <CheckCircle size={20} className="text-primary" />}
+                                {selectedAdminCard?.id === card.id && <CheckCircle2 size={20} className="text-primary" />}
                             </button>
                         ))
                     )}
@@ -523,7 +515,7 @@ const Deposit = ({ user, lang }) => {
               )}
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
-                <CheckCircle className="inline-block mr-2 mb-1" size={16} />
+                <CheckCircle2 className="inline-block mr-2 mb-1" size={16} />
                 To'lov qilganingizdan so'ng pastdagi tugmani bosing. Adminlar tekshirib tasdiqlaydi.
               </div>
 
@@ -696,7 +688,6 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
-        // Expiry check only for cards
         if((newWallet.type === 'uzcard' || newWallet.type === 'humo') && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
@@ -1117,7 +1108,6 @@ function App() {
           <Route path="/withdraw" element={<Withdraw user={user} lang={lang} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
-          <Route path="/referral" element={<Referral user={user} lang={lang} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin} lang={lang} />
       </BrowserRouter>
