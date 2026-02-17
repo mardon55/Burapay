@@ -48,6 +48,13 @@ class Wallet(BaseModel):
     expiry: Optional[str] = None 
     name: Optional[str] = None
 
+class AdminCard(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: str # 'uzcard', 'humo'
+    number: str
+    holder_name: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class User(BaseModel):
     telegram_id: int
     internal_id: str = Field(default_factory=generate_user_id)
@@ -57,8 +64,6 @@ class User(BaseModel):
     balance: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
-    referrer_id: Optional[int] = None 
-    referrals_count: int = 0
     language: str = "uz" # 'uz' or 'ru'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -84,22 +89,14 @@ class TransactionCreate(BaseModel):
     secret_code: Optional[str] = None
 
 class Settings(BaseModel):
-    admin_group_id: Optional[str] = None
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
-    # Payment Details
-    admin_card_uzcard: Optional[str] = "8600 0000 0000 0000"
-    admin_card_humo: Optional[str] = "9860 0000 0000 0000"
-    admin_mostbet_uzs: Optional[str] = None
-    admin_mostbet_usd: Optional[str] = None
-    admin_mostbet_rub: Optional[str] = None
 
 # Messages
 MESSAGES = {
     "uz": {
         "welcome": "👋 Salom, {name}!\n\n<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\nHisobni to'ldirish va yechish uchun pastdagi tugmani bosing.",
         "open_app": "📱 BuraPay ilovasini ochish",
-        "new_ref": "🎉 Sizda yangi referal bor: {name}",
         "approved": "✅ Sizning {amount:,.0f} {currency} miqdoridagi so'rovingiz tasdiqlandi!",
         "rejected": "❌ Sizning {amount:,.0f} {currency} miqdoridagi so'rovingiz bekor qilindi.",
         "choose_lang": "👇 Tilni tanlang / Выберите язык",
@@ -109,7 +106,6 @@ MESSAGES = {
     "ru": {
         "welcome": "👋 Привет, {name}!\n\nДобро пожаловать в <b>BuraPay</b> - надежную платежную систему.\nНажмите кнопку ниже для пополнения и вывода средств.",
         "open_app": "📱 Открыть приложение BuraPay",
-        "new_ref": "🎉 У вас новый реферал: {name}",
         "approved": "✅ Ваша заявка на {amount:,.0f} {currency} одобрена!",
         "rejected": "❌ Ваша заявка на {amount:,.0f} {currency} отклонена.",
         "choose_lang": "👇 Tilni tanlang / Выберите язык",
@@ -124,32 +120,12 @@ async def cmd_start(message: types.Message, command: CommandObject):
     try:
         user_data = await db.users.find_one({"telegram_id": message.from_user.id})
         
-        # Referral
-        args = command.args
-        referrer_id = None
-        if args and args.isdigit() and not user_data:
-            ref_internal_id = args
-            referrer = await db.users.find_one({"internal_id": ref_internal_id})
-            if referrer and referrer['telegram_id'] != message.from_user.id:
-                referrer_id = referrer['telegram_id']
-                await db.users.update_one(
-                    {"telegram_id": referrer['telegram_id']},
-                    {"$inc": {"referrals_count": 1}}
-                )
-                if bot:
-                    try:
-                        r_lang = referrer.get("language", "uz")
-                        msg = MESSAGES[r_lang]["new_ref"].format(name=message.from_user.first_name)
-                        await bot.send_message(referrer['telegram_id'], msg)
-                    except: pass
-
         if not user_data:
             new_user = User(
                 telegram_id=message.from_user.id,
                 first_name=message.from_user.first_name,
                 username=message.from_user.username,
                 balance=0.0,
-                referrer_id=referrer_id,
                 language="uz"
             )
             await db.users.insert_one(new_user.model_dump())
@@ -414,13 +390,11 @@ async def create_transaction(tx: TransactionCreate):
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
-    # Notification Details
     user_name = user.get("first_name", "Unknown")
     user_username = f"@{user.get('username')}" if user.get('username') else "Mavjud emas"
     user_internal_id = user.get("internal_id", "---")
     user_phone = user.get("phone_number", "Kiritilmagan")
     
-    # Find user's attached card (Uzcard/Humo)
     user_attached_card = "Kiritilmagan"
     for w in user.get('wallets', []):
         if w['type'] in ['uzcard', 'humo']:
@@ -555,6 +529,25 @@ async def update_user_balance(telegram_id: int, data: dict = Body(...)):
             await bot.send_message(telegram_id, msg)
         except: pass
     return {"message": "Balance updated"}
+
+# Admin Cards API
+@api_router.get("/admin/cards")
+async def get_admin_cards():
+    cards = await db.admin_cards.find({}, {"_id": 0}).to_list(100)
+    return cards
+
+@api_router.post("/admin/cards")
+async def add_admin_card(card: dict = Body(...)):
+    new_card = AdminCard(**card)
+    await db.admin_cards.insert_one(new_card.model_dump())
+    return {"message": "Card added", "card": new_card}
+
+@api_router.delete("/admin/cards/{id}")
+async def delete_admin_card(id: str):
+    res = await db.admin_cards.delete_one({"id": id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Card not found")
+    return {"message": "Card deleted"}
 
 # Settings API
 @api_router.get("/admin/settings")

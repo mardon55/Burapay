@@ -27,8 +27,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Key,
-  Banknote,
-  Coins
+  Trash2,
+  Plus
 } from "lucide-react";
 import axios from "axios";
 
@@ -95,9 +95,8 @@ const translations = {
     secret_code: "Tasdiqlash kodi",
     code_placeholder: "Mostbet kodi (8 xonali)",
     add_card_required: "Iltimos, avval Uzcard yoki Humo karta qo'shing!",
-    choose_currency: "Valyutani tanlang",
-    choose_payment: "To'lov usulini tanlang",
-    admin_card_not_set: "Admin kartasi kiritilmagan"
+    select_card_to_pay: "To'lov kartasini tanlang",
+    admin_cards: "Qabul qiluvchi hamyonlar"
   },
   ru: {
     home: "Главная",
@@ -154,9 +153,8 @@ const translations = {
     secret_code: "Код подтверждения",
     code_placeholder: "Код Mostbet (8 знаков)",
     add_card_required: "Пожалуйста, сначала добавьте карту Uzcard или Humo!",
-    choose_currency: "Выберите валюту",
-    choose_payment: "Выберите способ оплаты",
-    admin_card_not_set: "Карта админа не установлена"
+    select_card_to_pay: "Выберите карту для оплаты",
+    admin_cards: "Кошельки для приема"
   }
 };
 
@@ -205,7 +203,7 @@ const BottomNav = ({ isAdmin, lang }) => {
     { icon: <Wallet size={20} />, label: t.home, path: "/" },
     { icon: <ArrowUpRight size={20} />, label: t.deposit, path: "/deposit" },
     { icon: <ArrowDownLeft size={20} />, label: t.withdraw, path: "/withdraw" },
-    { icon: <Users size={20} />, label: t.referral, path: "/referral" },
+    { icon: <CreditCard size={20} />, label: t.wallets, path: "/wallets" },
   ];
 
   if (isAdmin) {
@@ -354,53 +352,13 @@ const Home = ({ user, lang, setLang }) => {
   );
 };
 
-const Referral = ({ user, lang }) => {
-    const t = translations[lang];
-    const refLink = `https://t.me/BuraPay_bot?start=${user?.internal_id}`;
-
-    const copyLink = () => {
-        navigator.clipboard.writeText(refLink);
-        toast.success(t.copied);
-    };
-
-    if (!user) return null;
-
-    return (
-        <div className="p-4 space-y-6 pb-24">
-            <h1 className="text-2xl font-bold">{t.ref_program}</h1>
-            
-            <Card highlight>
-                <div className="text-center py-4">
-                    <h2 className="text-4xl font-bold text-gold mb-2">{user.referrals_count || 0}</h2>
-                    <p className="text-slate-400 uppercase tracking-wider text-sm">{t.invited_friends}</p>
-                </div>
-            </Card>
-
-            <div className="bg-midnight-light p-4 rounded-xl border border-slate-800">
-                <label className="text-sm text-slate-400 mb-2 block">{t.your_ref_link}</label>
-                <div className="flex gap-2">
-                    <div className="bg-midnight border border-slate-700 rounded-lg px-3 py-3 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-slate-300 text-sm">
-                        {refLink}
-                    </div>
-                    <button onClick={copyLink} className="bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors">
-                        <Copy size={20} />
-                    </button>
-                </div>
-                <p className="text-xs text-slate-500 mt-3">
-                    {t.ref_desc}
-                </p>
-            </div>
-        </div>
-    );
-};
-
 const Deposit = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(""); // UZS, USD, RUB
-  const [selectedAdminCard, setSelectedAdminCard] = useState(""); // Only for UZS
+  const [selectedAdminCard, setSelectedAdminCard] = useState(null); // Object
   const [step, setStep] = useState(1); 
-  const [adminSettings, setAdminSettings] = useState({});
+  const [adminCards, setAdminCards] = useState([]);
   const t = translations[lang];
 
   useEffect(() => {
@@ -413,33 +371,29 @@ const Deposit = ({ user, lang }) => {
               return;
           }
       }
-      fetchSettings();
+      fetchAdminCards();
   }, [user, navigate, t.add_card_required]);
 
-  const fetchSettings = async () => {
-      try { const res = await axios.get(`${API_URL}/admin/settings`); setAdminSettings(res.data); } catch(e) {}
+  const fetchAdminCards = async () => {
+      try { const res = await axios.get(`${API_URL}/admin/cards`); setAdminCards(res.data); } catch(e) {}
   };
 
   const handleNext = () => {
-      if(!currency) return toast.error(t.choose_currency);
-      // If UZS, user needs to pick Uzcard or Humo admin card
-      if(currency === 'UZS' && !selectedAdminCard) return toast.error(t.choose_payment);
-      
+      if(!amount) return toast.error(t.enter_valid_amount);
+      if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
+      if(!selectedAdminCard) return toast.error(t.select_card_to_pay);
       setStep(2);
   };
 
   const handleDeposit = async () => {
-    if(!amount) return toast.error(t.enter_valid_amount);
-    if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
-
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
         type: "deposit",
         amount: Number(amount),
         currency: currency,
-        method: currency === 'UZS' ? (selectedAdminCard === adminSettings.admin_card_uzcard ? 'UZCARD' : 'HUMO') : `Mostbet ${currency}`,
-        wallet_number: "External", // Just marking as external transfer
+        method: `${selectedAdminCard.type.toUpperCase()} (Admin)`,
+        wallet_number: "External", 
         manual_check: true
       });
       toast.success(t.success_deposit);
@@ -447,18 +401,23 @@ const Deposit = ({ user, lang }) => {
     } catch (e) { toast.error(t.error); }
   };
 
-  // Determine what to show to user to transfer TO
-  let transferTarget = "";
-  if (currency === 'UZS') transferTarget = selectedAdminCard;
-  else if (currency === 'USD') transferTarget = adminSettings.admin_mostbet_usd;
-  else if (currency === 'RUB') transferTarget = adminSettings.admin_mostbet_rub;
-
   const copyAccount = () => {
-      if(transferTarget) {
-          navigator.clipboard.writeText(transferTarget);
+      if(selectedAdminCard) {
+          navigator.clipboard.writeText(selectedAdminCard.number);
           toast.success(t.copied);
       }
   };
+
+  // Filter cards based on user currency selection?
+  // User selects amount -> then selects card to pay TO.
+  // Actually, let's auto-detect. No, user chooses currency.
+  // UZS -> Show Uzcard/Humo.
+  // USD/RUB -> Show nothing? Prompt said "remove mostbet uzs/usd/rub from admin panel" and "added cards should appear in deposit".
+  // So we assume only Uzcard/Humo are added to admin panel now.
+  // What if user wants to deposit USD? We don't have target.
+  // I will restrict deposit to UZS for now since admin removed Mostbet fields, OR allow admin to add Mostbet as "Card" type in new system.
+
+  const filteredAdminCards = adminCards; // Show all added cards
 
   return (
     <div className="p-4 space-y-6 pb-24">
@@ -466,72 +425,52 @@ const Deposit = ({ user, lang }) => {
       
       {step === 1 ? (
           <div className="space-y-6 animate-in fade-in">
-            {/* Currency Selection */}
+            <Card>
+                <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
+                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <span className="text-2xl font-bold text-slate-500">UZS</span>
+                    <input 
+                        type="number" 
+                        value={amount} 
+                        onChange={e => { setAmount(e.target.value); setCurrency('UZS'); }} 
+                        className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" 
+                        placeholder="0" 
+                    />
+                </div>
+                <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>
+            </Card>
+
             <div>
-                <label className="text-sm text-slate-400 mb-2 block">{t.choose_currency}</label>
-                <div className="grid grid-cols-3 gap-3">
-                    {['UZS', 'USD', 'RUB'].map(c => (
-                        <button
-                            key={c}
-                            onClick={() => { setCurrency(c); setSelectedAdminCard(""); }}
-                            className={`p-4 rounded-xl border font-bold text-center transition-all ${
-                                currency === c 
-                                ? 'bg-primary text-black border-primary' 
-                                : 'bg-midnight-light border-slate-700 text-slate-400'
-                            }`}
-                        >
-                            {c}
-                        </button>
-                    ))}
+                <label className="text-sm text-slate-400 mb-2 block">{t.select_card_to_pay}</label>
+                <div className="space-y-2">
+                    {filteredAdminCards.length === 0 ? (
+                        <div className="text-center text-slate-500 p-4 border border-dashed border-slate-700 rounded-xl">
+                            Admin hamyonlari yo'q
+                        </div>
+                    ) : (
+                        filteredAdminCards.map(card => (
+                            <button 
+                                key={card.id}
+                                onClick={() => setSelectedAdminCard(card)}
+                                className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
+                                    selectedAdminCard?.id === card.id
+                                    ? 'bg-primary/20 border-primary text-white'
+                                    : 'bg-midnight-light border-slate-700 text-slate-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <CreditCard className={card.type === 'humo' ? 'text-orange-500' : 'text-blue-500'} />
+                                    <div className="text-left">
+                                        <div className="font-bold uppercase">{card.type}</div>
+                                        <div className="text-xs opacity-70">{card.number}</div>
+                                    </div>
+                                </div>
+                                {selectedAdminCard?.id === card.id && <CheckCircle2 size={20} className="text-primary" />}
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
-
-            {/* If UZS, show Admin Cards options */}
-            {currency === 'UZS' && (
-                <div className="animate-in slide-in-from-top-2">
-                    <label className="text-sm text-slate-400 mb-2 block">{t.choose_payment}</label>
-                    <div className="space-y-2">
-                        {adminSettings.admin_card_uzcard && (
-                            <button 
-                                onClick={() => setSelectedAdminCard(adminSettings.admin_card_uzcard)}
-                                className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
-                                    selectedAdminCard === adminSettings.admin_card_uzcard
-                                    ? 'bg-blue-600/20 border-blue-500 text-white'
-                                    : 'bg-midnight-light border-slate-700 text-slate-400'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <CreditCard className="text-blue-500" />
-                                    <div className="text-left">
-                                        <div className="font-bold">UZCARD</div>
-                                        <div className="text-xs opacity-70">Admin kartasi</div>
-                                    </div>
-                                </div>
-                                {selectedAdminCard === adminSettings.admin_card_uzcard && <CheckCircle2 size={20} className="text-blue-500" />}
-                            </button>
-                        )}
-                        {adminSettings.admin_card_humo && (
-                            <button 
-                                onClick={() => setSelectedAdminCard(adminSettings.admin_card_humo)}
-                                className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
-                                    selectedAdminCard === adminSettings.admin_card_humo
-                                    ? 'bg-orange-600/20 border-orange-500 text-white'
-                                    : 'bg-midnight-light border-slate-700 text-slate-400'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <CreditCard className="text-orange-500" />
-                                    <div className="text-left">
-                                        <div className="font-bold">HUMO</div>
-                                        <div className="text-xs opacity-70">Admin kartasi</div>
-                                    </div>
-                                </div>
-                                {selectedAdminCard === adminSettings.admin_card_humo && <CheckCircle2 size={20} className="text-orange-500" />}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
 
             <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
           </div>
@@ -540,29 +479,12 @@ const Deposit = ({ user, lang }) => {
               <Card highlight className="text-center py-8">
                   <p className="text-slate-400 mb-2">{t.transfer_to}</p>
                   <div className="text-2xl font-mono font-bold tracking-wider mb-4 text-white break-all">
-                      {transferTarget || t.admin_card_not_set}
+                      {selectedAdminCard?.number}
                   </div>
-                  {transferTarget && (
-                      <Button variant="secondary" onClick={copyAccount} className="mx-auto text-sm h-9">
-                          <Copy size={16} className="mr-2" />
-                          {t.copy_num}
-                      </Button>
-                  )}
-              </Card>
-
-              <Card>
-                <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
-                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-                    <span className="text-2xl font-bold text-slate-500">{currency === 'USD' ? '$' : currency === 'RUB' ? '₽' : 'UZS'}</span>
-                    <input 
-                        type="number" 
-                        value={amount} 
-                        onChange={e => setAmount(e.target.value)} 
-                        className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" 
-                        placeholder="0" 
-                    />
-                </div>
-                {currency === 'UZS' && <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>}
+                  <Button variant="secondary" onClick={copyAccount} className="mx-auto text-sm h-9">
+                      <Copy size={16} className="mr-2" />
+                      {t.copy_num}
+                  </Button>
               </Card>
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
@@ -812,14 +734,12 @@ const Admin = ({ user }) => {
     const [stats, setStats] = useState(null);
     const [txs, setTxs] = useState([]);
     const [users, setUsers] = useState([]);
+    const [adminCards, setAdminCards] = useState([]);
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
-    const [settings, setSettings] = useState({ 
-        deposit_channel_id: '', withdraw_channel_id: '',
-        admin_card_uzcard: '', admin_card_humo: '',
-        admin_mostbet_uzs: '', admin_mostbet_usd: '', admin_mostbet_rub: ''
-    });
+    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '' });
+    const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
 
     useEffect(() => { 
         if(user?.is_admin) {
@@ -827,6 +747,7 @@ const Admin = ({ user }) => {
             fetchPending();
             fetchUsers();
             fetchSettings();
+            fetchAdminCards();
         }
     }, [user]);
 
@@ -834,6 +755,7 @@ const Admin = ({ user }) => {
     const fetchPending = async () => { try { const res = await axios.get(`${API_URL}/admin/transactions/pending`); setTxs(res.data); } catch (e) { console.error(e); } };
     const fetchUsers = async () => { try { const res = await axios.get(`${API_URL}/admin/users?search=${search}`); setUsers(res.data); } catch (e) { console.error(e); } };
     const fetchSettings = async () => { try { const res = await axios.get(`${API_URL}/admin/settings`); setSettings(res.data); } catch (e) { console.error(e); } };
+    const fetchAdminCards = async () => { try { const res = await axios.get(`${API_URL}/admin/cards`); setAdminCards(res.data); } catch (e) { console.error(e); } };
 
     const handleAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/transactions/${id}/${action}`); toast.success(`Transaction ${action}ed`); fetchPending(); fetchStats(); } catch (e) { toast.error("Action failed"); } };
 
@@ -860,18 +782,37 @@ const Admin = ({ user }) => {
         } catch(e) { toast.error("Xatolik"); }
     };
 
+    const handleAddCard = async () => {
+        if(!newCard.number) return toast.error("Raqam kiriting");
+        try {
+            await axios.post(`${API_URL}/admin/cards`, newCard);
+            toast.success("Karta qo'shildi");
+            setNewCard({ type: 'uzcard', number: '' });
+            fetchAdminCards();
+        } catch(e) { toast.error("Xatolik"); }
+    };
+
+    const handleDeleteCard = async (id) => {
+        try {
+            await axios.delete(`${API_URL}/admin/cards/${id}`);
+            toast.success("Karta o'chirildi");
+            fetchAdminCards();
+        } catch(e) { toast.error("Xatolik"); }
+    };
+
     if (!user?.is_admin) return <div className="p-10 text-center">Ruxsat yo'q</div>;
 
     return (
         <div className="p-6 pb-24">
             <div className="flex items-center justify-between mb-6"><h1 className="text-2xl font-bold">Admin Panel</h1><Link to="/" className="text-sm text-slate-500">Chiqish</Link></div>
             
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
                 {[
                     { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
                     { id: 'pending', icon: List, label: `To'lovlar (${stats?.pending_count || 0})` },
-                    { id: 'users', icon: Users, label: 'Foydalanuvchilar' },
-                    { id: 'settings', icon: Settings, label: 'Sozlamalar' },
+                    { id: 'cards', icon: Wallet, label: 'Kartalar' },
+                    { id: 'users', icon: Users, label: 'Userlar' },
+                    { id: 'settings', icon: Settings, label: 'Sozlama' },
                 ].map(tab => (
                     <button 
                         key={tab.id}
@@ -913,6 +854,55 @@ const Admin = ({ user }) => {
                             <div className="flex gap-2"><button onClick={() => handleAction(tx.id, 'reject')} className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition-colors">Rad etish</button><button onClick={() => handleAction(tx.id, 'approve')} className="flex-1 py-2 rounded-lg bg-green-500/10 text-green-500 font-bold hover:bg-green-500/20 transition-colors">Tasdiqlash</button></div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {activeTab === 'cards' && (
+                <div className="space-y-6 animate-in fade-in">
+                    <Card>
+                        <h3 className="font-bold mb-4">Yangi karta qo'shish</h3>
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <select 
+                                    className="bg-midnight border border-slate-700 rounded-lg px-3 py-2 text-white outline-none"
+                                    value={newCard.type}
+                                    onChange={e => setNewCard({...newCard, type: e.target.value})}
+                                >
+                                    <option value="uzcard">UZCARD</option>
+                                    <option value="humo">HUMO</option>
+                                    <option value="mostbet">MOSTBET</option>
+                                </select>
+                                <Input 
+                                    placeholder="Karta raqam / ID" 
+                                    value={newCard.number}
+                                    onChange={e => setNewCard({...newCard, number: e.target.value})}
+                                />
+                            </div>
+                            <Button onClick={handleAddCard}>
+                                <Plus size={18} className="mr-2"/> Qo'shish
+                            </Button>
+                        </div>
+                    </Card>
+
+                    <div className="space-y-3">
+                        {adminCards.map(card => (
+                            <div key={card.id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                                        <CreditCard size={20} className={card.type === 'humo' ? 'text-orange-500' : 'text-blue-500'} />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold uppercase">{card.type}</div>
+                                        <div className="text-sm font-mono text-slate-400">{card.number}</div>
+                                    </div>
+                                </div>
+                                <button onClick={() => handleDeleteCard(card.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        ))}
+                        {adminCards.length === 0 && <div className="text-center text-slate-500">Kartalar yo'q</div>}
+                    </div>
                 </div>
             )}
 
@@ -958,18 +948,6 @@ const Admin = ({ user }) => {
                         <div className="space-y-4 mb-6">
                             <div><label className="text-xs text-slate-400 mb-1 block">Depozit Kanali ID</label><Input value={settings.deposit_channel_id || ''} onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})} placeholder="-100..." /></div>
                             <div><label className="text-xs text-slate-400 mb-1 block">Pul Yechish Kanali ID</label><Input value={settings.withdraw_channel_id || ''} onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})} placeholder="-100..." /></div>
-                        </div>
-
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                            <Wallet size={20} className="text-gold" />
-                            Admin Hamyonlari (Qabul qilish uchun)
-                        </h3>
-                        <div className="space-y-4">
-                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Uzcard</label><Input value={settings.admin_card_uzcard || ''} onChange={e => setSettings({...settings, admin_card_uzcard: e.target.value})} /></div>
-                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Humo</label><Input value={settings.admin_card_humo || ''} onChange={e => setSettings({...settings, admin_card_humo: e.target.value})} /></div>
-                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet UZS ID</label><Input value={settings.admin_mostbet_uzs || ''} onChange={e => setSettings({...settings, admin_mostbet_uzs: e.target.value})} /></div>
-                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet USD ID</label><Input value={settings.admin_mostbet_usd || ''} onChange={e => setSettings({...settings, admin_mostbet_usd: e.target.value})} /></div>
-                            <div><label className="text-xs text-slate-400 mb-1 block">Admin Mostbet RUB ID</label><Input value={settings.admin_mostbet_rub || ''} onChange={e => setSettings({...settings, admin_mostbet_rub: e.target.value})} /></div>
                             <Button onClick={handleSaveSettings}>Saqlash</Button>
                         </div>
                     </Card>
@@ -1068,7 +1046,6 @@ function App() {
           <Route path="/withdraw" element={<Withdraw user={user} lang={lang} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
-          <Route path="/referral" element={<Referral user={user} lang={lang} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin} lang={lang} />
       </BrowserRouter>
