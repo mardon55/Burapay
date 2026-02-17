@@ -21,7 +21,8 @@ import {
   LayoutDashboard,
   List,
   Edit,
-  Globe
+  Globe,
+  CheckCircle2
 } from "lucide-react";
 import axios from "axios";
 
@@ -30,6 +31,12 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
+
+// Admin Cards
+const ADMIN_CARDS = {
+    humo: "9860 1601 3375 2081",
+    uzcard: "8600 0102 0304 0506"
+};
 
 // Translations
 const translations = {
@@ -79,7 +86,11 @@ const translations = {
     pending: "Kutilmoqda",
     deposit_in: "Kirim",
     withdraw_out: "Chiqim",
-    lang_changed: "Til o'zgartirildi"
+    lang_changed: "Til o'zgartirildi",
+    min_amount: "Eng kam summa 20,000 UZS",
+    transfer_to: "Quyidagi kartaga o'tkazing:",
+    copy_card: "Karta raqamidan nusxa olish",
+    i_paid: "To'lov qildim"
   },
   ru: {
     home: "Главная",
@@ -127,7 +138,11 @@ const translations = {
     pending: "Ожидание",
     deposit_in: "Ввод",
     withdraw_out: "Вывод",
-    lang_changed: "Язык изменен"
+    lang_changed: "Язык изменен",
+    min_amount: "Минимальная сумма 20,000 UZS",
+    transfer_to: "Переведите на эту карту:",
+    copy_card: "Копировать номер карты",
+    i_paid: "Я оплатил"
   }
 };
 
@@ -368,41 +383,98 @@ const Referral = ({ user, lang }) => {
 const Deposit = ({ user, lang }) => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("UZS");
+  const [method, setMethod] = useState("uzcard"); // uzcard or humo
+  const [step, setStep] = useState(1); // 1: Amount, 2: Payment
   const t = translations[lang];
 
+  const handleNext = () => {
+      if(!amount || Number(amount) < 20000) return toast.error(t.min_amount);
+      setStep(2);
+  };
+
   const handleDeposit = async () => {
-    if (!amount) return toast.error(t.enter_valid_amount);
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
         type: "deposit",
         amount: Number(amount),
-        currency,
-        method: "manual_check" 
+        currency: "UZS",
+        method: method,
+        manual_check: true
       });
       toast.success(t.success_deposit);
       navigate("/");
     } catch (e) { toast.error(t.error); }
   };
+
+  const copyCard = () => {
+      navigator.clipboard.writeText(ADMIN_CARDS[method]);
+      toast.success(t.copied);
+  };
+
   return (
     <div className="p-4 space-y-6 pb-24">
       <h1 className="text-2xl font-bold">{t.deposit_title}</h1>
-      <div className="grid grid-cols-3 gap-3">
-        {['UZS', 'USD', 'RUB'].map(c => (
-            <button key={c} onClick={() => setCurrency(c)} className={`p-4 rounded-xl border font-bold transition-all ${currency === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-midnight-light border-slate-700 text-slate-400'}`}>
-                MOSTBET <br/> {c}
-            </button>
-        ))}
-      </div>
-      <Card>
-        <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
-        <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-            <span className="text-2xl font-bold text-slate-500">UZS</span>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" />
-        </div>
-      </Card>
-      <Button onClick={handleDeposit} className="w-full py-4 text-lg">{t.confirm_deposit}</Button>
+      
+      {step === 1 ? (
+          <>
+            <Card>
+                <label className="text-sm text-slate-400 mb-2 block">{t.enter_amount}</label>
+                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <span className="text-2xl font-bold text-slate-500">UZS</span>
+                    <input 
+                        type="number" 
+                        value={amount} 
+                        onChange={e => setAmount(e.target.value)} 
+                        className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" 
+                        placeholder="0" 
+                    />
+                </div>
+                <p className="text-xs text-slate-500 mt-2 text-right">Min: 20,000 UZS</p>
+            </Card>
+            <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
+          </>
+      ) : (
+          <div className="space-y-4 animate-in slide-in-from-right">
+              <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => setMethod('uzcard')}
+                    className={`p-4 rounded-xl border font-bold transition-all flex flex-col items-center gap-2 ${method === 'uzcard' ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-midnight-light border-slate-700 text-slate-400'}`}
+                  >
+                      <CreditCard size={24} />
+                      UZCARD
+                  </button>
+                  <button 
+                    onClick={() => setMethod('humo')}
+                    className={`p-4 rounded-xl border font-bold transition-all flex flex-col items-center gap-2 ${method === 'humo' ? 'bg-orange-600/20 border-orange-500 text-orange-400' : 'bg-midnight-light border-slate-700 text-slate-400'}`}
+                  >
+                      <CreditCard size={24} />
+                      HUMO
+                  </button>
+              </div>
+
+              <Card highlight className="text-center py-8">
+                  <p className="text-slate-400 mb-2">{t.transfer_to}</p>
+                  <div className="text-3xl font-mono font-bold tracking-wider mb-4 text-white">
+                      {ADMIN_CARDS[method]}
+                  </div>
+                  <Button variant="secondary" onClick={copyCard} className="mx-auto text-sm h-9">
+                      <Copy size={16} className="mr-2" />
+                      {t.copy_card}
+                  </Button>
+              </Card>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
+                <CheckCircle2 className="inline-block mr-2 mb-1" size={16} />
+                To'lov qilganingizdan so'ng pastdagi tugmani bosing. Adminlar tekshirib tasdiqlaydi.
+              </div>
+
+              <div className="flex gap-3">
+                  <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">Ortga</Button>
+                  <Button onClick={handleDeposit} className="flex-[2]">{t.i_paid}</Button>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
