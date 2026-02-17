@@ -61,7 +61,9 @@ class User(BaseModel):
     first_name: str
     username: Optional[str] = None
     phone_number: Optional[str] = None
-    balance: float = 0.0
+    balance: float = 0.0  # Legacy field
+    balance_uzs: float = 0.0
+    balance_usd: float = 0.0
     wallets: List[Wallet] = []
     is_admin: bool = False
     language: str = "uz" # 'uz' or 'ru'
