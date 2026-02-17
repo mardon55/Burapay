@@ -475,6 +475,20 @@ async def create_transaction(tx: TransactionCreate):
             user_attached_card = f"{w['type'].upper()} {w['number']}"
             break
 
+    # Find user's Mostbet ID based on currency
+    mostbet_id = "Kiritilmagan"
+    mostbet_type = 'mostbet_uzs' if tx.currency == 'UZS' else 'mostbet_usd'
+    for w in user.get('wallets', []):
+        if w['type'] == mostbet_type:
+            mostbet_id = w['number']
+            break
+    # If not found, try any Mostbet wallet
+    if mostbet_id == "Kiritilmagan":
+        for w in user.get('wallets', []):
+            if w['type'].startswith('mostbet'):
+                mostbet_id = w['number']
+                break
+
     method_name = tx.method.replace('_', ' ').upper()
     if tx.method.startswith('mostbet') and tx.wallet_number:
         method_name += f" ({tx.wallet_number})"
@@ -484,7 +498,7 @@ async def create_transaction(tx: TransactionCreate):
         msg = (f"📥 <b>Yangi Depozit!</b>\n\n"
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
                f"🔗 <b>Username:</b> {user_username}\n"
-               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"🎮 <b>Mostbet ID:</b> {mostbet_id}\n"
                f"📞 <b>Tel:</b> {user_phone}\n"
                f"💳 <b>Karta:</b> {user_attached_card}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
@@ -494,7 +508,7 @@ async def create_transaction(tx: TransactionCreate):
         msg = (f"📤 <b>Pul Yechish!</b>\n\n"
                f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
                f"🔗 <b>Username:</b> {user_username}\n"
-               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"🎮 <b>Mostbet ID:</b> {mostbet_id}\n"
                f"📞 <b>Tel:</b> {user_phone}\n"
                f"💳 <b>Karta:</b> {user_attached_card}\n"
                f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
