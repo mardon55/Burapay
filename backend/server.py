@@ -91,6 +91,7 @@ class TransactionCreate(BaseModel):
 class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
+    exchange_rate: float = 12800.0 # Default USD rate
 
 # Messages
 MESSAGES = {
@@ -273,8 +274,6 @@ async def send_notification(msg: str, tx_type: str, tx_id: str = None):
             target_channel = settings.get('deposit_channel_id')
         elif tx_type == 'withdraw':
             target_channel = settings.get('withdraw_channel_id')
-        if not target_channel:
-            target_channel = settings.get('admin_group_id')
 
     if target_channel:
         try:
@@ -390,11 +389,13 @@ async def create_transaction(tx: TransactionCreate):
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
     
+    # Notification Details
     user_name = user.get("first_name", "Unknown")
     user_username = f"@{user.get('username')}" if user.get('username') else "Mavjud emas"
     user_internal_id = user.get("internal_id", "---")
     user_phone = user.get("phone_number", "Kiritilmagan")
     
+    # Find user's attached card (Uzcard/Humo)
     user_attached_card = "Kiritilmagan"
     for w in user.get('wallets', []):
         if w['type'] in ['uzcard', 'humo']:
