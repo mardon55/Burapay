@@ -101,7 +101,12 @@ async def mostbet_deposit(player_id: str, amount: float, currency: str = "UZS") 
             if response.status_code == 200:
                 return {"success": True, "data": response.json()}
             else:
-                return {"success": False, "error": f"API Error: {response.status_code} - {response.text}"}
+                try:
+                    err = response.json()
+                    msg = err.get("message", "") or err.get("code", "")
+                except Exception:
+                    msg = response.text[:200]
+                return {"success": False, "error": msg}
                 
     except Exception as e:
         logging.error(f"Mostbet API Error: {e}")
