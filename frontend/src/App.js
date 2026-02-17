@@ -35,16 +35,11 @@ const Deposit = ({ user, lang }) => {
   const handleNext = () => {
       if(!amount) return toast.error(t.enter_valid_amount);
       if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
-      
-      // CRITICAL FIX: Require card selection for ALL currencies
       if(!selectedAdminCard) return toast.error(t.select_card_to_pay);
-      
       setStep(2);
   };
 
   const handleDeposit = async () => {
-    if (!selectedAdminCard) return; // Extra safety
-
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
@@ -70,7 +65,7 @@ const Deposit = ({ user, lang }) => {
   // Filter cards based on user currency selection
   const filteredCards = adminCards.filter(c => {
       if (currency === 'UZS') return ['uzcard', 'humo', 'mostbet_uzs'].includes(c.type);
-      if (currency === 'USD') return ['uzcard', 'humo', 'mostbet_usd'].includes(c.type);
+      if (currency === 'USD') return ['uzcard', 'humo', 'mostbet_usd'].includes(c.type); // Allow Uzcard/Humo for USD too
       return false; 
   });
 
