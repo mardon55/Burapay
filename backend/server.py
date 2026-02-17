@@ -456,10 +456,14 @@ async def create_transaction(tx: TransactionCreate):
     if not has_card:
         raise HTTPException(status_code=400, detail="Avval Uzcard yoki Humo karta qo'shing")
 
+    # Determine balance field based on currency
+    balance_field = 'balance_uzs' if tx.currency == 'UZS' else 'balance_usd'
+    current_balance = user.get(balance_field, 0)
+
     if tx.type == 'withdraw':
-        if user.get('balance', 0) < tx.amount:
+        if current_balance < tx.amount:
             raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
-        await db.users.update_one({"telegram_id": tx.user_id}, {"$inc": {"balance": -tx.amount}})
+        await db.users.update_one({"telegram_id": tx.user_id}, {"$inc": {balance_field: -tx.amount}})
 
     transaction = Transaction(**tx.model_dump())
     await db.transactions.insert_one(transaction.model_dump())
