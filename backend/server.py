@@ -40,6 +40,72 @@ dp = Dispatcher()
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Mostbet Kassa API Configuration
+MOSTBET_API_KEY = os.environ.get('MOSTBET_KASSA_ID', '')
+MOSTBET_SECRET_KEY = os.environ.get('MOSTBET_SECRET_KEY', '')
+MOSTBET_API_BASE = "https://apimb.com/mbc/gateway/v1/api/cashpoint"
+
+async def mostbet_deposit(player_id: str, amount: float, currency: str = "UZS") -> dict:
+    """
+    Transfer money to player's Mostbet account via Kassa API
+    """
+    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY:
+        return {"success": False, "error": "Kassa credentials not configured"}
+    
+    try:
+        # API endpoint
+        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_API_KEY}/player/deposit"
+        url = f"https://apimb.com{path}"
+        
+        # Request body
+        body = {
+            "brandId": 1,
+            "playerId": player_id,
+            "amount": int(amount),
+            "currency": currency
+        }
+        body_str = str(body).replace("'", '"').replace(" ", "")
+        
+        # Timestamp in UTC
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Create signature string: api-key + path + body + timestamp
+        signature_string = f"{MOSTBET_API_KEY}{path}{body_str}{timestamp}"
+        
+        # HMAC SHA3-256 signature
+        signature = hmac.new(
+            MOSTBET_SECRET_KEY.encode('utf-8'),
+            signature_string.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        # Headers
+        headers = {
+            "Content-Type": "application/json",
+            "X-Api-Key": MOSTBET_API_KEY,
+            "X-Timestamp": timestamp,
+            "X-Signature": signature,
+            "X-Project": "MBC"
+        }
+        
+        logging.info(f"Mostbet API Request: {url}")
+        logging.info(f"Body: {body}")
+        
+        # Make request
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=body, headers=headers)
+            
+            logging.info(f"Mostbet API Response: {response.status_code} - {response.text}")
+            
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": f"API Error: {response.status_code} - {response.text}"}
+                
+    except Exception as e:
+        logging.error(f"Mostbet API Error: {e}")
+        return {"success": False, "error": str(e)}
+
 def generate_user_id():
     """Generate a 7-digit random ID"""
     return str(random.randint(1000000, 9999999))
