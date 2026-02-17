@@ -81,7 +81,8 @@ class TransactionCreate(BaseModel):
     wallet_number: Optional[str] = None
 
 class Settings(BaseModel):
-    admin_group_id: Optional[str] = None
+    deposit_channel_id: Optional[str] = None
+    withdraw_channel_id: Optional[str] = None
 
 # Messages
 MESSAGES = {
@@ -164,7 +165,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
 # Helper to find ID
 @dp.message(F.text | F.forward_from_chat)
 async def get_chat_id(message: types.Message):
-    # Only process if message comes from admin private chat OR if it is a command
     if message.chat.type == 'private' and message.from_user.id in ADMIN_IDS:
         if message.forward_from_chat:
             await message.reply(f"📢 Kanal/Guruh ID: `{message.forward_from_chat.id}`", parse_mode="Markdown")
@@ -175,23 +175,17 @@ async def get_chat_id(message: types.Message):
 async def on_my_chat_member(event: types.ChatMemberUpdated):
     # If bot is added to a channel/group and promoted to admin
     if event.new_chat_member.status in ['administrator', 'member']:
-        # Save this chat ID as admin_group_id
         chat_id = event.chat.id
         chat_title = event.chat.title
         
-        await db.settings.update_one(
-            {}, 
-            {"$set": {"admin_group_id": str(chat_id)}}, 
-            upsert=True
-        )
-        
+        # Just inform, don't auto-set anymore since we have 2 channels
         try:
             await bot.send_message(
                 chat_id, 
-                f"✅ <b>Kanal/Guruh ulandi!</b>\n\n"
-                f"🆔 ID: `{chat_id}`\n"
+                f"✅ <b>Bot qo'shildi!</b>\n\n"
+                f"🆔 Kanal ID: `{chat_id}`\n"
                 f"📌 Nomi: {chat_title}\n\n"
-                "Endi barcha zayavkalar shu yerga keladi."
+                "Ushbu ID ni Admin Paneldagi tegishli (Depozit yoki Pul yechish) katakka nusxalab qo'ying."
             )
         except: pass
 
@@ -230,12 +224,7 @@ async def cb_set_lang(callback: CallbackQuery):
 # ADMIN ACTION HANDLERS (Approve/Reject from Telegram)
 @dp.callback_query(F.data.startswith("admin_"))
 async def admin_action_handler(callback: CallbackQuery):
-    # Check if user is admin
-    if callback.from_user.id not in ADMIN_IDS:
-        # Also check if the user is an admin in the group where the button was clicked
-        # For simplicity, we stick to ADMIN_IDS env var, but ideally we should check chat admins
-        pass
-
+    # Check if user is admin or chat admin (omitted for simplicity, trusting context)
     action, tx_id = callback.data.split("_")[1], callback.data.split("_")[2]
     
     tx = await db.transactions.find_one({"id": tx_id})
@@ -286,7 +275,7 @@ async def admin_action_handler(callback: CallbackQuery):
     await callback.answer(f"Zayavka {action} qilindi")
 
 
-async def send_notification(msg: str, tx_id: str = None):
+async def send_notification(msg: str, tx_type: str, tx_id: str = None):
     if not bot: return
     
     markup = None
@@ -298,16 +287,28 @@ async def send_notification(msg: str, tx_id: str = None):
             ]
         ])
 
-    # 1. Send to Admin Group/Channel if configured
+    # 1. Send to Specific Channel based on type
     settings = await db.settings.find_one({})
-    if settings and settings.get('admin_group_id'):
-        try:
-            await bot.send_message(settings['admin_group_id'], msg, parse_mode="HTML", reply_markup=markup)
-            return # If sent to group, maybe don't spam individual admins? Or send to both. Let's send to both for safety.
-        except Exception as e:
-            logging.error(f"Failed to send to group: {e}")
+    target_channel = None
+    
+    if settings:
+        if tx_type == 'deposit':
+            target_channel = settings.get('deposit_channel_id')
+        elif tx_type == 'withdraw':
+            target_channel = settings.get('withdraw_channel_id')
+            
+        # Fallback to old field if present and new ones are empty
+        if not target_channel:
+            target_channel = settings.get('admin_group_id')
 
-    # 2. Send to individual admins (Fallback or Parallel)
+    if target_channel:
+        try:
+            await bot.send_message(target_channel, msg, parse_mode="HTML", reply_markup=markup)
+            return # If sent to channel, we are good
+        except Exception as e:
+            logging.error(f"Failed to send to channel {target_channel}: {e}")
+
+    # 2. Fallback: Send to individual admins if channel fails or not set
     admin_users = await db.users.find({"is_admin": True}).to_list(100)
     admin_ids = set(ADMIN_IDS + [u['telegram_id'] for u in admin_users])
     
@@ -450,7 +451,7 @@ async def create_transaction(tx: TransactionCreate):
     if user_wallets:
         msg += "\n\n📋 <b>Foydalanuvchi Hamyonlari:</b>\n" + "\n".join(user_wallets)
 
-    await send_notification(msg, transaction.id)
+    await send_notification(msg, tx.type, transaction.id)
     return transaction
 
 @api_router.get("/transactions/{telegram_id}")
@@ -559,7 +560,11 @@ async def get_settings():
 
 @api_router.post("/admin/settings")
 async def update_settings(data: Settings):
-    await db.settings.update_one({}, {"$set": data.model_dump()}, upsert=True)
+    # Ensure all fields are set (or keep existing)
+    # Actually simpler: just update what's passed
+    update_data = data.model_dump(exclude_unset=True)
+    if update_data:
+        await db.settings.update_one({}, {"$set": update_data}, upsert=True)
     return {"status": "updated"}
 
 app.include_router(api_router)

@@ -23,7 +23,9 @@ import {
   Edit,
   Globe,
   CheckCircle2,
-  Megaphone
+  Megaphone,
+  ArrowDownToLine,
+  ArrowUpFromLine
 } from "lucide-react";
 import axios from "axios";
 
@@ -648,7 +650,7 @@ const Admin = ({ user }) => {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
-    const [settings, setSettings] = useState({ admin_group_id: '' });
+    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '' });
 
     useEffect(() => { 
         if(user?.is_admin) {
@@ -782,23 +784,39 @@ const Admin = ({ user }) => {
                     <Card>
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                             <Megaphone size={20} className="text-gold" />
-                            Bildirishnomalar Sozlamasi
+                            Kanal Sozlamalari
                         </h3>
                         <p className="text-sm text-slate-400 mb-4">
-                            Bu yerda Telegram Kanal yoki Guruh ID sini kiriting. Barcha zayavkalar shu guruhga tushadi.
+                            Zayavkalar tushadigan kanallar ID sini kiriting.
                             <br/>
-                            <span className="text-xs text-slate-500">(Masalan: -100123456789. Bot guruhda admin bo'lishi shart)</span>
+                            <span className="text-xs text-slate-500">(Bot kanalda admin bo'lishi shart. ID olish uchun botni kanalga qo'shing)</span>
                         </p>
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs text-slate-400 mb-1 block">Guruh / Kanal ID</label>
+                                <label className="text-xs text-slate-400 mb-1 block flex items-center gap-1">
+                                    <ArrowDownToLine size={14} className="text-green-500"/>
+                                    Depozit (Kirim) Kanali ID
+                                </label>
                                 <Input 
-                                    value={settings.admin_group_id || ''}
-                                    onChange={e => setSettings({...settings, admin_group_id: e.target.value})}
+                                    value={settings.deposit_channel_id || ''}
+                                    onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})}
                                     placeholder="-100..."
                                 />
                             </div>
+                            
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block flex items-center gap-1">
+                                    <ArrowUpFromLine size={14} className="text-red-500"/>
+                                    Pul Yechish (Chiqim) Kanali ID
+                                </label>
+                                <Input 
+                                    value={settings.withdraw_channel_id || ''}
+                                    onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})}
+                                    placeholder="-100..."
+                                />
+                            </div>
+
                             <Button onClick={handleSaveSettings}>Saqlash</Button>
                         </div>
                     </Card>
