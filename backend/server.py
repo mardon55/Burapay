@@ -364,6 +364,11 @@ async def login(data: dict = Body(...)):
 async def get_profile(telegram_id: int):
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
     if not user: raise HTTPException(status_code=404, detail="User not found")
+    
+    # Add has_card field for frontend
+    wallets = user.get('wallets', [])
+    user['has_card'] = any(w['type'] in ['uzcard', 'humo'] for w in wallets)
+    
     return user
 
 @api_router.post("/user/language")
