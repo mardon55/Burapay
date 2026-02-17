@@ -688,6 +688,7 @@ const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
     const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
+    const [deletingId, setDeletingId] = useState(null);
     const t = translations[lang];
     
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
@@ -696,7 +697,6 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
-        // Expiry check only for cards
         if((newWallet.type === 'uzcard' || newWallet.type === 'humo') && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
@@ -706,6 +706,19 @@ const Wallets = ({ user, lang }) => {
             fetchWallets(); 
             toast.success(t.success_wallet); 
         } catch(e) { toast.error(t.error); }
+    };
+
+    const handleDelete = async (walletId) => {
+        try {
+            await axios.delete(`${API_URL}/wallets/delete`, { 
+                data: { telegram_id: user.telegram_id, wallet_id: walletId } 
+            });
+            toast.success(lang === 'uz' ? "Hamyon o'chirildi" : "Кошелек удален");
+            fetchWallets();
+        } catch(e) { 
+            toast.error(t.error); 
+        }
+        setDeletingId(null);
     };
     
     const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
@@ -766,7 +779,7 @@ const Wallets = ({ user, lang }) => {
             
             <div className="space-y-3">
                 {wallets.map((w, i) => (
-                    <div key={i} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
+                    <div key={w.id || i} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-3">
                              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
                                   <CreditCard size={20} className="text-slate-300" />
@@ -777,6 +790,30 @@ const Wallets = ({ user, lang }) => {
                                 {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
                              </div>
                         </div>
+                        {deletingId === w.id ? (
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => handleDelete(w.id)}
+                                    className="p-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
+                                >
+                                    <CheckCircle2 size={18} />
+                                </button>
+                                <button 
+                                    onClick={() => setDeletingId(null)}
+                                    className="p-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={() => setDeletingId(w.id)}
+                                className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                data-testid={`delete-wallet-${w.id}`}
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
