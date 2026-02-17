@@ -162,6 +162,30 @@ async def cmd_start(message: types.Message, command: CommandObject):
         await message.answer("Error / Xatolik")
 
 # Helper to find ID
+@dp.my_chat_member()
+async def on_my_chat_member(event: types.ChatMemberUpdated):
+    # If bot is added to a channel/group and promoted to admin
+    if event.new_chat_member.status in ['administrator', 'member']:
+        # Save this chat ID as admin_group_id
+        chat_id = event.chat.id
+        chat_title = event.chat.title
+        
+        await db.settings.update_one(
+            {}, 
+            {"$set": {"admin_group_id": str(chat_id)}}, 
+            upsert=True
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id, 
+                f"✅ <b>Kanal/Guruh ulandi!</b>\n\n"
+                f"🆔 ID: `{chat_id}`\n"
+                f"📌 Nomi: {chat_title}\n\n"
+                "Endi barcha zayavkalar shu yerga keladi."
+            )
+        except: pass
+
 @dp.message(F.text | F.forward_from_chat)
 async def get_chat_id(message: types.Message):
     # Only process if message comes from admin private chat OR if it is a command
