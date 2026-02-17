@@ -414,7 +414,7 @@ const Deposit = ({ user, lang }) => {
   // Filter cards based on user currency selection
   const filteredCards = adminCards.filter(c => {
       if (currency === 'UZS') return ['uzcard', 'humo', 'mostbet_uzs'].includes(c.type);
-      if (currency === 'USD') return ['mostbet_usd'].includes(c.type);
+      if (currency === 'USD') return ['uzcard', 'humo', 'mostbet_usd'].includes(c.type); // Allow Uzcard/Humo for USD
       return false; 
   });
 
