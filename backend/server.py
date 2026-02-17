@@ -435,6 +435,12 @@ async def create_transaction(tx: TransactionCreate):
                f"🏦 <b>Tizim:</b> {tx.method}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
                
+    
+    # Format Method Name
+    method_name = tx.method.replace('_', ' ').upper()
+    if tx.method.startswith('mostbet'):
+        method_name += f" ({tx.wallet_number})"
+
     await send_notification(msg, transaction.id)
     return transaction
 
