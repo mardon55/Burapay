@@ -641,11 +641,37 @@ app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO)
 
+# Webhook endpoint for Telegram
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    try:
+        update = types.Update.model_validate(await request.json())
+        await dp.feed_update(bot, update)
+    except Exception as e:
+        logging.error(f"Webhook error: {e}")
+    return {"ok": True}
+
 @app.on_event("startup")
 async def start_bot():
-    if bot: asyncio.create_task(dp.start_polling(bot))
+    if bot:
+        # Delete any existing webhook and set new one
+        await bot.delete_webhook(drop_pending_updates=True)
+        
+        # Get webhook URL from frontend env
+        webhook_url = os.environ.get('WEBHOOK_URL', WEBAPP_URL.replace('https://', 'https://').rstrip('/') + '/api/webhook')
+        
+        # Set webhook
+        try:
+            await bot.set_webhook(webhook_url)
+            logging.info(f"Webhook set to: {webhook_url}")
+        except Exception as e:
+            logging.error(f"Failed to set webhook: {e}")
+            # Fallback to polling if webhook fails
+            asyncio.create_task(dp.start_polling(bot))
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
-    if bot: await bot.session.close()
+    if bot: 
+        await bot.delete_webhook()
+        await bot.session.close()
