@@ -637,11 +637,7 @@ async def update_settings(data: Settings):
         await db.settings.update_one({}, {"$set": update_data}, upsert=True)
     return {"status": "updated"}
 
-app.include_router(api_router)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-logging.basicConfig(level=logging.INFO)
-
-# Webhook endpoint for Telegram
+# Webhook endpoint for Telegram (must be before app.include_router)
 @api_router.post("/webhook")
 async def telegram_webhook(request: Request):
     try:
@@ -652,6 +648,10 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         logging.error(f"Webhook error: {e}")
     return {"ok": True}
+
+app.include_router(api_router)
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+logging.basicConfig(level=logging.INFO)
 
 @app.on_event("startup")
 async def start_bot():
