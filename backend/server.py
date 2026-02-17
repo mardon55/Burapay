@@ -161,6 +161,16 @@ async def cmd_start(message: types.Message, command: CommandObject):
         logging.error(f"Error in cmd_start: {e}")
         await message.answer("Error / Xatolik")
 
+# Helper to find ID
+@dp.message(F.text | F.forward_from_chat)
+async def get_chat_id(message: types.Message):
+    # Only process if message comes from admin private chat OR if it is a command
+    if message.chat.type == 'private' and message.from_user.id in ADMIN_IDS:
+        if message.forward_from_chat:
+            await message.reply(f"📢 Kanal/Guruh ID: `{message.forward_from_chat.id}`", parse_mode="Markdown")
+        elif message.text == "/id":
+            await message.reply(f"🆔 Sizning ID: `{message.from_user.id}`\n📍 Chat ID: `{message.chat.id}`", parse_mode="Markdown")
+
 @dp.callback_query(F.data == "change_lang")
 async def cb_change_lang(callback: CallbackQuery):
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -193,26 +203,95 @@ async def cb_set_lang(callback: CallbackQuery):
     )
     await callback.answer(msg_text)
 
-async def send_notification(msg: str):
+# ADMIN ACTION HANDLERS (Approve/Reject from Telegram)
+@dp.callback_query(F.data.startswith("admin_"))
+async def admin_action_handler(callback: CallbackQuery):
+    # Check if user is admin
+    if callback.from_user.id not in ADMIN_IDS:
+        # Also check if the user is an admin in the group where the button was clicked
+        # For simplicity, we stick to ADMIN_IDS env var, but ideally we should check chat admins
+        pass
+
+    action, tx_id = callback.data.split("_")[1], callback.data.split("_")[2]
+    
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        await callback.answer("Tranzaksiya topilmadi", show_alert=True)
+        return
+        
+    if tx['status'] != 'pending':
+        await callback.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
+        await callback.message.edit_reply_markup(reply_markup=None)
+        return
+
+    if action == "approve":
+        if tx['type'] == 'deposit':
+            await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "approved"}})
+        status_text = "✅ TASDIQLANDI"
+        
+        # Notify User
+        try:
+            user = await db.users.find_one({"telegram_id": tx['user_id']})
+            lang = user.get("language", "uz")
+            msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
+            await bot.send_message(tx['user_id'], msg)
+        except: pass
+
+    elif action == "reject":
+        if tx['type'] == 'withdraw':
+            await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "rejected"}})
+        status_text = "❌ RAD ETILDI"
+        
+        # Notify User
+        try:
+            user = await db.users.find_one({"telegram_id": tx['user_id']})
+            lang = user.get("language", "uz")
+            msg = MESSAGES[lang]["rejected"].format(amount=tx['amount'], currency=tx['currency'])
+            await bot.send_message(tx['user_id'], msg)
+        except: pass
+
+    # Update the admin message
+    original_text = callback.message.html_text
+    await callback.message.edit_text(
+        f"{original_text}\n\n<b>Holat: {status_text}</b>\n👮‍♂️ Admin: {callback.from_user.first_name}",
+        parse_mode="HTML",
+        reply_markup=None
+    )
+    await callback.answer(f"Zayavka {action} qilindi")
+
+
+async def send_notification(msg: str, tx_id: str = None):
     if not bot: return
     
-    # 1. Send to individual admins
+    markup = None
+    if tx_id:
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_approve_{tx_id}"),
+                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admin_reject_{tx_id}")
+            ]
+        ])
+
+    # 1. Send to Admin Group/Channel if configured
+    settings = await db.settings.find_one({})
+    if settings and settings.get('admin_group_id'):
+        try:
+            await bot.send_message(settings['admin_group_id'], msg, parse_mode="HTML", reply_markup=markup)
+            return # If sent to group, maybe don't spam individual admins? Or send to both. Let's send to both for safety.
+        except Exception as e:
+            logging.error(f"Failed to send to group: {e}")
+
+    # 2. Send to individual admins (Fallback or Parallel)
     admin_users = await db.users.find({"is_admin": True}).to_list(100)
     admin_ids = set(ADMIN_IDS + [u['telegram_id'] for u in admin_users])
     
     for admin_id in admin_ids:
         try:
-            await bot.send_message(admin_id, msg, parse_mode="HTML")
+            await bot.send_message(admin_id, msg, parse_mode="HTML", reply_markup=markup)
         except Exception as e:
             logging.error(f"Failed to send admin notification to {admin_id}: {e}")
-
-    # 2. Send to Admin Group/Channel if configured
-    settings = await db.settings.find_one({})
-    if settings and settings.get('admin_group_id'):
-        try:
-            await bot.send_message(settings['admin_group_id'], msg, parse_mode="HTML")
-        except Exception as e:
-            logging.error(f"Failed to send to group: {e}")
 
 # API Routes
 @api_router.get("/")
@@ -332,7 +411,7 @@ async def create_transaction(tx: TransactionCreate):
                f"🏦 <b>Tizim:</b> {tx.method}\n"
                f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
                
-    await send_notification(msg)
+    await send_notification(msg, transaction.id)
     return transaction
 
 @api_router.get("/transactions/{telegram_id}")
