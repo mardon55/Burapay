@@ -545,8 +545,11 @@ async def approve_transaction(tx_id: str):
     tx = await db.transactions.find_one({"id": tx_id})
     if not tx or tx['status'] != 'pending': raise HTTPException(status_code=400, detail="Invalid tx")
 
+    # Determine balance field based on currency
+    balance_field = 'balance_uzs' if tx['currency'] == 'UZS' else 'balance_usd'
+
     if tx['type'] == 'deposit':
-        await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+        await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
     
     await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "approved"}})
     
@@ -564,8 +567,11 @@ async def reject_transaction(tx_id: str):
     tx = await db.transactions.find_one({"id": tx_id})
     if not tx or tx['status'] != 'pending': raise HTTPException(status_code=400, detail="Invalid tx")
 
+    # Determine balance field based on currency
+    balance_field = 'balance_uzs' if tx['currency'] == 'UZS' else 'balance_usd'
+
     if tx['type'] == 'withdraw':
-        await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {"balance": tx['amount']}})
+        await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
     
     await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "rejected"}})
     
