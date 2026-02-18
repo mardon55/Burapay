@@ -373,25 +373,12 @@ async def admin_action_handler(callback: CallbackQuery):
             try:
                 await bot.send_message(callback.from_user.id, kassa_msg, parse_mode="HTML")
             except: pass
-            
-            try:
-                lang = user.get("language", "uz")
-                msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
-                await bot.send_message(tx['user_id'], msg)
-            except: pass
 
         elif action == "reject":
             if tx['type'] == 'withdraw':
                 await db.users.update_one({"telegram_id": tx['user_id']}, {"$inc": {balance_field: tx['amount']}})
             await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "rejected"}})
             status_text = "❌ RAD ETILDI"
-            
-            try:
-                user = await db.users.find_one({"telegram_id": tx['user_id']})
-                lang = user.get("language", "uz")
-                msg = MESSAGES[lang]["rejected"].format(amount=tx['amount'], currency=tx['currency'])
-                await bot.send_message(tx['user_id'], msg)
-            except: pass
 
         original_text = callback.message.html_text
         await callback.message.edit_text(
