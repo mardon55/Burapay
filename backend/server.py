@@ -222,6 +222,7 @@ class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
     exchange_rate: float = 12800.0
+    required_channels: List[dict] = []
 
 # Messages
 MESSAGES = {
