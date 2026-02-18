@@ -342,9 +342,9 @@ async def admin_action_handler(callback: CallbackQuery):
                         mostbet_id = w['number']
                         break
             
-            # Auto transfer via Mostbet Kassa API (both deposit and withdraw)
+            # Auto transfer via Mostbet Kassa API (ONLY for deposits)
             kassa_result = None
-            if mostbet_id:
+            if mostbet_id and tx['type'] == 'deposit':
                 kassa_result = await mostbet_deposit(mostbet_id, tx['amount'], tx['currency'])
                 logging.info(f"Mostbet Kassa Result: {kassa_result}")
             
@@ -353,9 +353,9 @@ async def admin_action_handler(callback: CallbackQuery):
             await db.transactions.update_one({"id": tx['id']}, {"$set": {"status": "approved"}})
             
             # Status text based on kassa result
-            if kassa_result and kassa_result.get('success'):
+            if tx['type'] == 'deposit' and kassa_result and kassa_result.get('success'):
                 status_text = "✅ TASDIQLANDI (Kassadan o'tkazildi)"
-            elif kassa_result and not kassa_result.get('success'):
+            elif tx['type'] == 'deposit' and kassa_result and not kassa_result.get('success'):
                 status_text = "✅ TASDIQLANDI (Kassa xato)"
             else:
                 status_text = "✅ TASDIQLANDI"
