@@ -235,11 +235,29 @@ async def check_subscription(user_id: int) -> dict:
     not_subscribed = []
     for ch in channels:
         try:
-            member = await bot.get_chat_member(chat_id=int(ch["channel_id"]), user_id=user_id)
-            if member.status in ["left", "kicked"]:
+            # Try with channel_id first, then channel username
+            chat_id = ch["channel_id"]
+            # If channel link has @username, extract it
+            link = ch.get("channel_link", "")
+            username = None
+            if link and "t.me/" in link:
+                username = "@" + link.split("t.me/")[-1].strip("/")
+            
+            member = None
+            try:
+                member = await bot.get_chat_member(chat_id=int(chat_id), user_id=user_id)
+            except Exception:
+                if username:
+                    member = await bot.get_chat_member(chat_id=username, user_id=user_id)
+            
+            if member and member.status in ["left", "kicked"]:
                 not_subscribed.append(ch)
-        except Exception:
-            not_subscribed.append(ch)
+            elif not member:
+                not_subscribed.append(ch)
+        except Exception as e:
+            logging.error(f"Subscription check error for channel {ch.get('channel_id')}: {e}")
+            # If bot can't check (not admin), skip this channel
+            continue
     
     return {"subscribed": len(not_subscribed) == 0, "channels": not_subscribed}
 
