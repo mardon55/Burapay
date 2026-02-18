@@ -600,6 +600,12 @@ const Withdraw = ({ user, lang }) => {
     if (!selectedWallet) return toast.error(t.select_wallet);
     if (!code || code.length < 8) return toast.error("Kodni kiriting (8 xonali)");
 
+    try {
+        await axios.post(`${API_URL}/transactions/verify_code`, { code: code });
+    } catch {
+        return toast.error("Mavjud bo'lmagan kod");
+    }
+
     const currency = selectedWallet.type.includes('usd') ? 'USD' : 'UZS';
 
     try {
