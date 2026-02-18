@@ -1070,6 +1070,7 @@ const Admin = ({ user }) => {
                     { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
                     { id: 'pending', icon: List, label: `To'lovlar (${stats?.pending_count || 0})` },
                     { id: 'cards', icon: Wallet, label: 'Kartalar' },
+                    { id: 'channels', icon: Users, label: 'Kanallar' },
                     { id: 'users', icon: Users, label: 'Userlar' },
                     { id: 'settings', icon: Settings, label: 'Sozlama' },
                 ].map(tab => (
