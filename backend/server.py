@@ -919,6 +919,30 @@ async def update_settings(data: Settings):
         await db.settings.update_one({}, {"$set": update_data}, upsert=True)
     return {"status": "updated"}
 
+@api_router.post("/admin/required_channels/add")
+async def add_required_channel(data: dict = Body(...)):
+    channel_id = data.get("channel_id", "").strip()
+    channel_name = data.get("channel_name", "").strip()
+    channel_link = data.get("channel_link", "").strip()
+    if not channel_id or not channel_name:
+        raise HTTPException(status_code=400, detail="Kanal ID va nomi kerak")
+    channel = {"channel_id": channel_id, "channel_name": channel_name, "channel_link": channel_link}
+    await db.settings.update_one({}, {"$push": {"required_channels": channel}}, upsert=True)
+    return {"status": "added"}
+
+@api_router.post("/admin/required_channels/remove")
+async def remove_required_channel(data: dict = Body(...)):
+    channel_id = data.get("channel_id", "").strip()
+    if not channel_id:
+        raise HTTPException(status_code=400, detail="Kanal ID kerak")
+    await db.settings.update_one({}, {"$pull": {"required_channels": {"channel_id": channel_id}}})
+    return {"status": "removed"}
+
+@api_router.get("/check_subscription/{telegram_id}")
+async def api_check_subscription(telegram_id: int):
+    result = await check_subscription(telegram_id)
+    return result
+
 # Webhook endpoint for Telegram (must be before app.include_router)
 @api_router.post("/webhook")
 async def telegram_webhook(request: Request):
