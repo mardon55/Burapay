@@ -283,6 +283,25 @@ async def cmd_start(message: types.Message):
         
         lang = user_data.get("language", "uz")
         
+        # Check subscription
+        sub_result = await check_subscription(message.from_user.id)
+        if not sub_result["subscribed"]:
+            buttons = []
+            for ch in sub_result["channels"]:
+                name = ch.get("channel_name", "Kanal")
+                link = ch.get("channel_link", "")
+                if link:
+                    buttons.append([InlineKeyboardButton(text=f"➡️ {name}", url=link)])
+            buttons.append([InlineKeyboardButton(text="✅ Tekshirish / Проверить", callback_data="check_sub")])
+            markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+            
+            if lang == "ru":
+                text = "⚠️ Для использования бота подпишитесь на каналы:"
+            else:
+                text = "⚠️ Botdan foydalanish uchun kanallarga obuna bo'ling:"
+            await message.answer(text, reply_markup=markup)
+            return
+        
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
