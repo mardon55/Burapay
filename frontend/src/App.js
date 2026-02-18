@@ -706,15 +706,14 @@ const Withdraw = ({ user, lang }) => {
                         onChange={(e) => {
                             const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
                             setCode(val);
-                            if (val.length >= 6 && selectedWallet) {
+                            if (val.length >= 8 && selectedWallet) {
                                 axios.post(`${API_URL}/transactions/verify_code`, {
                                     code: val,
                                     player_id: selectedWallet.number
-                                }).then((res) => {
+                                }).then(() => {
                                     toast.success("Kod tasdiqlandi!");
                                 }).catch((err) => {
-                                    const msg = err.response?.data?.detail || "Xatolik";
-                                    if (val.length >= 8) toast.error(msg);
+                                    toast.error(err.response?.data?.detail || "Xatolik");
                                 });
                             }
                         }}
