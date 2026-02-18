@@ -342,9 +342,9 @@ async def admin_action_handler(callback: CallbackQuery):
                         mostbet_id = w['number']
                         break
             
-            # Auto transfer via Mostbet Kassa API
+            # Auto transfer via Mostbet Kassa API (both deposit and withdraw)
             kassa_result = None
-            if mostbet_id and tx['type'] == 'deposit':
+            if mostbet_id:
                 kassa_result = await mostbet_deposit(mostbet_id, tx['amount'], tx['currency'])
                 logging.info(f"Mostbet Kassa Result: {kassa_result}")
             
