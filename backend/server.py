@@ -370,8 +370,12 @@ async def admin_action_handler(callback: CallbackQuery):
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"📋 Qo'lda o'tkazing!")
             
+            # Send kassa result to the deposit channel instead of admin DM
             try:
-                await bot.send_message(callback.from_user.id, kassa_msg, parse_mode="HTML")
+                settings = await db.settings.find_one({})
+                channel_id = settings.get('deposit_channel_id') if settings else None
+                if channel_id:
+                    await bot.send_message(channel_id, kassa_msg, parse_mode="HTML")
             except: pass
 
         elif action == "reject":
