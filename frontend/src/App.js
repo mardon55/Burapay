@@ -598,8 +598,16 @@ const Withdraw = ({ user, lang }) => {
   const handleWithdraw = async () => {
     if (!amount) return toast.error(t.enter_valid_amount);
     if (!selectedWallet) return toast.error(t.select_wallet);
-    if (!code || code.length !== 8) return toast.error("Kodni kiriting (8 xonali)");
-    if (!/^[A-Z0-9]{8}$/.test(code)) return toast.error("Noto'g'ri kod formati");
+    if (!code || code.length !== 8) return toast.error("8 xonali kodni kiriting");
+
+    try {
+        await axios.post(`${API_URL}/transactions/verify_code`, {
+            code: code,
+            player_id: selectedWallet.number
+        });
+    } catch (err) {
+        return toast.error(err.response?.data?.detail || "Noto'g'ri kod");
+    }
 
     const currency = selectedWallet.type.includes('usd') ? 'USD' : 'UZS';
 
