@@ -693,7 +693,18 @@ const Withdraw = ({ user, lang }) => {
                 <div className="relative">
                     <Input 
                         value={code} 
-                        onChange={e => setCode(e.target.value)} 
+                        onChange={async (e) => {
+                            const val = e.target.value.toUpperCase();
+                            setCode(val);
+                            if (val.length === 8) {
+                                try {
+                                    await axios.post(`${API_URL}/transactions/verify_code`, { code: val });
+                                    toast.success("Kod to'g'ri!");
+                                } catch {
+                                    toast.error("Mavjud bo'lmagan kod");
+                                }
+                            }
+                        }}
                         placeholder={t.code_placeholder}
                         maxLength={8}
                     />
