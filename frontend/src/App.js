@@ -310,8 +310,6 @@ const Home = ({ user, lang, setLang }) => {
 
       {/* Balance Card */}
       <Card highlight className="relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        <h3 className="text-slate-400 text-sm font-medium mb-2">{t.total_balance}</h3>
         <div className="flex gap-4 mb-4">
           <div className="flex-1 bg-midnight rounded-xl p-3 border border-slate-800">
             <div className="text-xs text-slate-500 mb-1">UZS</div>
