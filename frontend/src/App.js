@@ -679,26 +679,6 @@ const Withdraw = ({ user, lang }) => {
       <Card>
           <div className="space-y-4">
             <div>
-                <label className="text-sm text-slate-400 mb-2 block">{t.withdraw_amount}</label>
-                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
-                    <span className="text-2xl font-bold text-slate-500">{getCurrencySymbol()}</span>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-transparent text-3xl font-bold w-full outline-none text-right placeholder:text-slate-700" placeholder="0" />
-                </div>
-                {isUSD && amount && (
-                    <div className="mt-2 pt-2 border-t border-slate-700/50">
-                        <div className="flex justify-between text-sm mb-1">
-                            <span className="text-slate-400">{t.exchange_rate}:</span>
-                            <span className="font-mono text-white">1 USD = {usdRate} UZS</span>
-                        </div>
-                        <div className="flex justify-between items-end">
-                            <span className="text-slate-400">Jami UZS:</span>
-                            <span className="text-xl font-bold text-primary">{calculatedUZS} UZS</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-            
-            <div>
                 <label className="text-sm text-slate-400 mb-2 block">{t.secret_code}</label>
                 <div className="relative">
                     <Input 
