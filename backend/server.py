@@ -675,13 +675,36 @@ async def get_history(telegram_id: int):
 
 @api_router.post("/transactions/verify_code")
 async def verify_code(data: dict = Body(...)):
+    """Verify withdrawal code via Mostbet Kassa API."""
     code = data.get("code", "").strip()
-    if not code:
-        raise HTTPException(status_code=400, detail="Kodni kiriting")
-    tx = await db.transactions.find_one({"secret_code": code, "type": "withdraw", "status": "pending"}, {"_id": 0})
-    if not tx:
-        raise HTTPException(status_code=404, detail="Mavjud bo'lmagan kod")
-    return {"valid": True, "amount": tx["amount"], "currency": tx["currency"]}
+    player_id = data.get("player_id", "").strip()
+    if not code or len(code) != 8:
+        raise HTTPException(status_code=400, detail="8 xonali kodni kiriting")
+    if not player_id:
+        raise HTTPException(status_code=400, detail="Mostbet ID topilmadi")
+    
+    # 1. Get cashout list for this player
+    cashout_list = await mostbet_get_cashout_list(player_id)
+    if not cashout_list.get("success"):
+        raise HTTPException(status_code=400, detail="Mostbet bilan bog'lanib bo'lmadi")
+    
+    items = cashout_list.get("data", {}).get("items", [])
+    if not items:
+        raise HTTPException(status_code=404, detail="Mostbet'da yechish so'rovi topilmadi")
+    
+    # 2. Try to confirm with the code using the first available transaction
+    tx_id = items[0].get("transactionId")
+    result = await mostbet_confirm_cashout(code, tx_id)
+    
+    if result.get("success"):
+        return {
+            "valid": True, 
+            "data": result.get("data"),
+            "amount": items[0].get("amount"),
+            "currency": items[0].get("currency")
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Noto'g'ri kod")
 
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
