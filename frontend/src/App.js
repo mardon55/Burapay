@@ -1167,6 +1167,52 @@ const Admin = ({ user }) => {
                 </div>
             )}
 
+            {activeTab === 'channels' && (
+                <div className="space-y-4 animate-in fade-in">
+                    <Card>
+                        <h3 className="font-bold text-lg mb-4">Majburiy obuna kanallar</h3>
+                        <div className="space-y-3 mb-4">
+                            <Input placeholder="Kanal ID (masalan: -1001234567890)" value={newChannel.channel_id} onChange={e => setNewChannel({...newChannel, channel_id: e.target.value})} />
+                            <Input placeholder="Kanal nomi" value={newChannel.channel_name} onChange={e => setNewChannel({...newChannel, channel_name: e.target.value})} />
+                            <Input placeholder="Kanal linki (masalan: https://t.me/kanal)" value={newChannel.channel_link} onChange={e => setNewChannel({...newChannel, channel_link: e.target.value})} />
+                            <Button className="w-full" onClick={async () => {
+                                if (!newChannel.channel_id || !newChannel.channel_name) return toast.error("Kanal ID va nomini kiriting");
+                                try {
+                                    await axios.post(`${API_URL}/admin/required_channels/add`, newChannel);
+                                    toast.success("Kanal qo'shildi");
+                                    setNewChannel({ channel_id: '', channel_name: '', channel_link: '' });
+                                    fetchSettings();
+                                } catch (e) { toast.error("Xatolik"); }
+                            }}>+ Kanal qo'shish</Button>
+                        </div>
+                        {requiredChannels.length === 0 ? (
+                            <p className="text-slate-500 text-sm text-center py-4">Majburiy kanallar yo'q</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {requiredChannels.map((ch, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-midnight rounded-xl p-3 border border-slate-800">
+                                        <div>
+                                            <div className="font-bold text-sm">{ch.channel_name}</div>
+                                            <div className="text-xs text-slate-500">{ch.channel_id}</div>
+                                            {ch.channel_link && <div className="text-xs text-blue-400">{ch.channel_link}</div>}
+                                        </div>
+                                        <button onClick={async () => {
+                                            try {
+                                                await axios.post(`${API_URL}/admin/required_channels/remove`, { channel_id: ch.channel_id });
+                                                toast.success("Kanal o'chirildi");
+                                                fetchSettings();
+                                            } catch (e) { toast.error("Xatolik"); }
+                                        }} className="p-2 text-red-400 hover:text-red-300">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                </div>
+            )}
+
             {activeTab === 'users' && (
                 <div className="space-y-4 animate-in fade-in">
                     <div className="relative">
