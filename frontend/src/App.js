@@ -726,7 +726,12 @@ const Wallets = ({ user, lang }) => {
     
     const handleAdd = async () => {
         if(!newWallet.number) return toast.error(t.enter_valid_number);
-        if((newWallet.type === 'uzcard' || newWallet.type === 'humo') && !newWallet.expiry) return toast.error("Expiry required");
+        const isCardType = newWallet.type === 'uzcard' || newWallet.type === 'humo';
+        if(isCardType) {
+            const digitsOnly = newWallet.number.replace(/\s/g, '');
+            if(!/^\d{16}$/.test(digitsOnly)) return toast.error("Karta raqami 16 xonali bo'lishi kerak");
+        }
+        if(isCardType && !newWallet.expiry) return toast.error("Expiry required");
         
         try { 
             await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
