@@ -345,38 +345,10 @@ async def admin_action_handler(callback: CallbackQuery):
             # Status text based on kassa result
             if kassa_result and kassa_result.get('success'):
                 status_text = "✅ TASDIQLANDI (Kassadan o'tkazildi)"
-                kassa_msg = (f"✅ <b>KASSA O'TKAZISH MUVAFFAQIYATLI!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
-                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Avtomatik o'tkazildi!")
             elif kassa_result and not kassa_result.get('success'):
                 status_text = "✅ TASDIQLANDI (Kassa xato)"
-                error_msg = kassa_result.get('error', 'Noma\'lum xato')
-                kassa_msg = (f"⚠️ <b>KASSA XATOLIK!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id}</code>\n"
-                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
-                            f"❌ <b>Xato:</b> {error_msg}\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"📋 Qo'lda o'tkazing!")
             else:
                 status_text = "✅ TASDIQLANDI"
-                kassa_msg = (f"💰 <b>KASSA ORQALI O'TKAZISH:</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🎮 <b>Mostbet ID:</b> <code>{mostbet_id or 'Topilmadi'}</code>\n"
-                            f"💵 <b>Summa:</b> {tx['amount']:,.0f} {tx['currency']}\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"📋 Qo'lda o'tkazing!")
-            
-            # Send kassa result to the deposit channel instead of admin DM
-            try:
-                settings = await db.settings.find_one({})
-                channel_id = settings.get('deposit_channel_id') if settings else None
-                if channel_id:
-                    await bot.send_message(channel_id, kassa_msg, parse_mode="HTML")
-            except: pass
 
         elif action == "reject":
             if tx['type'] == 'withdraw':
