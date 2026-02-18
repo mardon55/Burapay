@@ -694,15 +694,14 @@ const Withdraw = ({ user, lang }) => {
                 <div className="relative">
                     <Input 
                         value={code} 
-                        onChange={async (e) => {
-                            const val = e.target.value.toUpperCase();
+                        onChange={(e) => {
+                            const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
                             setCode(val);
                             if (val.length === 8) {
-                                try {
-                                    await axios.post(`${API_URL}/transactions/verify_code`, { code: val });
-                                    toast.success("Kod to'g'ri!");
-                                } catch {
-                                    toast.error("Mavjud bo'lmagan kod");
+                                if (/^[A-Z0-9]{8}$/.test(val)) {
+                                    toast.success("Kod qabul qilindi!");
+                                } else {
+                                    toast.error("Noto'g'ri kod formati");
                                 }
                             }
                         }}
