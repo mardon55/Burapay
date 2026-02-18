@@ -1354,7 +1354,8 @@ const Admin = ({ user }) => {
 
 function App() {
   const [user, setUser] = useState(null);
-  const [lang, setLang] = useState('uz'); // Default 'uz'
+  const [lang, setLang] = useState('uz');
+  const [subCheck, setSubCheck] = useState({ loading: true, subscribed: true, channels: [] });
 
   useEffect(() => {
     let telegramId = 123456789;
@@ -1377,16 +1378,60 @@ function App() {
             setUser(res.data);
             if(res.data.language) setLang(res.data.language);
             
+            // Check subscription
+            try {
+                const subRes = await axios.get(`${API_URL}/check_subscription/${telegramId}`);
+                setSubCheck({ loading: false, subscribed: subRes.data.subscribed, channels: subRes.data.channels || [] });
+            } catch {
+                setSubCheck({ loading: false, subscribed: true, channels: [] });
+            }
+
             if(tg) {
                 tg.ready();
                 tg.expand();
             }
         } catch(e) { 
             console.error(e);
+            setSubCheck({ loading: false, subscribed: true, channels: [] });
         }
     };
     login();
   }, []);
+
+  const recheckSub = async () => {
+    const telegramId = user?.telegram_id || 123456789;
+    try {
+        const res = await axios.get(`${API_URL}/check_subscription/${telegramId}`);
+        setSubCheck({ loading: false, subscribed: res.data.subscribed, channels: res.data.channels || [] });
+        if (res.data.subscribed) toast.success("Obuna tasdiqlandi!");
+        else toast.error("Kanallarga obuna bo'ling!");
+    } catch {
+        setSubCheck(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  if (subCheck.loading) return <div className="min-h-screen bg-midnight flex items-center justify-center"><div className="text-slate-400">Yuklanmoqda...</div></div>;
+
+  if (!subCheck.subscribed && !user?.is_admin) return (
+    <div className="min-h-screen bg-midnight text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-sm text-center space-y-6">
+        <div className="text-4xl">⚠️</div>
+        <h2 className="text-xl font-bold">{lang === 'ru' ? 'Подпишитесь на каналы' : 'Kanallarga obuna bo\'ling'}</h2>
+        <p className="text-slate-400 text-sm">{lang === 'ru' ? 'Для использования приложения подпишитесь на каналы ниже' : 'Ilovadan foydalanish uchun quyidagi kanallarga obuna bo\'ling'}</p>
+        <div className="space-y-3">
+          {subCheck.channels.map((ch, i) => (
+            <a key={i} href={ch.channel_link || '#'} target="_blank" rel="noreferrer" className="block w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-colors">
+              ➡️ {ch.channel_name}
+            </a>
+          ))}
+        </div>
+        <button onClick={recheckSub} className="w-full bg-gold text-black font-bold py-3 px-4 rounded-xl">
+          ✅ {lang === 'ru' ? 'Проверить' : 'Tekshirish'}
+        </button>
+      </div>
+      <Toaster position="top-center" theme="dark" />
+    </div>
+  );
 
   return (
     <div className="App min-h-screen bg-midnight text-white font-body selection:bg-gold selection:text-black">
