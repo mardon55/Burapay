@@ -596,27 +596,28 @@ const Withdraw = ({ user, lang }) => {
   };
 
   const handleWithdraw = async () => {
-    if (!amount) return toast.error(t.enter_valid_amount);
     if (!selectedWallet) return toast.error(t.select_wallet);
     if (!code || code.length < 6) return toast.error("Kodni kiriting");
 
-    // Verify code via Mostbet Kassa API
+    let verifyData;
     try {
-        await axios.post(`${API_URL}/transactions/verify_code`, {
+        const res = await axios.post(`${API_URL}/transactions/verify_code`, {
             code: code,
             player_id: selectedWallet.number
         });
+        verifyData = res.data;
     } catch (err) {
         return toast.error(err.response?.data?.detail || "Noto'g'ri kod");
     }
 
     const currency = selectedWallet.type.includes('usd') ? 'USD' : 'UZS';
+    const verifiedAmount = verifyData.amount || 0;
 
     try {
       await axios.post(`${API_URL}/transactions/create`, {
         user_id: user.telegram_id,
         type: "withdraw",
-        amount: Number(amount),
+        amount: verifiedAmount,
         currency: currency,
         method: selectedWallet.type,
         wallet_number: selectedWallet.number,
