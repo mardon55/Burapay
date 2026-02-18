@@ -668,9 +668,7 @@ async def approve_transaction(tx_id: str):
     if bot:
         try:
             user = await db.users.find_one({"telegram_id": tx['user_id']})
-            lang = user.get("language", "uz")
-            msg = MESSAGES[lang]["approved"].format(amount=tx['amount'], currency=tx['currency'])
-            await bot.send_message(tx['user_id'], msg)
+            # Kassa transfer logic stays, user notification removed
         except: pass
     return {"status": "approved"}
 
