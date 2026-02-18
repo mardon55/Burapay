@@ -627,6 +627,16 @@ async def get_history(telegram_id: int):
     txs = await db.transactions.find({"user_id": telegram_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return txs
 
+@api_router.post("/transactions/verify_code")
+async def verify_code(data: dict = Body(...)):
+    code = data.get("code", "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Kodni kiriting")
+    tx = await db.transactions.find_one({"secret_code": code, "type": "withdraw", "status": "pending"}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Mavjud bo'lmagan kod")
+    return {"valid": True, "amount": tx["amount"], "currency": tx["currency"]}
+
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
     txs = await db.transactions.find({"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(100)
