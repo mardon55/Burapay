@@ -697,12 +697,15 @@ const Withdraw = ({ user, lang }) => {
                         onChange={(e) => {
                             const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
                             setCode(val);
-                            if (val.length === 8) {
-                                if (/^[A-Z0-9]{8}$/.test(val)) {
-                                    toast.success("Kod qabul qilindi!");
-                                } else {
-                                    toast.error("Noto'g'ri kod formati");
-                                }
+                            if (val.length === 8 && selectedWallet) {
+                                axios.post(`${API_URL}/transactions/verify_code`, {
+                                    code: val,
+                                    player_id: selectedWallet.number
+                                }).then(() => {
+                                    toast.success("Kod tasdiqlandi!");
+                                }).catch((err) => {
+                                    toast.error(err.response?.data?.detail || "Noto'g'ri kod");
+                                });
                             }
                         }}
                         placeholder={t.code_placeholder}
