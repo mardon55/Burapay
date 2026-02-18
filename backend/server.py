@@ -678,12 +678,12 @@ async def verify_code(data: dict = Body(...)):
     """Verify withdrawal code via Mostbet Kassa API."""
     code = data.get("code", "").strip()
     player_id = data.get("player_id", "").strip()
-    if not code or len(code) != 8:
-        raise HTTPException(status_code=400, detail="8 xonali kodni kiriting")
+    if not code or len(code) < 6:
+        raise HTTPException(status_code=400, detail="Kodni kiriting")
     if not player_id:
         raise HTTPException(status_code=400, detail="Mostbet ID topilmadi")
     
-    # 1. Get cashout list for this player
+    # 1. Get cashout list - search by player ID
     cashout_list = await mostbet_get_cashout_list(player_id)
     if not cashout_list.get("success"):
         raise HTTPException(status_code=400, detail="Mostbet bilan bog'lanib bo'lmadi")
@@ -692,19 +692,32 @@ async def verify_code(data: dict = Body(...)):
     if not items:
         raise HTTPException(status_code=404, detail="Mostbet'da yechish so'rovi topilmadi")
     
-    # 2. Try to confirm with the code using the first available transaction
+    # 2. Try to confirm with the code
     tx_id = items[0].get("transactionId")
+    amount = items[0].get("amount", 0)
+    currency = items[0].get("currency", "UZS")
+    
     result = await mostbet_confirm_cashout(code, tx_id)
     
     if result.get("success"):
+        status = result.get("data", {}).get("status", "")
         return {
-            "valid": True, 
-            "data": result.get("data"),
-            "amount": items[0].get("amount"),
-            "currency": items[0].get("currency")
+            "valid": True,
+            "status": status,
+            "amount": amount,
+            "currency": currency,
+            "transactionId": tx_id
         }
     else:
-        raise HTTPException(status_code=400, detail="Noto'g'ri kod")
+        error = result.get("error", "")
+        if "CONFIRM_FREEZE" in str(error):
+            raise HTTPException(status_code=429, detail="Ko'p marta sinaldi, biroz kuting")
+        elif "EXPIRED" in str(error):
+            raise HTTPException(status_code=400, detail="Kod muddati tugagan")
+        elif "CANCELED" in str(error):
+            raise HTTPException(status_code=400, detail="So'rov bekor qilingan")
+        else:
+            raise HTTPException(status_code=400, detail="Noto'g'ri kod")
 
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
