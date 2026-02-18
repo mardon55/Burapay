@@ -675,6 +675,8 @@ async def get_history(telegram_id: int):
     txs = await db.transactions.find({"user_id": telegram_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return txs
 
+_code_attempts = {}
+
 @api_router.post("/transactions/verify_code")
 async def verify_code(data: dict = Body(...)):
     """Verify withdrawal code via Mostbet Kassa API."""
@@ -685,7 +687,15 @@ async def verify_code(data: dict = Body(...)):
     if not player_id:
         raise HTTPException(status_code=400, detail="Mostbet ID topilmadi")
     
-    # 1. Get cashout list - search by player ID
+    now = datetime.now(timezone.utc)
+    info = _code_attempts.get(player_id, {"attempts": 0, "locked_until": None})
+    if info["locked_until"] and now < info["locked_until"]:
+        remaining = int((info["locked_until"] - now).total_seconds())
+        m, s = remaining // 60, remaining % 60
+        raise HTTPException(status_code=429, detail=f"5 daqiqa kuting ({m}:{s:02d} qoldi)")
+    if info["locked_until"] and now >= info["locked_until"]:
+        info = {"attempts": 0, "locked_until": None}
+    
     cashout_list = await mostbet_get_cashout_list(player_id)
     if not cashout_list.get("success"):
         raise HTTPException(status_code=400, detail="Mostbet bilan bog'lanib bo'lmadi")
@@ -694,7 +704,6 @@ async def verify_code(data: dict = Body(...)):
     if not items:
         raise HTTPException(status_code=404, detail="Mostbet'da yechish so'rovi topilmadi")
     
-    # 2. Try to confirm with the code
     tx_id = items[0].get("transactionId")
     amount = items[0].get("amount", 0)
     currency = items[0].get("currency", "UZS")
@@ -702,24 +711,23 @@ async def verify_code(data: dict = Body(...)):
     result = await mostbet_confirm_cashout(code, tx_id)
     
     if result.get("success"):
+        _code_attempts.pop(player_id, None)
         status = result.get("data", {}).get("status", "")
-        return {
-            "valid": True,
-            "status": status,
-            "amount": amount,
-            "currency": currency,
-            "transactionId": tx_id
-        }
-    else:
-        error = result.get("error", "")
-        if "CONFIRM_FREEZE" in str(error):
-            raise HTTPException(status_code=429, detail="Ko'p marta sinaldi, biroz kuting")
-        elif "EXPIRED" in str(error):
-            raise HTTPException(status_code=400, detail="Kod muddati tugagan")
-        elif "CANCELED" in str(error):
-            raise HTTPException(status_code=400, detail="So'rov bekor qilingan")
-        else:
-            raise HTTPException(status_code=400, detail="Noto'g'ri kod")
+        return {"valid": True, "status": status, "amount": amount, "currency": currency, "transactionId": tx_id}
+    
+    info["attempts"] += 1
+    if info["attempts"] >= 3:
+        info["locked_until"] = now + timedelta(minutes=5)
+        _code_attempts[player_id] = info
+        raise HTTPException(status_code=429, detail="3 marta noto'g'ri kod. 5 daqiqa kuting va qayta urining")
+    _code_attempts[player_id] = info
+    remaining = 3 - info["attempts"]
+    error = result.get("error", "")
+    if "EXPIRED" in str(error):
+        raise HTTPException(status_code=400, detail="Kod muddati tugagan")
+    elif "CANCELED" in str(error):
+        raise HTTPException(status_code=400, detail="So'rov bekor qilingan")
+    raise HTTPException(status_code=400, detail=f"Noto'g'ri kod ({remaining} ta urinish qoldi)")
 
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
