@@ -308,35 +308,19 @@ const Home = ({ user, lang, setLang }) => {
         </div>
       </div>
 
-      {/* Balance Card */}
-      <Card highlight className="relative overflow-hidden">
-        <div className="flex gap-4 mb-4">
-          <div className="flex-1 bg-midnight rounded-xl p-3 border border-slate-800">
-            <div className="text-xs text-slate-500 mb-1">UZS</div>
-            <div className="text-2xl font-bold text-white">
-              {(user.balance_uzs || 0).toLocaleString()}
-            </div>
-          </div>
-          <div className="flex-1 bg-midnight rounded-xl p-3 border border-slate-800">
-            <div className="text-xs text-slate-500 mb-1">USD</div>
-            <div className="text-2xl font-bold text-gold">
-              {(user.balance_usd || 0).toLocaleString()}
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Link to="/deposit" className="w-full">
-            <Button className="w-full text-sm py-2">
-               <ArrowUpRight size={18} /> {t.deposit}
-            </Button>
-          </Link>
-          <Link to="/withdraw" className="w-full">
-             <Button variant="secondary" className="w-full text-sm py-2">
-               <ArrowDownLeft size={18} /> {t.withdraw}
-             </Button>
-          </Link>
-        </div>
-      </Card>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/deposit" className="w-full">
+          <Button className="w-full text-sm py-3">
+             <ArrowUpRight size={18} /> {t.deposit}
+          </Button>
+        </Link>
+        <Link to="/withdraw" className="w-full">
+           <Button variant="secondary" className="w-full text-sm py-3">
+             <ArrowDownLeft size={18} /> {t.withdraw}
+           </Button>
+        </Link>
+      </div>
 
       {/* Recent Activity */}
       <div>
