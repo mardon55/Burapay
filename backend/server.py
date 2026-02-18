@@ -143,17 +143,19 @@ async def mostbet_confirm_cashout(code: str, transaction_id: int) -> dict:
         body_str = json.dumps(body, separators=(',', ':'))
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         headers = mostbet_headers(MOSTBET_API_KEY, MOSTBET_SECRET_KEY, path, body_str, timestamp, project="MBC")
+        logging.info(f"Mostbet Cashout Confirm: url={url}, body={body_str}")
         async with httpx.AsyncClient(timeout=30.0) as http_client:
             response = await http_client.post(url, content=body_str, headers=headers)
-            logging.info(f"Mostbet Cashout Confirm: {response.status_code} - {response.text}")
+            logging.info(f"Mostbet Cashout Confirm Response: {response.status_code} - {response.text}")
             if response.status_code == 200:
                 return {"success": True, "data": response.json()}
             try:
                 err = response.json()
-                msg = err.get("message", "") or err.get("code", "")
+                error_code = err.get("code", "")
+                error_msg = err.get("message", "")
+                return {"success": False, "error": error_code, "message": error_msg}
             except Exception:
-                msg = response.text[:200]
-            return {"success": False, "error": msg}
+                return {"success": False, "error": response.text[:200]}
     except Exception as e:
         logging.error(f"Mostbet Cashout Confirm Error: {e}")
         return {"success": False, "error": str(e)}
