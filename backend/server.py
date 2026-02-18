@@ -593,54 +593,47 @@ async def create_transaction(tx: TransactionCreate):
     user_internal_id = user.get("internal_id", "---")
     user_phone = user.get("phone_number", "Kiritilmagan")
     
-    # Find user's attached card (Uzcard/Humo)
-    user_attached_card = "Kiritilmagan"
+    # Find user's card (Uzcard/Humo)
+    user_card_type = ""
+    user_card_number = ""
     for w in user.get('wallets', []):
         if w['type'] in ['uzcard', 'humo']:
-            user_attached_card = f"{w['type'].upper()} {w['number']}"
+            user_card_type = w['type'].upper()
+            user_card_number = w['number']
             break
 
-    # Find user's Mostbet ID based on currency
-    mostbet_id = "Kiritilmagan"
+    # Find Mostbet ID based on currency
+    mostbet_id = ""
+    mostbet_label = "MOSTBET UZS" if tx.currency == 'UZS' else "MOSTBET USD"
     mostbet_type = 'mostbet_uzs' if tx.currency == 'UZS' else 'mostbet_usd'
     for w in user.get('wallets', []):
         if w['type'] == mostbet_type:
             mostbet_id = w['number']
             break
-    # If not found, try any Mostbet wallet
-    if mostbet_id == "Kiritilmagan":
+    if not mostbet_id:
         for w in user.get('wallets', []):
             if w['type'].startswith('mostbet'):
                 mostbet_id = w['number']
+                mostbet_label = w['type'].replace('_', ' ').upper()
                 break
 
-    method_name = tx.method.replace('_', ' ').upper()
-    if tx.method.startswith('mostbet') and tx.wallet_number:
-        method_name += f" ({tx.wallet_number})"
-    
+    currency_label = "SO'M" if tx.currency == 'UZS' else "USD"
+
     msg = ""
     if tx.type == 'deposit':
-        msg = (f"📥 <b>Yangi Depozit!</b>\n\n"
-               f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
-               f"🔗 <b>Username:</b> {user_username}\n"
-               f"🎮 <b>Mostbet ID:</b> {mostbet_id}\n"
-               f"📞 <b>Tel:</b> {user_phone}\n"
-               f"💳 <b>Karta:</b> {user_attached_card}\n"
-               f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
-               f"🏦 <b>Tizim:</b> {method_name}\n"
-               f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
+        msg = (f"🆔 <b>ID:</b> {user_internal_id}\n\n"
+               f"💳 <b>{user_card_type}:</b> {user_card_number}\n\n"
+               f"🎮 <b>{mostbet_label}:</b> {mostbet_id}\n\n"
+               f"💰 <b>{tx.amount:,.0f} {currency_label}</b>\n\n"
+               f"👤 <b>Telegram:</b> {user_username}\n"
+               f"📞 <b>Telefon:</b> {user_phone}")
     elif tx.type == 'withdraw':
-        msg = (f"📤 <b>Pul Yechish!</b>\n\n"
-               f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
-               f"🔗 <b>Username:</b> {user_username}\n"
-               f"🎮 <b>Mostbet ID:</b> {mostbet_id}\n"
-               f"📞 <b>Tel:</b> {user_phone}\n"
-               f"💳 <b>Karta:</b> {user_attached_card}\n"
-               f"💰 <b>Summa:</b> {tx.amount:,.0f} {tx.currency}\n"
-               f"💳 <b>Hamyon:</b> {tx.wallet_number}\n"
-               f"🏦 <b>Tizim:</b> {method_name}\n"
-               f"🔑 <b>Kod:</b> {tx.secret_code if tx.secret_code else 'Kiritilmagan'}\n"
-               f"📅 <b>Vaqt:</b> {datetime.now().strftime('%H:%M %d.%m.%Y')}")
+        msg = (f"🆔 <b>ID:</b> {user_internal_id}\n\n"
+               f"💳 <b>{user_card_type}:</b> {user_card_number}\n\n"
+               f"🎮 <b>{mostbet_label}:</b> {mostbet_id}\n\n"
+               f"💰 <b>{tx.amount:,.0f} {currency_label}</b>\n\n"
+               f"👤 <b>Telegram:</b> {user_username}\n"
+               f"📞 <b>Telefon:</b> {user_phone}")
     
     # Use short_id for callback data (Telegram limit is 64 bytes)
     await send_notification(msg, tx.type, transaction.short_id)
