@@ -810,8 +810,18 @@ const Wallets = ({ user, lang }) => {
                             </label>
                             <Input 
                                 value={newWallet.number} 
-                                onChange={e => setNewWallet({...newWallet, number: e.target.value})} 
-                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"} 
+                                onChange={e => {
+                                    if(isCard) {
+                                        const val = e.target.value.replace(/[^\d\s]/g, '').replace(/\s/g, '').slice(0, 16);
+                                        const formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
+                                        setNewWallet({...newWallet, number: formatted});
+                                    } else {
+                                        setNewWallet({...newWallet, number: e.target.value});
+                                    }
+                                }}
+                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"}
+                                maxLength={isCard ? 19 : undefined}
+                                inputMode={isCard ? "numeric" : "text"}
                             />
                         </div>
                         
