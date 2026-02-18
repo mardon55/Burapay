@@ -225,6 +225,24 @@ class Settings(BaseModel):
     required_channels: List[dict] = []
 
 # Messages
+async def check_subscription(user_id: int) -> dict:
+    """Check if user is subscribed to all required channels."""
+    settings = await db.settings.find_one({})
+    channels = (settings or {}).get("required_channels", [])
+    if not channels:
+        return {"subscribed": True, "channels": []}
+    
+    not_subscribed = []
+    for ch in channels:
+        try:
+            member = await bot.get_chat_member(chat_id=int(ch["channel_id"]), user_id=user_id)
+            if member.status in ["left", "kicked"]:
+                not_subscribed.append(ch)
+        except Exception:
+            not_subscribed.append(ch)
+    
+    return {"subscribed": len(not_subscribed) == 0, "channels": not_subscribed}
+
 MESSAGES = {
     "uz": {
         "welcome": "👋 Salom, {name}!\n\n<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\nHisobni to'ldirish va yechish uchun pastdagi tugmani bosing.",
