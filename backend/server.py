@@ -266,7 +266,8 @@ async def cmd_start(message: types.Message):
         
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
-            [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")]
+            [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
+            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/BuraPay")]
         ])
         
         await message.answer(
