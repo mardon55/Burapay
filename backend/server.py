@@ -307,11 +307,21 @@ async def admin_action_handler(callback: CallbackQuery):
         if not tx:
             logging.error(f"Transaction not found: {tx_id}")
             await callback.answer("Tranzaksiya topilmadi", show_alert=True)
+            try:
+                original_text = callback.message.html_text
+                await callback.message.edit_text(
+                    f"{original_text}\n\n<b>Holat: ❌ Tranzaksiya topilmadi</b>",
+                    parse_mode="HTML",
+                    reply_markup=None
+                )
+            except: pass
             return
             
         if tx['status'] != 'pending':
             await callback.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
-            await callback.message.edit_reply_markup(reply_markup=None)
+            try:
+                await callback.message.edit_reply_markup(reply_markup=None)
+            except: pass
             return
 
         # Determine balance field based on currency
