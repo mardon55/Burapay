@@ -598,8 +598,9 @@ const Withdraw = ({ user, lang }) => {
   const handleWithdraw = async () => {
     if (!amount) return toast.error(t.enter_valid_amount);
     if (!selectedWallet) return toast.error(t.select_wallet);
-    if (!code || code.length !== 8) return toast.error("8 xonali kodni kiriting");
+    if (!code || code.length < 6) return toast.error("Kodni kiriting");
 
+    // Verify code via Mostbet Kassa API
     try {
         await axios.post(`${API_URL}/transactions/verify_code`, {
             code: code,
