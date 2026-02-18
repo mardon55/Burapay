@@ -341,6 +341,24 @@ async def on_my_chat_member(event: types.ChatMemberUpdated):
             )
         except: pass
 
+@dp.callback_query(F.data == "check_sub")
+async def cb_check_sub(callback: CallbackQuery):
+    sub_result = await check_subscription(callback.from_user.id)
+    if sub_result["subscribed"]:
+        user_data = await db.users.find_one({"telegram_id": callback.from_user.id})
+        lang = (user_data or {}).get("language", "uz")
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
+            [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
+            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/BuraPay")]
+        ])
+        await callback.message.edit_text(
+            MESSAGES[lang]["welcome"].format(name=callback.from_user.first_name),
+            reply_markup=markup, parse_mode="HTML"
+        )
+    else:
+        await callback.answer("Kanallarga obuna bo'ling! / Подпишитесь на каналы!", show_alert=True)
+
 @dp.callback_query(F.data == "change_lang")
 async def cb_change_lang(callback: CallbackQuery):
     markup = InlineKeyboardMarkup(inline_keyboard=[
