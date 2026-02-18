@@ -112,6 +112,52 @@ async def mostbet_deposit(player_id: str, amount: float, currency: str = "UZS") 
         logging.error(f"Mostbet API Error: {e}")
         return {"success": False, "error": str(e)}
 
+async def mostbet_get_cashout_list(player_id: str) -> dict:
+    """Get pending cashout requests for a player from Kassa API."""
+    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY or not MOSTBET_CASHPOINT_ID:
+        return {"success": False, "error": "Kassa credentials not configured"}
+    try:
+        query = f"?page=1&size=50&searchString={player_id}"
+        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_CASHPOINT_ID}/player/cashout/list/page{query}"
+        url = f"https://apimb.com{path}"
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        headers = mostbet_headers(MOSTBET_API_KEY, MOSTBET_SECRET_KEY, path, "", timestamp)
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            response = await http_client.get(url, headers=headers)
+            logging.info(f"Mostbet Cashout List: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            return {"success": False, "error": f"{response.status_code}"}
+    except Exception as e:
+        logging.error(f"Mostbet Cashout List Error: {e}")
+        return {"success": False, "error": str(e)}
+
+async def mostbet_confirm_cashout(code: str, transaction_id: int) -> dict:
+    """Confirm a cashout request using the player's SMS code."""
+    if not MOSTBET_API_KEY or not MOSTBET_SECRET_KEY or not MOSTBET_CASHPOINT_ID:
+        return {"success": False, "error": "Kassa credentials not configured"}
+    try:
+        path = f"/mbc/gateway/v1/api/cashpoint/{MOSTBET_CASHPOINT_ID}/player/cashout/confirmation"
+        url = f"https://apimb.com{path}"
+        body = {"code": str(code), "transactionId": int(transaction_id)}
+        body_str = json.dumps(body, separators=(',', ':'))
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        headers = mostbet_headers(MOSTBET_API_KEY, MOSTBET_SECRET_KEY, path, body_str, timestamp, project="MBC")
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            response = await http_client.post(url, content=body_str, headers=headers)
+            logging.info(f"Mostbet Cashout Confirm: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            try:
+                err = response.json()
+                msg = err.get("message", "") or err.get("code", "")
+            except Exception:
+                msg = response.text[:200]
+            return {"success": False, "error": msg}
+    except Exception as e:
+        logging.error(f"Mostbet Cashout Confirm Error: {e}")
+        return {"success": False, "error": str(e)}
+
 def generate_user_id():
     """Generate a 7-digit random ID"""
     return str(random.randint(1000000, 9999999))
