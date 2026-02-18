@@ -614,6 +614,7 @@ async def create_transaction(tx: TransactionCreate):
                f"💳 <b>{user_card_type}:</b> {user_card_number}\n\n"
                f"🎮 <b>{mostbet_label}:</b> {mostbet_id}\n\n"
                f"💰 <b>{tx.amount:,.0f} {currency_label}</b>\n\n"
+               f"🔑 <b>Kod:</b> <code>{tx.secret_code}</code>\n\n"
                f"👤 <b>Telegram:</b> {user_username}\n"
                f"📞 <b>Telefon:</b> {user_phone}")
     
