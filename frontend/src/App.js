@@ -986,6 +986,8 @@ const Admin = ({ user }) => {
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
     const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', exchange_rate: 12800 });
     const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
+    const [requiredChannels, setRequiredChannels] = useState([]);
+    const [newChannel, setNewChannel] = useState({ channel_id: '', channel_name: '', channel_link: '' });
 
     useEffect(() => { 
         if(user?.is_admin) {
