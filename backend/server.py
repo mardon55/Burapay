@@ -33,7 +33,7 @@ db = client[os.environ['DB_NAME']]
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
 BOT_USERNAME = "BuraPay_bot" 
-WEBAPP_URL = "https://burapay-tgapp.preview.emergentagent.com"
+WEBAPP_URL = os.environ.get('WEBAPP_URL', 'https://burapay.com')
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
