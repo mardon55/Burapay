@@ -1469,7 +1469,7 @@ const Profil = ({ user, lang }) => {
                 <div className="mx-4 mb-4 rounded-2xl overflow-hidden"
                     style={{ background: 'linear-gradient(135deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(250,204,21,0.15)' }}>
                     <div className="px-4 pt-3.5 pb-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">MR_APEX_ADMIN</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{user?.username ? `@${user.username}` : user?.first_name}</p>
                     </div>
                     <div className="flex items-center justify-between px-4 pb-3.5">
                         <div>
