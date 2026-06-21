@@ -201,7 +201,7 @@ const BottomNav = ({ isAdmin, lang }) => {
   const navItems = [
     { icon: <Wallet size={20} />, label: t.home, path: "/" },
     { icon: <ArrowUpRight size={20} />, label: t.otkazmalar, path: "/deposit" },
-    { icon: <CreditCard size={20} />, label: "Profil", path: "/wallets" },
+    { icon: <CreditCard size={20} />, label: "Profil", path: "/profil" },
   ];
 
   if (isAdmin) {
@@ -1589,6 +1589,7 @@ function App() {
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
           <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
           <Route path="/withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
+          <Route path="/profil" element={<Profil user={user} lang={lang} />} />
           <Route path="/wallet" element={<WalletPage user={user} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/referral" element={<ReferralPage user={user} />} />
