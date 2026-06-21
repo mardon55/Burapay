@@ -929,7 +929,7 @@ const Wallets = ({ user, lang }) => {
                 <div>
                     <div className="flex items-center gap-2 mb-3">
                         <div className="w-7 h-7 rounded-lg bg-yellow-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-yellow-400">MB</span></div>
-                        <span className="font-bold text-sm">Mostbet</span>
+                        <span className="font-bold text-sm">Mostbet UZS</span>
                     </div>
                     <div className="space-y-3">
                         <div>
@@ -944,9 +944,8 @@ const Wallets = ({ user, lang }) => {
                             <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
                             <div className="flex gap-2">
                                 <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''), cardExpiry)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''))} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
                             </div>
-                            <Input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
                             {existingMbCard && <p className="text-xs text-green-400 mt-1">✓ {existingMbCard.number}</p>}
                         </div>
                     </div>
@@ -955,7 +954,7 @@ const Wallets = ({ user, lang }) => {
                 <div>
                     <div className="flex items-center gap-2 mb-3">
                         <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-blue-400">1X</span></div>
-                        <span className="font-bold text-sm">1xbet</span>
+                        <span className="font-bold text-sm">1xbet UZS</span>
                     </div>
                     <div className="space-y-3">
                         <div>
@@ -970,9 +969,8 @@ const Wallets = ({ user, lang }) => {
                             <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
                             <div className="flex gap-2">
                                 <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''), xbetCardExpiry)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''))} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
                             </div>
-                            <Input value={xbetCardExpiry} onChange={e => setXbetCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
                         </div>
                     </div>
                 </div>
