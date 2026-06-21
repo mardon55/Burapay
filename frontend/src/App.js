@@ -193,41 +193,47 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
-const ROOT_PATHS = ['/', '/deposit', '/profil', '/admin'];
+const ROOT_PATHS = ['/', '/transfers', '/deposit', '/reports', '/profile', '/profil', '/admin'];
 
 const BottomNav = ({ isAdmin, lang }) => {
   const location = useLocation();
-  const isActive = (path) => location.pathname === path;
+  const p = location.pathname;
   const t = translations[lang];
 
-  const isRootPage = ROOT_PATHS.includes(location.pathname);
+  const isRootPage = ROOT_PATHS.includes(p);
   if (!isRootPage) return null;
-  if (location.pathname.startsWith('/admin') && !isAdmin) return null;
+  if (p === '/admin' && !isAdmin) return null;
+
+  const isActive = (paths) => paths.includes(p);
 
   const navItems = [
-    { icon: <Wallet size={20} />, label: t.home, path: "/" },
-    { icon: <ArrowUpRight size={20} />, label: t.otkazmalar, path: "/deposit" },
-    { icon: <CreditCard size={20} />, label: "Profil", path: "/profil" },
+    { icon: <Wallet size={22} />, label: t.home, path: "/", match: ["/"] },
+    { icon: <ArrowUpRight size={22} />, label: t.otkazmalar, path: "/transfers", match: ["/transfers", "/deposit"] },
+    { icon: <History size={22} />, label: "Hisobotlar", path: "/reports", match: ["/reports"] },
+    { icon: <CreditCard size={22} />, label: "Profil", path: "/profile", match: ["/profile", "/profil"] },
   ];
 
-  if (isAdmin) {
-    navItems.push({ icon: <UserCheck size={20} />, label: t.admin, path: "/admin" });
-  }
-
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-midnight/90 backdrop-blur-lg border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-[10000] h-20">
-      {navItems.map((item) => (
-        <Link
-          key={item.path}
-          to={item.path}
-          className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
-            isActive(item.path) ? "text-primary" : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          {item.icon}
-          <span>{item.label}</span>
-        </Link>
-      ))}
+    <div className="fixed bottom-0 left-0 right-0 z-[10000]" style={{ background: 'rgba(2,6,23,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center justify-around px-2 pt-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+        {navItems.map((item) => {
+          const active = isActive(item.match);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="flex flex-col items-center gap-1 min-w-[56px] py-1 transition-all duration-200"
+            >
+              <div className={`transition-all duration-200 ${active ? 'text-yellow-400 scale-110' : 'text-slate-500'}`}>
+                {item.icon}
+              </div>
+              <span className={`text-[10px] font-semibold transition-colors duration-200 ${active ? 'text-yellow-400' : 'text-slate-600'}`}>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -1702,6 +1708,131 @@ const Admin = ({ user }) => {
     );
 };
 
+const STATUS_META = {
+  approved: { label: 'Muvaffaqiyatli', cls: 'bg-green-500/15 text-green-400 border border-green-500/20' },
+  pending:  { label: 'Kutilmoqda',     cls: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20' },
+  rejected: { label: 'Bekor qilingan', cls: 'bg-red-500/15 text-red-400 border border-red-500/20' },
+};
+
+const getPlatformLabel = (tx) => {
+  const m = (tx.method || '').toLowerCase();
+  if (m.includes('mostbet') && tx.currency === 'USD') return 'Mostbet USD';
+  if (m.includes('mostbet')) return 'Mostbet UZS';
+  if (m.includes('1xbet')) return '1xbet UZS';
+  if (m.includes('uzcard')) return 'Uzcard';
+  if (m.includes('humo'))   return 'Humo';
+  return tx.method || 'BuraPay';
+};
+
+const Reports = ({ user, lang }) => {
+  const [txs, setTxs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    if (user?.telegram_id) {
+      axios.get(`${API_URL}/transactions/${user.telegram_id}`)
+        .then(r => setTxs(r.data || []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const filtered = filter === 'all' ? txs : txs.filter(tx => tx.type === filter);
+
+  const fmtDate = (s) => {
+    const d = new Date(s);
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const FILTERS = [
+    { key: 'all',     label: 'Barchasi' },
+    { key: 'deposit', label: "To'ldirish" },
+    { key: 'withdraw',label: 'Yechish' },
+  ];
+
+  return (
+    <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+      <div className="px-4 pt-5 pb-3">
+        <h1 className="text-xl font-bold text-white">Hisobotlar</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Barcha tranzaksiyalar tarixi</p>
+      </div>
+
+      <div className="px-4 mb-4">
+        <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
+          {FILTERS.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                filter === f.key ? 'bg-yellow-400 text-black shadow-md' : 'text-slate-400'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 space-y-2.5">
+        {loading ? (
+          <div className="flex justify-center pt-14">
+            <div className="w-7 h-7 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center pt-16 space-y-3">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <History size={28} className="text-slate-600" />
+            </div>
+            <p className="text-slate-500 text-sm font-medium">Hozircha amallar mavjud emas</p>
+          </div>
+        ) : (
+          filtered.map((tx, idx) => {
+            const isDeposit = tx.type === 'deposit';
+            const status = STATUS_META[tx.status] || STATUS_META.pending;
+            return (
+              <div
+                key={tx._id || idx}
+                className="rounded-2xl p-4"
+                style={{ background: 'linear-gradient(135deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${isDeposit ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
+                      {isDeposit
+                        ? <ArrowDownToLine size={18} className="text-green-400" />
+                        : <ArrowUpFromLine size={18} className="text-red-400" />
+                      }
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">
+                        {isDeposit ? "To'ldirish" : 'Yechish'}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">{getPlatformLabel(tx)}</p>
+                      <p className="text-xs text-slate-600 mt-0.5">{fmtDate(tx.created_at)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 space-y-1.5">
+                    <p className={`text-sm font-bold ${isDeposit ? 'text-green-400' : 'text-red-400'}`}>
+                      {isDeposit ? '+' : '-'}{(tx.amount || 0).toLocaleString()} {tx.currency}
+                    </p>
+                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.cls}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [lang, setLang] = useState('uz');
@@ -1789,12 +1920,15 @@ function App() {
         <Routes>
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
           <Route path="/deposit" element={<Otkazmalar lang={lang} />} />
+          <Route path="/transfers" element={<Otkazmalar lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
           <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
           <Route path="/withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/profil" element={<Profil user={user} lang={lang} />} />
+          <Route path="/profile" element={<Profil user={user} lang={lang} />} />
+          <Route path="/reports" element={<Reports user={user} lang={lang} />} />
           <Route path="/wallet" element={<WalletPage user={user} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/referral" element={<ReferralPage user={user} />} />
