@@ -891,135 +891,294 @@ const WalletPage = ({ user }) => {
     );
 };
 
-const SavedBadge = ({ value, accent }) => {
-    if (!value) return null;
-    const color = accent === 'blue' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 'text-green-400 bg-green-500/10 border-green-500/20';
-    const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+const WALLET_PLATFORMS = [
+    {
+        key: 'mostbet',
+        name: 'Mostbet UZS',
+        badge: 'MB',
+        accent: 'yellow',
+        accentClasses: { bg: 'bg-yellow-500/15', border: 'border-yellow-500/25', text: 'text-yellow-400', badgeBg: 'bg-yellow-500/20' },
+        idTypes: ['mostbet_uzs', 'mostbet_usd', 'mostbet'],
+        idSaveType: 'mostbet_uzs',
+        cardTypes: ['uzcard', 'humo'],
+        cardSaveType: 'uzcard',
+        idLabel: 'Mostbet ID',
+    },
+    {
+        key: '1xbet',
+        name: '1xbet UZS',
+        badge: '1X',
+        accent: 'blue',
+        accentClasses: { bg: 'bg-blue-500/15', border: 'border-blue-500/25', text: 'text-blue-400', badgeBg: 'bg-blue-500/20' },
+        idTypes: ['1xbet'],
+        idSaveType: '1xbet',
+        cardTypes: ['1xbet_card'],
+        cardSaveType: '1xbet_card',
+        idLabel: '1xbet ID',
+    },
+];
+
+const maskCard = (num) => {
+    if (!num) return null;
+    const clean = num.replace(/\s/g, '');
+    if (clean.length < 4) return clean;
+    return '**** **** **** ' + clean.slice(-4);
+};
+
+const formatCardInput = (val) => {
+    const digits = val.replace(/[^\d]/g, '').slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+};
+
+const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, saving }) => {
+    const [idVal, setIdVal] = useState(existingId || '');
+    const [cardVal, setCardVal] = useState(existingCard ? existingCard.replace(/(\d{4})(?=\d)/g, '$1 ') : '');
+    const ac = platform.accentClasses;
+
+    const handleSave = () => {
+        if (!idVal.trim()) return toast.error(platform.idLabel + " kiriting");
+        onSave(idVal.trim(), cardVal.replace(/\s/g, ''));
+    };
+
     return (
-        <div className={`flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-lg border text-xs font-semibold w-fit ${color}`}>
-            <CheckCircle2 size={12}/> {formatted}
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/>
+            <div
+                className="relative w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4 animate-in slide-in-from-bottom duration-300"
+                style={{ background: 'linear-gradient(180deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${ac.badgeBg}`}>
+                            <span className={`text-[11px] font-extrabold ${ac.text}`}>{platform.badge}</span>
+                        </div>
+                        <span className="font-bold text-white">{platform.name}</span>
+                    </div>
+                    <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                        <X size={14} className="text-slate-400"/>
+                    </button>
+                </div>
+
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs text-slate-400 mb-1.5 block">{platform.idLabel}</label>
+                        <input
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/25 transition-colors"
+                            value={idVal}
+                            onChange={e => setIdVal(e.target.value)}
+                            placeholder="123456789"
+                            inputMode="numeric"
+                            autoFocus
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-slate-400 mb-1.5 block">Karta raqami <span className="text-slate-600">(ixtiyoriy)</span></label>
+                        <input
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/25 transition-colors"
+                            value={cardVal}
+                            onChange={e => setCardVal(formatCardInput(e.target.value))}
+                            placeholder="8600 0000 0000 0000"
+                            inputMode="numeric"
+                            maxLength={19}
+                        />
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 ${ac.bg} ${ac.border} border ${ac.text}`}
+                >
+                    {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                </button>
+            </div>
         </div>
     );
 };
 
 const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
-    const [mostbetId, setMostbetId] = useState('');
-    const [cardNumber, setCardNumber] = useState('');
-    const [xbetId, setXbetId] = useState('');
-    const [xbetCard, setXbetCard] = useState('');
-    const [saving, setSaving] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [modal, setModal] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [deletingKey, setDeletingKey] = useState(null);
 
-    useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
+    useEffect(() => { if (user?.telegram_id) fetchWallets(); }, [user]);
 
     const fetchWallets = async () => {
         try {
             const res = await axios.get(`${API_URL}/user/${user.telegram_id}`);
-            const ws = res.data.wallets || [];
-            setWallets(ws);
-            const mbId = ws.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd' || w.type === 'mostbet');
-            if (mbId) setMostbetId(mbId.number);
-            const card = ws.find(w => w.type === 'uzcard' || w.type === 'humo');
-            if (card) { setCardNumber(card.number.replace(/(\d{4})(?=\d)/g,'$1 ')); }
-            const xb = ws.find(w => w.type === '1xbet');
-            if (xb) setXbetId(xb.number);
-            const xbc = ws.find(w => w.type === '1xbet_card');
-            if (xbc) { setXbetCard(xbc.number.replace(/(\d{4})(?=\d)/g,'$1 ')); }
+            setWallets(res.data.wallets || []);
         } catch(e) { console.error(e); }
+        finally { setLoading(false); }
     };
 
-    const saveWallet = async (key, type, number, expiry = '') => {
-        const clean = number.replace(/\s/g, '');
-        if (!clean.trim()) return toast.error("Raqam kiriting");
-        setSaving(s => ({ ...s, [key]: true }));
-        const existing = wallets.find(w => w.type === type);
+    const getGroup = (platform) => {
+        const idWallet  = wallets.find(w => platform.idTypes.includes(w.type));
+        const cardWallet = wallets.find(w => platform.cardTypes.includes(w.type));
+        return { idWallet, cardWallet, hasData: !!idWallet };
+    };
+
+    const handleSave = async (platform, idVal, cardVal) => {
+        setSaving(true);
         try {
-            if (existing) {
-                await axios.post(`${API_URL}/wallets/update`, { telegram_id: user.telegram_id, wallet_id: existing.id, wallet: { number: clean, expiry, type } });
+            const { idWallet, cardWallet } = getGroup(platform);
+            if (idWallet) {
+                await axios.post(`${API_URL}/wallets/update`, {
+                    telegram_id: user.telegram_id, wallet_id: idWallet.id,
+                    wallet: { number: idVal, type: platform.idSaveType }
+                });
             } else {
-                await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: { type, number: clean, expiry, name: '' } });
+                await axios.post(`${API_URL}/wallets/add`, {
+                    telegram_id: user.telegram_id,
+                    wallet: { type: platform.idSaveType, number: idVal, expiry: '', name: '' }
+                });
+            }
+            if (cardVal) {
+                if (cardWallet) {
+                    await axios.post(`${API_URL}/wallets/update`, {
+                        telegram_id: user.telegram_id, wallet_id: cardWallet.id,
+                        wallet: { number: cardVal, type: cardWallet.type }
+                    });
+                } else {
+                    await axios.post(`${API_URL}/wallets/add`, {
+                        telegram_id: user.telegram_id,
+                        wallet: { type: platform.cardSaveType, number: cardVal, expiry: '', name: '' }
+                    });
+                }
             }
             toast.success("Saqlandi!");
+            setModal(null);
             await fetchWallets();
         } catch(e) { toast.error("Xatolik yuz berdi"); }
-        finally { setSaving(s => ({ ...s, [key]: false })); }
+        finally { setSaving(false); }
     };
 
-    const savedMbId   = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd' || w.type === 'mostbet');
-    const savedMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
-    const savedXbId   = wallets.find(w => w.type === '1xbet');
-    const savedXbCard = wallets.find(w => w.type === '1xbet_card');
-
-    const SaveBtn = ({ fieldKey, onClick, accent }) => {
-        const isSaving = saving[fieldKey];
-        const base = accent === 'blue'
-            ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
-            : 'bg-yellow-400/20 border-yellow-400/30 text-yellow-400';
-        return (
-            <button
-                onClick={onClick}
-                disabled={isSaving}
-                className={`px-3 border rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 ${base}`}
-            >
-                {isSaving ? '...' : 'Saqlash'}
-            </button>
-        );
+    const handleDelete = async (platform) => {
+        setDeletingKey(platform.key);
+        try {
+            const { idWallet, cardWallet } = getGroup(platform);
+            const deletes = [];
+            if (idWallet) deletes.push(axios.post(`${API_URL}/wallets/delete`, { telegram_id: user.telegram_id, wallet_id: idWallet.id }));
+            if (cardWallet) deletes.push(axios.post(`${API_URL}/wallets/delete`, { telegram_id: user.telegram_id, wallet_id: cardWallet.id }));
+            await Promise.all(deletes);
+            toast.success("O'chirildi!");
+            await fetchWallets();
+        } catch(e) { toast.error("Xatolik yuz berdi"); }
+        finally { setDeletingKey(null); }
     };
+
+    const groups = WALLET_PLATFORMS.map(p => ({ platform: p, ...getGroup(p) }));
+    const savedGroups = groups.filter(g => g.hasData);
+    const unsavedPlatforms = groups.filter(g => !g.hasData).map(g => g.platform);
 
     return (
         <div className="min-h-screen pb-28 animate-in fade-in duration-300">
             <PageHeader title="Hamyonlarim"/>
-            <div className="p-4 space-y-5">
-                <div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-yellow-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-yellow-400">MB</span></div>
-                        <span className="font-bold text-sm">Mostbet UZS</span>
+            <div className="p-4 space-y-3">
+
+                {loading ? (
+                    <div className="flex justify-center pt-12">
+                        <div className="w-6 h-6 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin"/>
                     </div>
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Mostbet ID</label>
-                            <div className="flex gap-2">
-                                <Input value={mostbetId} onChange={e => setMostbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                <SaveBtn fieldKey="mbId" onClick={() => saveWallet('mbId', 'mostbet_uzs', mostbetId)} accent="yellow"/>
-                            </div>
-                            <SavedBadge value={savedMbId?.number} accent="yellow"/>
+                ) : savedGroups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center pt-16 pb-8 space-y-3">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                            <CreditCard size={28} className="text-slate-600"/>
                         </div>
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
-                            <div className="flex gap-2">
-                                <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <SaveBtn fieldKey="mbCard" onClick={() => saveWallet('mbCard', savedMbCard?.type||'uzcard', cardNumber)} accent="yellow"/>
-                            </div>
-                            <SavedBadge value={savedMbCard?.number} accent="yellow"/>
-                        </div>
+                        <p className="text-slate-500 text-sm font-medium">Hozircha hamyonlar qo'shilmagan</p>
+                        <p className="text-slate-600 text-xs">Pastdagi tugmani bosib qo'shing</p>
                     </div>
-                </div>
-                <div className="border-t border-slate-800"/>
-                <div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-blue-400">1X</span></div>
-                        <span className="font-bold text-sm">1xbet UZS</span>
-                    </div>
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">1xbet ID</label>
-                            <div className="flex gap-2">
-                                <Input value={xbetId} onChange={e => setXbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                <SaveBtn fieldKey="xbId" onClick={() => saveWallet('xbId', '1xbet', xbetId)} accent="blue"/>
+                ) : (
+                    savedGroups.map(({ platform, idWallet, cardWallet }) => {
+                        const ac = platform.accentClasses;
+                        const isDeleting = deletingKey === platform.key;
+                        return (
+                            <div
+                                key={platform.key}
+                                className={`rounded-2xl p-4 border ${ac.border} ${ac.bg} space-y-3`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${ac.badgeBg}`}>
+                                            <span className={`text-[11px] font-extrabold ${ac.text}`}>{platform.badge}</span>
+                                        </div>
+                                        <span className="font-bold text-white text-sm">{platform.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setModal({ platform, idWallet, cardWallet })}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-slate-300 text-xs font-semibold active:scale-95 transition-all"
+                                        >
+                                            <Edit size={12}/> Tahrirlash
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(platform)}
+                                            disabled={isDeleting}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                                        >
+                                            <Trash2 size={12}/> {isDeleting ? '...' : "O'chirish"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5 pl-0.5">
+                                    {idWallet && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500 w-16 shrink-0">{platform.idLabel}:</span>
+                                            <span className="text-sm font-semibold text-white font-mono">{idWallet.number}</span>
+                                        </div>
+                                    )}
+                                    {cardWallet && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500 w-16 shrink-0">Karta:</span>
+                                            <span className="text-sm font-semibold text-slate-300 font-mono tracking-wider">{maskCard(cardWallet.number)}</span>
+                                        </div>
+                                    )}
+                                    {!cardWallet && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500 w-16 shrink-0">Karta:</span>
+                                            <span className="text-xs text-slate-600 italic">Qo'shilmagan</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <SavedBadge value={savedXbId?.number} accent="blue"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
-                            <div className="flex gap-2">
-                                <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <SaveBtn fieldKey="xbCard" onClick={() => saveWallet('xbCard', '1xbet_card', xbetCard)} accent="blue"/>
+                        );
+                    })
+                )}
+
+                {!loading && unsavedPlatforms.map(platform => {
+                    const ac = platform.accentClasses;
+                    return (
+                        <button
+                            key={platform.key}
+                            onClick={() => setModal({ platform, idWallet: null, cardWallet: null })}
+                            className="w-full flex items-center gap-3 p-4 rounded-2xl border border-dashed border-white/10 bg-white/3 active:scale-98 transition-all"
+                        >
+                            <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
+                                <Plus size={16} className="text-slate-500"/>
                             </div>
-                            <SavedBadge value={savedXbCard?.number} accent="blue"/>
-                        </div>
-                    </div>
-                </div>
+                            <div className="text-left">
+                                <p className="text-sm font-semibold text-slate-400">{platform.name} qo'shish</p>
+                                <p className="text-xs text-slate-600">ID va karta raqamini kiriting</p>
+                            </div>
+                            <ChevronRight size={16} className="text-slate-600 ml-auto"/>
+                        </button>
+                    );
+                })}
             </div>
+
+            {modal && (
+                <WalletModal
+                    platform={modal.platform}
+                    existingId={modal.idWallet?.number || ''}
+                    existingCard={modal.cardWallet?.number || ''}
+                    saving={saving}
+                    onSave={(idVal, cardVal) => handleSave(modal.platform, idVal, cardVal)}
+                    onClose={() => !saving && setModal(null)}
+                />
+            )}
         </div>
     );
 };
