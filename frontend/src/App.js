@@ -193,11 +193,17 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
+const ROOT_PATHS = ['/', '/deposit', '/profil', '/admin'];
+
 const BottomNav = ({ isAdmin, lang }) => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
   const t = translations[lang];
-  
+
+  const isRootPage = ROOT_PATHS.includes(location.pathname);
+  if (!isRootPage) return null;
+  if (location.pathname.startsWith('/admin') && !isAdmin) return null;
+
   const navItems = [
     { icon: <Wallet size={20} />, label: t.home, path: "/" },
     { icon: <ArrowUpRight size={20} />, label: t.otkazmalar, path: "/deposit" },
@@ -205,16 +211,14 @@ const BottomNav = ({ isAdmin, lang }) => {
   ];
 
   if (isAdmin) {
-      navItems.push({ icon: <UserCheck size={20} />, label: t.admin, path: "/admin" });
+    navItems.push({ icon: <UserCheck size={20} />, label: t.admin, path: "/admin" });
   }
-
-  if (location.pathname.startsWith('/admin')) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-midnight/90 backdrop-blur-lg border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-[10000] h-20">
       {navItems.map((item) => (
-        <Link 
-          key={item.path} 
+        <Link
+          key={item.path}
           to={item.path}
           className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
             isActive(item.path) ? "text-primary" : "text-slate-500 hover:text-slate-300"
@@ -864,7 +868,7 @@ const WalletPage = ({ user }) => {
     const balanceUZS = user?.balance_uzs ?? 0;
     const balanceUSD = user?.balance_usd ?? 0;
     return (
-        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+        <div className="min-h-screen animate-in fade-in duration-300">
             <PageHeader title="Hamyonim"/>
             <div className="p-4 space-y-4">
                 <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
@@ -1074,7 +1078,7 @@ const Wallets = ({ user, lang }) => {
     const unsavedPlatforms = groups.filter(g => !g.hasData).map(g => g.platform);
 
     return (
-        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+        <div className="min-h-screen animate-in fade-in duration-300">
             <PageHeader title="Hamyonlarim"/>
             <div className="p-4 space-y-3">
 
@@ -1187,7 +1191,7 @@ const ReferralPage = ({ user }) => {
     const BOT_USERNAME = 'MR_KASSABOT';
     const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
     return (
-        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+        <div className="min-h-screen animate-in fade-in duration-300">
             <PageHeader title="Referal"/>
             <div className="p-4 space-y-4">
                 <div className="bg-slate-800 rounded-xl p-4">
@@ -1226,7 +1230,7 @@ const PartnershipPage = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+        <div className="min-h-screen animate-in fade-in duration-300">
             <PageHeader title="Hamkorlik"/>
             <div className="p-4">
                 {partnerResult ? (
