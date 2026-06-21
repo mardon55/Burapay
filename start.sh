@@ -14,7 +14,7 @@ fi
 if [ ! -d "/home/runner/workspace/frontend/build" ]; then
   echo "Building frontend..."
   cd /home/runner/workspace/frontend
-  GENERATE_SOURCEMAP=false node_modules/.bin/react-scripts build
+  GENERATE_SOURCEMAP=false npm run build
   echo "Frontend built"
 fi
 
