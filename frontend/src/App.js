@@ -891,14 +891,24 @@ const WalletPage = ({ user }) => {
     );
 };
 
+const SavedBadge = ({ value, accent }) => {
+    if (!value) return null;
+    const color = accent === 'blue' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 'text-green-400 bg-green-500/10 border-green-500/20';
+    const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+    return (
+        <div className={`flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-lg border text-xs font-semibold w-fit ${color}`}>
+            <CheckCircle2 size={12}/> {formatted}
+        </div>
+    );
+};
+
 const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [mostbetId, setMostbetId] = useState('');
     const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
     const [xbetId, setXbetId] = useState('');
     const [xbetCard, setXbetCard] = useState('');
-    const [xbetCardExpiry, setXbetCardExpiry] = useState('');
+    const [saving, setSaving] = useState({});
 
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
 
@@ -907,32 +917,54 @@ const Wallets = ({ user, lang }) => {
             const res = await axios.get(`${API_URL}/user/${user.telegram_id}`);
             const ws = res.data.wallets || [];
             setWallets(ws);
-            const mbId = ws.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
+            const mbId = ws.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd' || w.type === 'mostbet');
             if (mbId) setMostbetId(mbId.number);
             const card = ws.find(w => w.type === 'uzcard' || w.type === 'humo');
-            if (card) { setCardNumber(card.number); setCardExpiry(card.expiry || ''); }
+            if (card) { setCardNumber(card.number.replace(/(\d{4})(?=\d)/g,'$1 ')); }
             const xb = ws.find(w => w.type === '1xbet');
             if (xb) setXbetId(xb.number);
+            const xbc = ws.find(w => w.type === '1xbet_card');
+            if (xbc) { setXbetCard(xbc.number.replace(/(\d{4})(?=\d)/g,'$1 ')); }
         } catch(e) { console.error(e); }
     };
 
-    const saveWallet = async (type, number, expiry = '') => {
-        if (!number.trim()) return toast.error("Raqam kiriting");
+    const saveWallet = async (key, type, number, expiry = '') => {
+        const clean = number.replace(/\s/g, '');
+        if (!clean.trim()) return toast.error("Raqam kiriting");
+        setSaving(s => ({ ...s, [key]: true }));
         const existing = wallets.find(w => w.type === type);
         try {
             if (existing) {
-                await axios.post(`${API_URL}/wallets/update`, { telegram_id: user.telegram_id, wallet_id: existing.id, wallet: { number, expiry, type } });
+                await axios.post(`${API_URL}/wallets/update`, { telegram_id: user.telegram_id, wallet_id: existing.id, wallet: { number: clean, expiry, type } });
             } else {
-                await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: { type, number, expiry, name: '' } });
+                await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: { type, number: clean, expiry, name: '' } });
             }
             toast.success("Saqlandi!");
-            fetchWallets();
+            await fetchWallets();
         } catch(e) { toast.error("Xatolik yuz berdi"); }
+        finally { setSaving(s => ({ ...s, [key]: false })); }
     };
 
-    const existingMbId  = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
-    const existingMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
-    const existingXbId  = wallets.find(w => w.type === '1xbet');
+    const savedMbId   = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd' || w.type === 'mostbet');
+    const savedMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
+    const savedXbId   = wallets.find(w => w.type === '1xbet');
+    const savedXbCard = wallets.find(w => w.type === '1xbet_card');
+
+    const SaveBtn = ({ fieldKey, onClick, accent }) => {
+        const isSaving = saving[fieldKey];
+        const base = accent === 'blue'
+            ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+            : 'bg-yellow-400/20 border-yellow-400/30 text-yellow-400';
+        return (
+            <button
+                onClick={onClick}
+                disabled={isSaving}
+                className={`px-3 border rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 ${base}`}
+            >
+                {isSaving ? '...' : 'Saqlash'}
+            </button>
+        );
+    };
 
     return (
         <div className="min-h-screen pb-28 animate-in fade-in duration-300">
@@ -948,17 +980,17 @@ const Wallets = ({ user, lang }) => {
                             <label className="text-xs text-slate-400 mb-1 block">Mostbet ID</label>
                             <div className="flex gap-2">
                                 <Input value={mostbetId} onChange={e => setMostbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                <button onClick={() => saveWallet('mostbet_uzs', mostbetId)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <SaveBtn fieldKey="mbId" onClick={() => saveWallet('mbId', 'mostbet_uzs', mostbetId)} accent="yellow"/>
                             </div>
-                            {existingMbId && <p className="text-xs text-green-400 mt-1">✓ {existingMbId.number}</p>}
+                            <SavedBadge value={savedMbId?.number} accent="yellow"/>
                         </div>
                         <div>
                             <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
                             <div className="flex gap-2">
                                 <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''))} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <SaveBtn fieldKey="mbCard" onClick={() => saveWallet('mbCard', savedMbCard?.type||'uzcard', cardNumber)} accent="yellow"/>
                             </div>
-                            {existingMbCard && <p className="text-xs text-green-400 mt-1">✓ {existingMbCard.number}</p>}
+                            <SavedBadge value={savedMbCard?.number} accent="yellow"/>
                         </div>
                     </div>
                 </div>
@@ -973,16 +1005,17 @@ const Wallets = ({ user, lang }) => {
                             <label className="text-xs text-slate-400 mb-1 block">1xbet ID</label>
                             <div className="flex gap-2">
                                 <Input value={xbetId} onChange={e => setXbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                <button onClick={() => saveWallet('1xbet', xbetId)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <SaveBtn fieldKey="xbId" onClick={() => saveWallet('xbId', '1xbet', xbetId)} accent="blue"/>
                             </div>
-                            {existingXbId && <p className="text-xs text-green-400 mt-1">✓ {existingXbId.number}</p>}
+                            <SavedBadge value={savedXbId?.number} accent="blue"/>
                         </div>
                         <div>
                             <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
                             <div className="flex gap-2">
                                 <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''))} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                <SaveBtn fieldKey="xbCard" onClick={() => saveWallet('xbCard', '1xbet_card', xbetCard)} accent="blue"/>
                             </div>
+                            <SavedBadge value={savedXbCard?.number} accent="blue"/>
                         </div>
                     </div>
                 </div>
