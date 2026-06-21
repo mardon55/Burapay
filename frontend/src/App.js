@@ -51,7 +51,7 @@ const translations = {
     wallets: "Hamyonlar",
     admin: "Admin",
     welcome: "Xush kelibsiz",
-    total_balance: "Umumiy hisob",
+    total_balance: "Balansim",
     recent_activity: "Oxirgi amallar",
     view_all: "Barchasi",
     no_tx: "Hozircha amallar yo'q",
