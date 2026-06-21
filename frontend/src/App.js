@@ -682,8 +682,10 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
               navigate('/wallets');
               return;
           }
-          const mostbetWallets = allWallets.filter(w => w.type.startsWith('mostbet'));
-          setWallets(mostbetWallets); 
+          const platformWallets = platform === "1xbet"
+              ? allWallets.filter(w => w.type === '1xbet')
+              : allWallets.filter(w => w.type.startsWith('mostbet'));
+          setWallets(platformWallets); 
       } catch (e) { console.error(e); } 
   };
 
@@ -786,9 +788,12 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
                     <Input 
                         value={code} 
                         onChange={(e) => {
-                            const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+                            const maxLen = platform === "1xbet" ? 6 : 8;
+                            const val = platform === "1xbet"
+                                ? e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
+                                : e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
                             setCode(val);
-                            if (val.length >= 8 && selectedWallet) {
+                            if (platform !== "1xbet" && val.length >= 8 && selectedWallet) {
                                 axios.post(`${API_URL}/transactions/verify_code`, {
                                     code: val,
                                     player_id: selectedWallet.number
@@ -799,8 +804,9 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
                                 });
                             }
                         }}
-                        placeholder={t.code_placeholder}
-                        maxLength={8}
+                        placeholder={platform === "1xbet" ? "1xbet kodi (6 xonali)" : t.code_placeholder}
+                        maxLength={platform === "1xbet" ? 6 : 8}
+                        type={platform === "1xbet" ? "number" : "text"}
                     />
                     <Key className="absolute right-4 top-3 text-slate-500" size={18} />
                 </div>
