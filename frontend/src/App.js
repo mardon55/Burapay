@@ -1110,7 +1110,6 @@ const Profil = ({ user, lang }) => {
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
                 <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
-                <NavCard icon={<Shield size={20}/>} title="Hamkorlik" subtitle="O'z botingizni BuraPay ga ulang" accentColor="green" onClick={() => navigate('/partnership')}/>
             </div>
         </div>
     );
@@ -1603,7 +1602,6 @@ function App() {
           <Route path="/wallet" element={<WalletPage user={user} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/referral" element={<ReferralPage user={user} />} />
-          <Route path="/partnership" element={<PartnershipPage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin} lang={lang} />
