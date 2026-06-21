@@ -229,6 +229,7 @@ const BottomNav = ({ isAdmin, lang }) => {
 // Pages
 const Home = ({ user, lang, setLang }) => {
   const [history, setHistory] = useState([]);
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const navigate = useNavigate();
   const t = translations[lang];
 
@@ -255,105 +256,157 @@ const Home = ({ user, lang, setLang }) => {
       } catch(e) {}
   };
 
-  // Check if user has Uzcard/Humo card
   const hasCard = user?.wallets?.some(w => w.type === 'uzcard' || w.type === 'humo') || user?.has_card;
+  const balanceUZS = user?.balance_uzs ?? 0;
+  const balanceUSD = user?.balance_usd ?? 0;
 
   if (!user) return <div className="p-8 text-center text-slate-500">...</div>;
 
   return (
-    <div className="pb-40 p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Mandatory Card Warning */}
-      {!hasCard && (
-        <div 
-          onClick={() => navigate('/wallets')}
-          className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 cursor-pointer hover:bg-yellow-500/20 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
-              <CreditCard size={20} className="text-yellow-500" />
-            </div>
-            <div>
-              <div className="font-bold text-yellow-500">
-                {lang === 'uz' ? "Karta qo'shish majburiy!" : "Добавьте карту!"}
-              </div>
-              <div className="text-xs text-yellow-500/70">
-                {lang === 'uz' 
-                  ? "Uzcard yoki Humo karta qo'shing" 
-                  : "Добавьте карту Uzcard или Humo"}
-              </div>
-            </div>
-            <ChevronRight className="ml-auto text-yellow-500" size={20} />
+    <div className="pb-28 space-y-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Top Header */}
+      <div className="flex justify-between items-center px-4 pt-4 pb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-lg shadow-lg">
+            {user.first_name?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">{lang === 'uz' ? 'Salom,' : 'Привет,'}</p>
+            <h1 className="text-base font-bold leading-tight">{user.first_name}</h1>
           </div>
         </div>
-      )}
-
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-gold font-bold text-lg">
-                {user.first_name?.[0]}
-            </div>
-            <div>
-                <h2 className="text-xs text-slate-400 font-body uppercase tracking-wider">ID: {user.internal_id || "..."}</h2>
-                <h1 className="text-xl font-bold leading-none">{user.first_name}</h1>
-            </div>
-        </div>
         <div className="flex gap-2">
-            <button onClick={toggleLang} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
-                {lang === 'uz' ? '🇺🇿' : '🇷🇺'}
+          <button onClick={toggleLang} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-base">
+            {lang === 'uz' ? '🇺🇿' : '🇷🇺'}
+          </button>
+        </div>
+      </div>
+
+      {/* Bank Balance Card */}
+      <div className="mx-4 mt-2 rounded-2xl overflow-hidden shadow-2xl"
+        style={{ background: "linear-gradient(135deg, #1a1f2e 0%, #0f1420 50%, #1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.2)" }}>
+        <div className="p-5">
+          <div className="flex justify-between items-start mb-1">
+            <p className="text-xs text-slate-400 uppercase tracking-widest">{t.total_balance}</p>
+            <button onClick={() => setBalanceVisible(v => !v)} className="text-slate-500 text-xs">
+              {balanceVisible ? '👁' : '🙈'}
             </button>
-            <Link to="/wallets" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
-                <CreditCard size={20} />
-            </Link>
+          </div>
+
+          {/* UZS Balance — main */}
+          <div className="mt-1 mb-3">
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-bold tracking-tight text-white">
+                {balanceVisible ? (balanceUZS).toLocaleString('uz-UZ') : '••••••'}
+              </span>
+              <span className="text-lg font-semibold text-yellow-400 mb-1">UZS</span>
+            </div>
+            {balanceUZS === 0 && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {lang === 'uz' ? "Hisobingizda mablag' yo'q" : "На счёте нет средств"}
+              </p>
+            )}
+          </div>
+
+          {/* USD Balance — secondary */}
+          <div className="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 w-fit">
+            <span className="text-xs text-slate-400">USD</span>
+            <span className="text-sm font-bold text-white">
+              {balanceVisible ? `$${balanceUSD.toFixed(2)}` : '••••'}
+            </span>
+          </div>
+
+          {/* Card footer info */}
+          <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span className="text-xs text-slate-400">ID: {user.internal_id || user.telegram_id}</span>
+            </div>
+            <div className="flex gap-1">
+              <div className="w-5 h-5 rounded-full bg-yellow-500 opacity-80 -mr-2"></div>
+              <div className="w-5 h-5 rounded-full bg-red-500 opacity-80"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 px-4 mt-4">
         <Link to="/deposit" className="w-full">
-          <Button className="w-full text-sm py-3">
-             <ArrowUpRight size={18} /> {t.deposit}
-          </Button>
+          <button className="w-full flex flex-col items-center gap-2 py-4 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 hover:bg-yellow-400/20 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
+              <ArrowDownToLine size={20} className="text-yellow-400" />
+            </div>
+            <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
+          </button>
         </Link>
         <Link to="/withdraw" className="w-full">
-           <Button variant="secondary" className="w-full text-sm py-3">
-             <ArrowDownLeft size={18} /> {t.withdraw}
-           </Button>
+          <button className="w-full flex flex-col items-center gap-2 py-4 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center">
+              <ArrowUpFromLine size={20} className="text-slate-300" />
+            </div>
+            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
+          </button>
         </Link>
       </div>
 
-      {/* Recent Activity */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-bold">{t.recent_activity}</h3>
-          <button className="text-primary text-sm">{t.view_all}</button>
+      {/* Card Warning */}
+      {!hasCard && (
+        <div
+          onClick={() => navigate('/wallets')}
+          className="mx-4 mt-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 cursor-pointer hover:bg-yellow-500/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
+              <CreditCard size={16} className="text-yellow-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-yellow-500 text-sm">
+                {lang === 'uz' ? "Karta qo'shish majburiy!" : "Добавьте карту!"}
+              </div>
+              <div className="text-xs text-yellow-500/70 truncate">
+                {lang === 'uz' ? "Uzcard yoki Humo karta qo'shing" : "Добавьте карту Uzcard или Humo"}
+              </div>
+            </div>
+            <ChevronRight className="text-yellow-500 shrink-0" size={16} />
+          </div>
         </div>
-        <div className="space-y-3">
+      )}
+
+      {/* Recent Activity */}
+      <div className="px-4 mt-5">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-base font-bold">{t.recent_activity}</h3>
+          <span className="text-xs text-slate-500">{history.length} {lang === 'uz' ? 'ta' : 'шт'}</span>
+        </div>
+        <div className="space-y-2">
           {history.length === 0 ? (
-            <div className="text-center py-8 text-slate-600 bg-midnight-light rounded-xl border border-slate-800 border-dashed">
-                {t.no_tx}
+            <div className="text-center py-10 text-slate-600 bg-midnight-light rounded-2xl border border-slate-800 border-dashed">
+              <History size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">{t.no_tx}</p>
             </div>
           ) : (
-            history.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-4 bg-midnight-light border border-slate-800 rounded-xl">
+            history.slice(0, 10).map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between p-3.5 bg-midnight-light border border-slate-800 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                     tx.type === 'deposit' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
                   }`}>
-                    {tx.type === 'deposit' ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
+                    {tx.type === 'deposit' ? <ArrowDownToLine size={16} /> : <ArrowUpFromLine size={16} />}
                   </div>
                   <div>
-                    <div className="font-bold text-white capitalize">{tx.type === 'deposit' ? t.deposit_in : t.withdraw_out}</div>
+                    <div className="font-semibold text-sm text-white">
+                      {tx.type === 'deposit' ? t.deposit_in : t.withdraw_out}
+                    </div>
                     <div className="text-xs text-slate-500">{new Date(tx.created_at).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-bold ${
-                    tx.type === 'deposit' ? 'text-green-500' : 'text-white'
-                  }`}>
+                  <div className={`font-bold text-sm ${tx.type === 'deposit' ? 'text-green-400' : 'text-red-400'}`}>
                     {tx.type === 'deposit' ? '+' : '-'}{tx.amount.toLocaleString()} {tx.currency}
                   </div>
-                  <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${
+                  <div className={`text-xs px-2 py-0.5 rounded-full inline-block mt-0.5 ${
                     tx.status === 'approved' ? 'bg-green-500/10 text-green-500' :
                     tx.status === 'rejected' ? 'bg-red-500/10 text-red-500' :
                     'bg-yellow-500/10 text-yellow-500'
