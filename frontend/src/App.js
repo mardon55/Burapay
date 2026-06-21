@@ -345,51 +345,6 @@ const Home = ({ user, lang, setLang }) => {
 
 
 
-      {/* Recent Activity */}
-      <div className="px-4 mt-5">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-base font-bold">{t.recent_activity}</h3>
-          <span className="text-xs text-slate-500">{history.length} {lang === 'uz' ? 'ta' : 'шт'}</span>
-        </div>
-        <div className="space-y-2">
-          {history.length === 0 ? (
-            <div className="text-center py-10 text-slate-600 bg-midnight-light rounded-2xl border border-slate-800 border-dashed">
-              <History size={28} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">{t.no_tx}</p>
-            </div>
-          ) : (
-            history.slice(0, 10).map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-3.5 bg-midnight-light border border-slate-800 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                    tx.type === 'deposit' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                  }`}>
-                    {tx.type === 'deposit' ? <ArrowDownToLine size={16} /> : <ArrowUpFromLine size={16} />}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm text-white">
-                      {tx.type === 'deposit' ? t.deposit_in : t.withdraw_out}
-                    </div>
-                    <div className="text-xs text-slate-500">{new Date(tx.created_at).toLocaleDateString()}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-bold text-sm ${tx.type === 'deposit' ? 'text-green-400' : 'text-red-400'}`}>
-                    {tx.type === 'deposit' ? '+' : '-'}{tx.amount.toLocaleString()} {tx.currency}
-                  </div>
-                  <div className={`text-xs px-2 py-0.5 rounded-full inline-block mt-0.5 ${
-                    tx.status === 'approved' ? 'bg-green-500/10 text-green-500' :
-                    tx.status === 'rejected' ? 'bg-red-500/10 text-red-500' :
-                    'bg-yellow-500/10 text-yellow-500'
-                  }`}>
-                    {tx.status === 'approved' ? t.approved : tx.status === 'rejected' ? t.rejected : t.pending}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
     </div>
   );
 };
@@ -1727,12 +1682,16 @@ const getPlatformLabel = (tx) => {
 const Reports = ({ user, lang }) => {
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     if (user?.telegram_id) {
       axios.get(`${API_URL}/transactions/${user.telegram_id}`)
-        .then(r => setTxs(r.data || []))
+        .then(r => {
+          const sorted = (r.data || []).slice().sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at)
+          );
+          setTxs(sorted);
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     } else {
@@ -1740,93 +1699,104 @@ const Reports = ({ user, lang }) => {
     }
   }, [user]);
 
-  const filtered = filter === 'all' ? txs : txs.filter(tx => tx.type === filter);
-
   const fmtDate = (s) => {
     const d = new Date(s);
-    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const day   = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year  = d.getFullYear();
+    const hh    = String(d.getHours()).padStart(2, '0');
+    const mm    = String(d.getMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} ${hh}:${mm}`;
   };
 
-  const FILTERS = [
-    { key: 'all',     label: 'Barchasi' },
-    { key: 'deposit', label: "To'ldirish" },
-    { key: 'withdraw',label: 'Yechish' },
-  ];
+  const getPlatformShort = (tx) => {
+    const m = (tx.method || '').toLowerCase();
+    if (m.includes('1xbet')) return '1xbet';
+    if (m.includes('mostbet')) return 'Mostbet';
+    return tx.method || 'BuraPay';
+  };
+
+  const getPlatformIcon = (tx) => {
+    const m = (tx.method || '').toLowerCase();
+    if (m.includes('1xbet')) return (
+      <span className="text-[11px] font-extrabold text-blue-400">1X</span>
+    );
+    return (
+      <span className="text-[11px] font-extrabold text-yellow-400">MB</span>
+    );
+  };
+
+  const getPlatformBg = (tx) => {
+    const m = (tx.method || '').toLowerCase();
+    if (m.includes('1xbet')) return 'rgba(59,130,246,0.15)';
+    return 'rgba(250,204,21,0.12)';
+  };
 
   return (
-    <div className="min-h-screen pb-28 animate-in fade-in duration-300">
-      <div className="px-4 pt-5 pb-3">
-        <h1 className="text-xl font-bold text-white">Hisobotlar</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Barcha tranzaksiyalar tarixi</p>
+    <div className="min-h-screen pb-28 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+
+      {/* Header */}
+      <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <h1 className="text-xl font-bold text-white tracking-tight">Hisobotlar</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Tranzaksiyalar tarixi</p>
       </div>
 
-      <div className="px-4 mb-4">
-        <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
-          {FILTERS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                filter === f.key ? 'bg-yellow-400 text-black shadow-md' : 'text-slate-400'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="px-4 space-y-2.5">
+      <div className="px-4 pt-4">
         {loading ? (
-          <div className="flex justify-center pt-14">
-            <div className="w-7 h-7 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+          <div className="flex justify-center pt-16">
+            <div className="w-8 h-8 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center pt-16 space-y-3">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <History size={28} className="text-slate-600" />
+        ) : txs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center pt-24 space-y-4">
+            <div className="w-18 h-18 w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <History size={30} className="text-slate-600" />
             </div>
-            <p className="text-slate-500 text-sm font-medium">Hozircha amallar mavjud emas</p>
+            <div className="text-center">
+              <p className="text-slate-400 text-sm font-semibold">Hozircha tranzaksiyalar mavjud emas</p>
+              <p className="text-slate-600 text-xs mt-1">To'ldirish yoki yechish amalga oshirilganda bu yerda ko'rinadi</p>
+            </div>
           </div>
         ) : (
-          filtered.map((tx, idx) => {
-            const isDeposit = tx.type === 'deposit';
-            const status = STATUS_META[tx.status] || STATUS_META.pending;
-            return (
-              <div
-                key={tx._id || idx}
-                className="rounded-2xl p-4"
-                style={{ background: 'linear-gradient(135deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(255,255,255,0.06)' }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${isDeposit ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
-                      {isDeposit
-                        ? <ArrowDownToLine size={18} className="text-green-400" />
-                        : <ArrowUpFromLine size={18} className="text-red-400" />
-                      }
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">
-                        {isDeposit ? "To'ldirish" : 'Yechish'}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">{getPlatformLabel(tx)}</p>
-                      <p className="text-xs text-slate-600 mt-0.5">{fmtDate(tx.created_at)}</p>
-                    </div>
+          <div className="space-y-0 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            {txs.map((tx, idx) => {
+              const isDeposit = tx.type === 'deposit';
+              const platform  = getPlatformShort(tx);
+              const isLast    = idx === txs.length - 1;
+
+              return (
+                <div
+                  key={tx._id || tx.id || idx}
+                  className="flex items-center gap-3.5 px-4 py-3.5 active:opacity-70 transition-opacity"
+                  style={{
+                    background: idx % 2 === 0 ? 'rgba(15,20,32,1)' : 'rgba(18,24,38,1)',
+                    borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.04)'
+                  }}
+                >
+                  {/* Platform icon */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+                    style={{ background: getPlatformBg(tx) }}
+                  >
+                    {getPlatformIcon(tx)}
                   </div>
-                  <div className="text-right flex-shrink-0 space-y-1.5">
-                    <p className={`text-sm font-bold ${isDeposit ? 'text-green-400' : 'text-red-400'}`}>
-                      {isDeposit ? '+' : '-'}{(tx.amount || 0).toLocaleString()} {tx.currency}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white leading-tight">{platform}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{fmtDate(tx.created_at)}</p>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="text-right flex-shrink-0">
+                    <p className={`text-base font-bold leading-tight ${isDeposit ? 'text-green-400' : 'text-red-400'}`}>
+                      {isDeposit ? '+' : '−'}{(tx.amount || 0).toLocaleString()} <span className="text-xs font-semibold">{tx.currency || 'UZS'}</span>
                     </p>
-                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.cls}`}>
-                      {status.label}
-                    </span>
                   </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
