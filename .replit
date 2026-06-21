@@ -44,5 +44,5 @@ run = ["bash", "start.sh"]
 MONGO_URL = "mongodb://localhost:27017"
 DB_NAME = "burapay"
 ADMIN_IDS = "1617111900,8335743983"
-WEBAPP_URL = "https://bb1f4da8-f261-4e28-b083-baa9404b174a-00-1560jkutp5hhw.sisko.replit.dev"
 REACT_APP_BACKEND_URL = ""
+WEBAPP_URL = "https://2d01c317-7c32-4a39-af33-5eb4fd777ea2-00-9p4hi3tpx97c.pike.replit.dev"
