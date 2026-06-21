@@ -465,26 +465,24 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
   const t = translations[lang];
 
   useEffect(() => {
-      // Check for card presence
-      if (user?.wallets) {
-          const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
-          if (!hasCard) {
-              toast.error(t.add_card_required);
-              navigate('/wallets');
-              return;
-          }
-      }
-      fetchAdminData();
-  }, [user, navigate, t.add_card_required]);
+      if (user?.telegram_id) fetchAdminData();
+  }, [user]);
 
   const fetchAdminData = async () => {
       try { 
-          const [cardsRes, settingsRes] = await Promise.all([
+          const [cardsRes, settingsRes, userRes] = await Promise.all([
               axios.get(`${API_URL}/admin/cards`),
-              axios.get(`${API_URL}/admin/settings`)
+              axios.get(`${API_URL}/admin/settings`),
+              axios.get(`${API_URL}/user/${user.telegram_id}`)
           ]);
           setAdminCards(cardsRes.data); 
           setAdminSettings(settingsRes.data);
+          const freshWallets = userRes.data.wallets || [];
+          const hasCard = freshWallets.some(w => w.type === 'uzcard' || w.type === 'humo');
+          if (!hasCard) {
+              toast.error(t.add_card_required);
+              navigate('/wallets');
+          }
       } catch(e) {}
   };
 
@@ -661,21 +659,19 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
 
   useEffect(() => { 
       if(user?.telegram_id) fetchWallets();
-      if (user?.wallets) {
-          const hasCard = user.wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
-          if (!hasCard) {
-              toast.error(t.add_card_required);
-              navigate('/wallets');
-          }
-      }
       fetchSettings();
-  }, [user, navigate, t.add_card_required]);
+  }, [user]);
 
   const fetchWallets = async () => { 
       try { 
           const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); 
-          // Filter to show ONLY Mostbet wallets for withdrawal
           const allWallets = res.data.wallets || [];
+          const hasCard = allWallets.some(w => w.type === 'uzcard' || w.type === 'humo');
+          if (!hasCard) {
+              toast.error(t.add_card_required);
+              navigate('/wallets');
+              return;
+          }
           const mostbetWallets = allWallets.filter(w => w.type.startsWith('mostbet'));
           setWallets(mostbetWallets); 
       } catch (e) { console.error(e); } 
