@@ -1249,9 +1249,26 @@ const PartnershipPage = ({ user }) => {
 const Profil = ({ user, lang }) => {
     const navigate = useNavigate();
     const balanceUZS = user?.balance_uzs ?? 0;
+    const botId = user?.bot_id || null;
+
+    const copyBotId = () => {
+        if (!botId) return;
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(botId).then(() => toast.success("Bot ID nusxalandi!"));
+        } else {
+            const el = document.createElement('textarea');
+            el.value = botId;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            toast.success("Bot ID nusxalandi!");
+        }
+    };
 
     return (
         <div className="pb-28 animate-in fade-in duration-300">
+            {/* Profile header */}
             <div className="p-4 pb-3">
                 <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-2xl shadow-lg flex-shrink-0">
@@ -1259,10 +1276,37 @@ const Profil = ({ user, lang }) => {
                     </div>
                     <div>
                         <h1 className="text-xl font-bold">{user?.first_name}</h1>
-                        <p className="text-sm text-slate-400">ID: {user?.internal_id || user?.telegram_id}</p>
+                        <p className="text-sm text-slate-500">
+                            {user?.username ? `@${user.username}` : `ID: ${user?.internal_id || user?.telegram_id}`}
+                        </p>
                     </div>
                 </div>
             </div>
+
+            {/* Bot ID card */}
+            {botId && (
+                <div className="mx-4 mb-4 rounded-2xl overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(250,204,21,0.15)' }}>
+                    <div className="px-4 pt-3.5 pb-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">MR_APEX_ADMIN</p>
+                    </div>
+                    <div className="flex items-center justify-between px-4 pb-3.5">
+                        <div>
+                            <p className="text-[10px] text-slate-500 mb-0.5">Bot ID</p>
+                            <p className="text-lg font-bold tracking-widest text-yellow-400 font-mono">{botId}</p>
+                        </div>
+                        <button
+                            onClick={copyBotId}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95"
+                            style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.2)' }}
+                        >
+                            <Copy size={14} className="text-yellow-400" />
+                            <span className="text-xs font-semibold text-yellow-400">Nusxa</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="px-4 space-y-3">
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>

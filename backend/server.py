@@ -166,6 +166,14 @@ def generate_user_id():
     """Generate a 7-digit random ID"""
     return str(random.randint(1000000, 9999999))
 
+async def generate_unique_bot_id() -> str:
+    """Generate a unique MR-prefixed Bot ID (MR + 7 digits), retrying until unique."""
+    while True:
+        candidate = "MR" + str(random.randint(1000000, 9999999))
+        existing = await db.users.find_one({"bot_id": candidate})
+        if not existing:
+            return candidate
+
 class Wallet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: str 
@@ -183,6 +191,7 @@ class AdminCard(BaseModel):
 class User(BaseModel):
     telegram_id: int
     internal_id: str = Field(default_factory=generate_user_id)
+    bot_id: Optional[str] = None
     first_name: str
     username: Optional[str] = None
     phone_number: Optional[str] = None
@@ -555,10 +564,12 @@ async def login(data: dict = Body(...)):
     is_admin_env = telegram_id in ADMIN_IDS
     
     if not user:
+        bot_id = await generate_unique_bot_id()
         new_user = User(
             telegram_id=telegram_id,
             first_name=data.get("first_name", "User"),
             username=data.get("username"),
+            bot_id=bot_id,
             balance=0.0,
             is_admin=is_admin_env,
             language="uz"
@@ -570,6 +581,10 @@ async def login(data: dict = Body(...)):
     if "internal_id" not in user:
         update_fields["internal_id"] = generate_user_id()
         user["internal_id"] = update_fields["internal_id"]
+    if not user.get("bot_id"):
+        new_bot_id = await generate_unique_bot_id()
+        update_fields["bot_id"] = new_bot_id
+        user["bot_id"] = new_bot_id
     if "language" not in user:
         update_fields["language"] = "uz"
         user["language"] = "uz"
@@ -1042,6 +1057,9 @@ if FRONTEND_BUILD.exists():
 
 @app.on_event("startup")
 async def start_bot():
+    # Ensure unique index on bot_id (sparse so null values are excluded)
+    await db.users.create_index("bot_id", unique=True, sparse=True)
+    logging.info("Unique index on bot_id ensured")
     if bot:
         # Delete any existing webhook and use polling mode
         await bot.delete_webhook(drop_pending_updates=True)
