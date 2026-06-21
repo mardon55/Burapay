@@ -311,11 +311,11 @@ const Home = ({ user, lang, setLang }) => {
             )}
           </div>
 
-          {/* USD Balance — secondary */}
+          {/* UZS Balance — secondary pill */}
           <div className="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 w-fit">
-            <span className="text-xs text-slate-400">USD</span>
+            <span className="text-xs text-slate-400">UZS</span>
             <span className="text-sm font-bold text-white">
-              {balanceVisible ? `$${balanceUSD.toFixed(2)}` : '••••'}
+              {balanceVisible ? balanceUZS.toLocaleString('uz-UZ') : '••••'}
             </span>
           </div>
 
