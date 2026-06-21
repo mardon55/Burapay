@@ -351,28 +351,6 @@ const Home = ({ user, lang, setLang }) => {
         </Link>
       </div>
 
-      {/* Card Warning */}
-      {!hasCard && (
-        <div
-          onClick={() => navigate('/wallets')}
-          className="mx-4 mt-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 cursor-pointer hover:bg-yellow-500/20 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
-              <CreditCard size={16} className="text-yellow-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-bold text-yellow-500 text-sm">
-                {lang === 'uz' ? "Karta qo'shish majburiy!" : "Добавьте карту!"}
-              </div>
-              <div className="text-xs text-yellow-500/70 truncate">
-                {lang === 'uz' ? "Uzcard yoki Humo karta qo'shing" : "Добавьте карту Uzcard или Humo"}
-              </div>
-            </div>
-            <ChevronRight className="text-yellow-500 shrink-0" size={16} />
-          </div>
-        </div>
-      )}
 
       {/* Recent Activity */}
       <div className="px-4 mt-5">
