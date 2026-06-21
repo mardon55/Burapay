@@ -460,8 +460,8 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
   const [currency, setCurrency] = useState("UZS");
   const [step, setStep] = useState(1); 
   const [adminSettings, setAdminSettings] = useState({});
+  const [adminCards, setAdminCards] = useState([]);
   const [userPlatformId, setUserPlatformId] = useState("");
-  const [userCard, setUserCard] = useState("");
   const t = translations[lang];
 
   useEffect(() => {
@@ -470,11 +470,13 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
 
   const fetchData = async () => {
       try { 
-          const [settingsRes, userRes] = await Promise.all([
+          const [settingsRes, cardsRes, userRes] = await Promise.all([
               axios.get(`${API_URL}/admin/settings`),
+              axios.get(`${API_URL}/admin/cards`),
               axios.get(`${API_URL}/user/${user.telegram_id}`)
           ]);
           setAdminSettings(settingsRes.data);
+          setAdminCards(cardsRes.data || []);
           const wallets = userRes.data.wallets || [];
           const hasCard = wallets.some(w => w.type === 'uzcard' || w.type === 'humo');
           if (!hasCard) {
@@ -485,9 +487,14 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
           const idTypes = platform === "1xbet" ? ['1xbet'] : ['mostbet_uzs', 'mostbet_usd', 'mostbet'];
           const platformWallet = wallets.find(w => idTypes.includes(w.type));
           if (platformWallet) setUserPlatformId(platformWallet.number);
-          const cardWallet = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
-          if (cardWallet) setUserCard(cardWallet.number);
       } catch(e) {}
+  };
+
+  const getAdminCard = () => {
+      const uzTypes = ['uzcard', 'humo', 'mostbet_uzs'];
+      const usdTypes = ['uzcard', 'humo', 'mostbet_usd'];
+      const types = currency === 'USD' ? usdTypes : uzTypes;
+      return adminCards.find(c => types.includes(c.type)) || null;
   };
 
   const handleNext = () => {
@@ -615,17 +622,29 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
                       <span className="text-slate-400 text-sm">Summa</span>
                       <span className="font-bold text-white text-lg">{Number(amount).toLocaleString()} {currency}</span>
                   </div>
-                  {userCard && (
-                      <div className="flex justify-between items-center border-t border-slate-700/50 pt-4">
-                          <span className="text-slate-400 text-sm">Kartangiz</span>
-                          <span className="font-mono text-slate-300 text-sm">{userCard}</span>
-                      </div>
-                  )}
+                  {(() => {
+                      const adminCard = getAdminCard();
+                      return adminCard ? (
+                          <div className="flex justify-between items-center border-t border-slate-700/50 pt-4">
+                              <span className="text-slate-400 text-sm">To'lov karta</span>
+                              <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-300 text-sm">{adminCard.number}</span>
+                                  <button onClick={() => { navigator.clipboard.writeText(adminCard.number); toast.success(t.copied); }} className="p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 active:scale-95 transition-all">
+                                      <Copy size={12} />
+                                  </button>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="border-t border-slate-700/50 pt-4 text-center text-slate-500 text-sm">
+                              Admin karta kiritilmagan
+                          </div>
+                      );
+                  })()}
               </Card>
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                 <CheckCircle2 className="inline-block mr-2 mb-1" size={16} />
-                So'rovingiz adminga yuboriladi. Adminlar tekshirib tasdiqlaydi.
+                Yuqoridagi kartaga pul o'tkazing, keyin "To'lov qildim" tugmasini bosing.
               </div>
 
               <div className="flex gap-3">
