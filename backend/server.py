@@ -235,6 +235,16 @@ class Settings(BaseModel):
     exchange_rate: float = 12800.0
     required_channels: List[dict] = []
 
+class DepositRequest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    short_id: str = Field(default_factory=generate_short_id)
+    user_telegram_id: int
+    user_bot_id: str
+    amount: float
+    card_number: str
+    status: Literal['pending', 'completed', 'rejected'] = 'pending'
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # Messages
 async def check_subscription(user_id: int) -> dict:
     """Check if user is subscribed to all required channels."""
@@ -509,6 +519,65 @@ async def admin_action_handler(callback: CallbackQuery):
         await callback.answer(f"Zayavka {action} qilindi")
     except Exception as e:
         logging.error(f"Error in admin_action_handler: {e}")
+
+@dp.callback_query(F.data.startswith("bal_"))
+async def bal_action_handler(callback: CallbackQuery):
+    """Handle balance deposit approve/reject from Telegram inline buttons."""
+    try:
+        parts = callback.data.split("_")
+        if len(parts) < 3:
+            await callback.answer("Noto'g'ri format", show_alert=True)
+            return
+
+        action = parts[1]  # approve or reject
+        short_id = "_".join(parts[2:])
+
+        req = await db.deposit_requests.find_one({"short_id": short_id})
+        if not req:
+            await callback.answer("So'rov topilmadi", show_alert=True)
+            return
+
+        if req['status'] != 'pending':
+            await callback.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
+            try:
+                await callback.message.edit_reply_markup(reply_markup=None)
+            except: pass
+            return
+
+        if action == "approve":
+            await db.deposit_requests.update_one({"id": req['id']}, {"$set": {"status": "completed"}})
+            await db.users.update_one({"telegram_id": req['user_telegram_id']}, {"$inc": {"balance_uzs": req['amount']}})
+            # Write to transactions for Reports history
+            tx_record = {
+                "id": str(uuid.uuid4()),
+                "short_id": generate_short_id(),
+                "user_id": req['user_telegram_id'],
+                "type": "deposit",
+                "amount": req['amount'],
+                "currency": "UZS",
+                "method": "balance",
+                "wallet_number": req['user_bot_id'],
+                "status": "approved",
+                "created_at": datetime.now(timezone.utc)
+            }
+            await db.transactions.insert_one(tx_record)
+            status_text = "✅ TASDIQLANDI"
+        elif action == "reject":
+            await db.deposit_requests.update_one({"id": req['id']}, {"$set": {"status": "rejected"}})
+            status_text = "❌ RAD ETILDI"
+        else:
+            await callback.answer("Noma'lum amal", show_alert=True)
+            return
+
+        original_text = callback.message.html_text
+        await callback.message.edit_text(
+            f"{original_text}\n\n<b>Holat: {status_text}</b>\n👮‍♂️ Admin: {callback.from_user.first_name}",
+            parse_mode="HTML",
+            reply_markup=None
+        )
+        await callback.answer(f"So'rov {action} qilindi")
+    except Exception as e:
+        logging.error(f"Error in bal_action_handler: {e}")
         await callback.answer("Xatolik yuz berdi", show_alert=True)
 
 
@@ -1029,6 +1098,115 @@ async def api_check_subscription(telegram_id: int):
     result = await check_subscription(telegram_id)
     return result
 
+# ── Balance Deposit Endpoints ──────────────────────────────────────────────
+
+@api_router.post("/balance/deposit")
+async def create_balance_deposit(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    amount = float(data.get("amount", 0))
+    if not telegram_id or amount < 1000:
+        raise HTTPException(status_code=400, detail="Telegram ID va summa kerak (min 1000)")
+    user = await db.users.find_one({"telegram_id": telegram_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    bot_id = user.get("bot_id", "")
+    if not bot_id:
+        raise HTTPException(status_code=400, detail="Bot ID topilmadi")
+
+    # Get first admin uzcard/humo card
+    admin_cards = await db.admin_cards.find({}).to_list(100)
+    card = next((c for c in admin_cards if c.get("type") in ["uzcard", "humo"]), None)
+    if not card:
+        raise HTTPException(status_code=400, detail="Admin kartasi topilmadi")
+
+    req = DepositRequest(
+        user_telegram_id=telegram_id,
+        user_bot_id=bot_id,
+        amount=amount,
+        card_number=card["number"]
+    )
+    await db.deposit_requests.insert_one(req.model_dump())
+
+    # Send Telegram notification to admin
+    if bot:
+        user_name = user.get("first_name", "Noma'lum")
+        user_username = f"@{user.get('username')}" if user.get('username') else "—"
+        msg = (
+            f"💳 <b>BALANS TO'LDIRISH SO'ROVI</b>\n\n"
+            f"🆔 <b>Bot ID:</b> <code>{bot_id}</code>\n"
+            f"👤 <b>Ismi:</b> {user_name}\n"
+            f"📱 <b>Telegram:</b> {user_username}\n\n"
+            f"💰 <b>Summa:</b> {amount:,.0f} UZS\n"
+            f"💳 <b>Admin karta:</b> <code>{card['number']}</code>\n\n"
+            f"⏰ {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')} UTC"
+        )
+        markup = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"bal_approve_{req.short_id}"),
+            InlineKeyboardButton(text="❌ Rad etish",  callback_data=f"bal_reject_{req.short_id}")
+        ]])
+        settings = await db.settings.find_one({})
+        target = settings.get("deposit_channel_id") if settings else None
+        notified = False
+        if target:
+            try:
+                await bot.send_message(target, msg, parse_mode="HTML", reply_markup=markup)
+                notified = True
+            except Exception as e:
+                logging.error(f"Balance deposit notify error: {e}")
+        if not notified:
+            admin_users = await db.users.find({"is_admin": True}).to_list(50)
+            ids = set(ADMIN_IDS + [u["telegram_id"] for u in admin_users])
+            for aid in ids:
+                try:
+                    await bot.send_message(aid, msg, parse_mode="HTML", reply_markup=markup)
+                except: pass
+
+    return {"status": "pending", "id": req.id, "short_id": req.short_id}
+
+
+@api_router.get("/balance/deposits/{telegram_id}")
+async def get_user_balance_deposits(telegram_id: int):
+    reqs = await db.deposit_requests.find(
+        {"user_telegram_id": telegram_id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return reqs
+
+
+@api_router.get("/admin/balance/deposits")
+async def get_all_balance_deposits(status: str = "pending"):
+    reqs = await db.deposit_requests.find(
+        {"status": status}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return reqs
+
+
+@api_router.post("/admin/balance/deposits/{req_id}/approve")
+async def approve_balance_deposit_admin(req_id: str):
+    req = await db.deposit_requests.find_one({"id": req_id})
+    if not req or req["status"] != "pending":
+        raise HTTPException(status_code=400, detail="So'rov topilmadi yoki allaqachon ko'rilgan")
+    await db.deposit_requests.update_one({"id": req_id}, {"$set": {"status": "completed"}})
+    await db.users.update_one({"telegram_id": req["user_telegram_id"]}, {"$inc": {"balance_uzs": req["amount"]}})
+    tx_record = {
+        "id": str(uuid.uuid4()), "short_id": generate_short_id(),
+        "user_id": req["user_telegram_id"], "type": "deposit",
+        "amount": req["amount"], "currency": "UZS", "method": "balance",
+        "wallet_number": req["user_bot_id"], "status": "approved",
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.transactions.insert_one(tx_record)
+    return {"status": "completed"}
+
+
+@api_router.post("/admin/balance/deposits/{req_id}/reject")
+async def reject_balance_deposit_admin(req_id: str):
+    req = await db.deposit_requests.find_one({"id": req_id})
+    if not req or req["status"] != "pending":
+        raise HTTPException(status_code=400, detail="So'rov topilmadi yoki allaqachon ko'rilgan")
+    await db.deposit_requests.update_one({"id": req_id}, {"$set": {"status": "rejected"}})
+    return {"status": "rejected"}
+
+
 # Webhook endpoint for Telegram (must be before app.include_router)
 @api_router.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -1060,6 +1238,10 @@ async def start_bot():
     # Ensure unique index on bot_id (sparse so null values are excluded)
     await db.users.create_index("bot_id", unique=True, sparse=True)
     logging.info("Unique index on bot_id ensured")
+    # Index for deposit_requests
+    await db.deposit_requests.create_index("short_id", unique=True)
+    await db.deposit_requests.create_index([("user_telegram_id", 1), ("status", 1)])
+    logging.info("Deposit requests indexes ensured")
     if bot:
         # Delete any existing webhook and use polling mode
         await bot.delete_webhook(drop_pending_updates=True)

@@ -193,7 +193,7 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
-const ROOT_PATHS = ['/', '/transfers', '/deposit', '/reports', '/profile', '/profil', '/admin'];
+const ROOT_PATHS = ['/', '/transfers', '/deposit', '/reports', '/profile', '/profil', '/admin', '/balance-deposit'];
 
 const BottomNav = ({ isAdmin, lang }) => {
   const location = useLocation();
@@ -824,6 +824,187 @@ const PageHeader = ({ title, onBack }) => {
     );
 };
 
+const maskCardFull = (num) => {
+    if (!num) return '';
+    const d = num.replace(/\s/g, '');
+    if (d.length < 8) return d;
+    return d.slice(0, 4) + ' **** **** ' + d.slice(-4);
+};
+
+const BalanceDepositPage = ({ user }) => {
+    const navigate = useNavigate();
+    const [amount, setAmount]       = useState('');
+    const [adminCard, setAdminCard] = useState(null);
+    const [loading, setLoading]     = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const botId = user?.bot_id || '';
+
+    useEffect(() => {
+        const fetchCard = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/admin/cards`);
+                const cards = res.data || [];
+                const card = cards.find(c => c.type === 'uzcard' || c.type === 'humo');
+                setAdminCard(card || null);
+            } catch (e) { console.error(e); }
+            setLoading(false);
+        };
+        setLoading(true);
+        fetchCard();
+    }, []);
+
+    const copyCard = () => {
+        if (!adminCard?.number) return;
+        const num = adminCard.number.replace(/\s/g, '');
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(num).then(() => toast.success("Karta raqami nusxalandi!"));
+        } else {
+            const el = document.createElement('textarea');
+            el.value = num;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            toast.success("Karta raqami nusxalandi!");
+        }
+    };
+
+    const handleSubmit = async () => {
+        const amt = parseFloat(amount.replace(/\s/g, '').replace(',', '.'));
+        if (!amt || amt < 1000) return toast.error("Minimal summa: 1 000 UZS");
+        if (!adminCard) return toast.error("Admin kartasi topilmadi");
+        setSubmitting(true);
+        try {
+            await axios.post(`${API_URL}/balance/deposit`, {
+                telegram_id: user.telegram_id,
+                amount: amt
+            });
+            setSubmitted(true);
+        } catch (e) {
+            toast.error(e?.response?.data?.detail || "Xatolik yuz berdi");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (submitted) return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+            <div className="w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
+                <CheckCircle2 size={40} className="text-green-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">So'rov yuborildi!</h2>
+            <p className="text-slate-400 text-sm text-center mb-1">Admin tekshirib, tasdiqlaydi.</p>
+            <p className="text-slate-500 text-xs text-center mb-8">Tasdiqlanganidan so'ng balans avtomatik to'ldiriladi.</p>
+            <div className="w-full max-w-xs space-y-3">
+                <button onClick={() => navigate('/wallet')}
+                    className="w-full py-3 rounded-xl font-bold text-black text-sm active:scale-95 transition-all"
+                    style={{ background: 'linear-gradient(135deg,#facc15,#f59e0b)' }}>
+                    Hamyonga qaytish
+                </button>
+                <button onClick={() => { setSubmitted(false); setAmount(''); }}
+                    className="w-full py-3 rounded-xl font-bold text-slate-400 text-sm bg-white/5 active:scale-95 transition-all">
+                    Yangi so'rov
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen pb-28 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+            <PageHeader title="Balans to'ldirish" />
+
+            <div className="px-4 pt-4 space-y-4">
+                {/* Bot ID — readonly */}
+                <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Bot ID</p>
+                    <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                        <span className="text-base font-bold font-mono text-yellow-400 tracking-widest flex-1">{botId || '—'}</span>
+                        <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                        </div>
+                    </div>
+                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">Bu ID avtomatik kiritiladi va o'zgartirilmaydi</p>
+                </div>
+
+                {/* Amount input */}
+                <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Summa</p>
+                    <div className="relative">
+                        <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            className="w-full bg-white/5 border border-white/8 text-white text-xl font-bold rounded-xl px-4 py-3 pr-16 outline-none focus:border-yellow-400/40 transition-all placeholder:text-slate-700"
+                            style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">UZS</span>
+                    </div>
+                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">Minimal: 1 000 UZS</p>
+                </div>
+
+                {/* Admin card */}
+                <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">To'lov uchun karta</p>
+                    {loading ? (
+                        <div className="flex items-center gap-3 py-2">
+                            <div className="w-5 h-5 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+                            <span className="text-sm text-slate-500">Yuklanmoqda...</span>
+                        </div>
+                    ) : adminCard ? (
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(250,204,21,0.1)' }}>
+                                    <CreditCard size={18} className="text-yellow-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 uppercase font-semibold">{adminCard.type}</p>
+                                    <p className="text-sm font-bold font-mono text-white tracking-widest">{maskCardFull(adminCard.number)}</p>
+                                </div>
+                            </div>
+                            <button onClick={copyCard}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95"
+                                style={{ background: 'rgba(250,204,21,0.08)', border: '1px solid rgba(250,204,21,0.15)' }}>
+                                <Copy size={13} className="text-yellow-400" />
+                                <span className="text-xs font-semibold text-yellow-400">Nusxa</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-red-400">Admin kartasi kiritilmagan</p>
+                    )}
+                </div>
+
+                {/* Instruction */}
+                <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(250,204,21,0.04)', border: '1px solid rgba(250,204,21,0.1)' }}>
+                    <p className="text-[11px] text-yellow-400/70 leading-relaxed">
+                        Yuqoridagi karta raqamiga to'lov qiling, so'ngra <b>"To'lov qildim"</b> tugmasini bosing. Admin tasdiqlashidan so'ng balans avtomatik qo'shiladi.
+                    </p>
+                </div>
+
+                {/* Submit */}
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitting || !amount || !adminCard}
+                    className="w-full py-4 rounded-2xl font-bold text-black text-base active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: 'linear-gradient(135deg,#facc15,#f59e0b)' }}
+                >
+                    {submitting ? (
+                        <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                            Yuborilmoqda...
+                        </span>
+                    ) : "To'lov qildim"}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const WalletPage = ({ user }) => {
     const navigate = useNavigate();
     const balanceUZS = user?.balance_uzs ?? 0;
@@ -844,7 +1025,7 @@ const WalletPage = ({ user }) => {
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all duration-200">
+                    <button onClick={() => navigate('/balance-deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all duration-200">
                         <ArrowDownToLine size={16}/> To'ldirish
                     </button>
                     <button onClick={() => navigate('/withdraw')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold text-sm active:scale-95 transition-all duration-200">
@@ -1343,6 +1524,8 @@ const Admin = ({ user }) => {
     const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
     const [requiredChannels, setRequiredChannels] = useState([]);
     const [newChannel, setNewChannel] = useState({ channel_id: '', channel_name: '', channel_link: '' });
+    const [depositReqs, setDepositReqs] = useState([]);
+    const [depositFilter, setDepositFilter] = useState('pending');
 
     useEffect(() => { 
         if(user?.is_admin) {
@@ -1354,13 +1537,19 @@ const Admin = ({ user }) => {
         }
     }, [user]);
 
+    useEffect(() => {
+        if (user?.is_admin && activeTab === 'balans') fetchDepositReqs();
+    }, [activeTab, depositFilter]);
+
     const fetchStats = async () => { try { const res = await axios.get(`${API_URL}/admin/stats`); setStats(res.data); } catch (e) { console.error(e); } };
     const fetchPending = async () => { try { const res = await axios.get(`${API_URL}/admin/transactions/pending`); setTxs(res.data); } catch (e) { console.error(e); } };
     const fetchUsers = async () => { try { const res = await axios.get(`${API_URL}/admin/users?search=${search}`); setUsers(res.data); } catch (e) { console.error(e); } };
     const fetchSettings = async () => { try { const res = await axios.get(`${API_URL}/admin/settings`); setSettings(res.data); setRequiredChannels(res.data.required_channels || []); } catch (e) { console.error(e); } };
     const fetchAdminCards = async () => { try { const res = await axios.get(`${API_URL}/admin/cards`); setAdminCards(res.data); } catch (e) { console.error(e); } };
+    const fetchDepositReqs = async () => { try { const res = await axios.get(`${API_URL}/admin/balance/deposits?status=${depositFilter}`); setDepositReqs(res.data); } catch (e) { console.error(e); } };
 
     const handleAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/transactions/${id}/${action}`); toast.success(`Transaction ${action}ed`); fetchPending(); fetchStats(); } catch (e) { toast.error("Action failed"); } };
+    const handleDepositAction = async (id, action) => { try { await axios.post(`${API_URL}/admin/balance/deposits/${id}/${action}`); toast.success(action === 'approve' ? "Tasdiqlandi ✅" : "Rad etildi ❌"); fetchDepositReqs(); } catch (e) { toast.error("Xatolik"); } };
 
     const handleSearch = (e) => {
         setSearch(e.target.value);
@@ -1428,6 +1617,7 @@ const Admin = ({ user }) => {
                     { id: 'channels', icon: Users, label: 'Kanallar' },
                     { id: 'users', icon: Users, label: 'Userlar' },
                     { id: 'settings', icon: Settings, label: 'Sozlama' },
+                    { id: 'balans', icon: ArrowDownToLine, label: 'Balans' },
                 ].map(tab => (
                     <button 
                         key={tab.id}
@@ -1600,6 +1790,58 @@ const Admin = ({ user }) => {
                 </div>
             )}
 
+            {activeTab === 'balans' && (
+                <div className="animate-in fade-in pb-10 space-y-4">
+                    <div className="flex gap-2">
+                        {['pending', 'completed', 'rejected'].map(f => (
+                            <button key={f} onClick={() => setDepositFilter(f)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${depositFilter === f ? 'bg-gold text-black' : 'bg-midnight-light border border-slate-800 text-slate-400'}`}>
+                                {f === 'pending' ? "Kutilmoqda" : f === 'completed' ? "Tasdiqlangan" : "Rad etilgan"}
+                            </button>
+                        ))}
+                    </div>
+                    {depositReqs.length === 0 ? (
+                        <Card><p className="text-center text-slate-500 py-6">So'rovlar yo'q</p></Card>
+                    ) : depositReqs.map(req => (
+                        <Card key={req.id}>
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-mono">#{req.short_id}</p>
+                                    <p className="text-sm font-bold text-white mt-0.5">{req.user_bot_id}</p>
+                                </div>
+                                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${req.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400' : req.status === 'completed' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    {req.status === 'pending' ? 'Kutilmoqda' : req.status === 'completed' ? 'Tasdiqlangan' : 'Rad etilgan'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm mb-3">
+                                <span className="text-slate-400">Summa:</span>
+                                <span className="font-bold text-white">{req.amount?.toLocaleString()} UZS</span>
+                            </div>
+                            <div className="flex justify-between text-sm mb-3">
+                                <span className="text-slate-400">Karta:</span>
+                                <span className="font-mono text-xs text-slate-300">{maskCardFull(req.card_number)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm mb-4">
+                                <span className="text-slate-400">Sana:</span>
+                                <span className="text-xs text-slate-400">{req.created_at ? new Date(req.created_at).toLocaleString('uz') : '—'}</span>
+                            </div>
+                            {req.status === 'pending' && (
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleDepositAction(req.id, 'approve')}
+                                        className="flex-1 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold active:scale-95 transition-all">
+                                        ✅ Tasdiqlash
+                                    </button>
+                                    <button onClick={() => handleDepositAction(req.id, 'reject')}
+                                        className="flex-1 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold active:scale-95 transition-all">
+                                        ❌ Rad etish
+                                    </button>
+                                </div>
+                            )}
+                        </Card>
+                    ))}
+                </div>
+            )}
+
             {activeTab === 'settings' && (
                 <div className="animate-in fade-in pb-10">
                     <Card>
@@ -1755,6 +1997,7 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformShort = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'balance') return "Balans to'ldirish";
     if (m.includes('1xbet')) return '1xbet';
     if (m.includes('mostbet')) return 'Mostbet';
     return tx.method || 'BuraPay';
@@ -1762,6 +2005,7 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformIcon = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'balance') return <Wallet size={14} className="text-green-400" />;
     if (m.includes('1xbet')) return (
       <span className="text-[11px] font-extrabold text-blue-400">1X</span>
     );
@@ -1772,6 +2016,7 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformBg = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'balance') return 'rgba(34,197,94,0.12)';
     if (m.includes('1xbet')) return 'rgba(59,130,246,0.15)';
     return 'rgba(250,204,21,0.12)';
   };
@@ -1944,6 +2189,7 @@ function App() {
           <Route path="/profile" element={<Profil user={user} lang={lang} />} />
           <Route path="/reports" element={<Reports user={user} lang={lang} />} />
           <Route path="/wallet" element={<WalletPage user={user} />} />
+          <Route path="/balance-deposit" element={<BalanceDepositPage user={user} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/referral" element={<ReferralPage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
