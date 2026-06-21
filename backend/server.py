@@ -1,4 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Body, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -976,6 +978,16 @@ async def telegram_webhook(request: Request):
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO)
+
+# Serve React frontend static files
+FRONTEND_BUILD = Path(__file__).parent.parent / "frontend" / "build"
+if FRONTEND_BUILD.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD / "static")), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_react(full_path: str):
+        index_file = FRONTEND_BUILD / "index.html"
+        return FileResponse(str(index_file))
 
 @app.on_event("startup")
 async def start_bot():

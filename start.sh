@@ -10,18 +10,14 @@ else
   echo "MongoDB already running"
 fi
 
-# Start Backend
+# Build frontend if build dir doesn't exist
+if [ ! -d "/home/runner/workspace/frontend/build" ]; then
+  echo "Building frontend..."
+  cd /home/runner/workspace/frontend
+  GENERATE_SOURCEMAP=false node /home/runner/workspace/node_modules/.bin/craco build
+  echo "Frontend built"
+fi
+
+# Start Backend (serves API + React static files)
 cd /home/runner/workspace/backend
-uvicorn server:app --host 127.0.0.1 --port 8000 --reload &
-BACKEND_PID=$!
-echo "Backend started (PID: $BACKEND_PID)"
-cd /home/runner/workspace
-
-# Start Frontend using root node_modules
-cd /home/runner/workspace/frontend
-PORT=5000 HOST=0.0.0.0 BROWSER=none node /home/runner/workspace/node_modules/.bin/craco start &
-FRONTEND_PID=$!
-echo "Frontend started (PID: $FRONTEND_PID)"
-
-# Wait for either process to exit
-wait
+uvicorn server:app --host 0.0.0.0 --port 5000 --reload
