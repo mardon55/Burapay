@@ -14,7 +14,7 @@ fi
 if [ ! -d "/home/runner/workspace/frontend/build" ]; then
   echo "Building frontend..."
   cd /home/runner/workspace/frontend
-  GENERATE_SOURCEMAP=false npx craco build
+  GENERATE_SOURCEMAP=false node_modules/.bin/react-scripts build
   echo "Frontend built"
 fi
 
