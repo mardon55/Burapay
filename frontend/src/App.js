@@ -200,7 +200,7 @@ const BottomNav = ({ isAdmin, lang }) => {
   const navItems = [
     { icon: <Wallet size={20} />, label: t.home, path: "/" },
     { icon: <ArrowUpRight size={20} />, label: t.otkazmalar, path: "/deposit" },
-    { icon: <CreditCard size={20} />, label: t.wallets, path: "/wallets" },
+    { icon: <CreditCard size={20} />, label: "Profil", path: "/wallets" },
   ];
 
   if (isAdmin) {
@@ -806,249 +806,236 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
 };
 
 const Wallets = ({ user, lang }) => {
+    return <Profil user={user} lang={lang} />;
+};
+
+const Profil = ({ user, lang }) => {
+    const [tab, setTab] = useState('hamyonim');
     const [wallets, setWallets] = useState([]);
-    const [isAdding, setIsAdding] = useState(false);
-    const [newWallet, setNewWallet] = useState({ type: 'uzcard', number: '', expiry: '', name: '' });
-    const [editingWallet, setEditingWallet] = useState(null);
-    const [deletingId, setDeletingId] = useState(null);
-    const t = translations[lang];
-    
+    const [mostbetId, setMostbetId] = useState('');
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [xbetId, setXbetId] = useState('');
+    const [xbetCard, setXbetCard] = useState('');
+    const [xbetCardExpiry, setXbetCardExpiry] = useState('');
+    const [partnerToken, setPartnerToken] = useState('');
+    const [partnerName, setPartnerName] = useState('');
+    const navigate = useNavigate();
+
+    const balanceUZS = user?.balance_uzs ?? 0;
+    const balanceUSD = user?.balance_usd ?? 0;
+    const BOT_USERNAME = 'MR_KASSABOT';
+    const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
+
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
-    
-    const fetchWallets = async () => { 
-        try { 
-            const res = await axios.get(`${API_URL}/user/${user.telegram_id}`); 
-            setWallets(res.data.wallets || []); 
-        } catch (e) { console.error(e); } 
-    };
-    
-    const handleAdd = async () => {
-        if(!newWallet.number) return toast.error(t.enter_valid_number);
-        const isCardType = newWallet.type === 'uzcard' || newWallet.type === 'humo';
-        if(isCardType) {
-            const digitsOnly = newWallet.number.replace(/\s/g, '');
-            if(!/^\d{16}$/.test(digitsOnly)) return toast.error("Karta raqami 16 xonali bo'lishi kerak");
-        }
-        if(isCardType && !newWallet.expiry) return toast.error("Expiry required");
-        
-        try { 
-            await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: newWallet }); 
-            setIsAdding(false); 
-            setNewWallet({ type: 'uzcard', number: '', expiry: '', name: '' }); 
-            fetchWallets(); 
-            toast.success(t.success_wallet); 
-        } catch(e) { toast.error(t.error); }
+
+    const fetchWallets = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/user/${user.telegram_id}`);
+            const ws = res.data.wallets || [];
+            setWallets(ws);
+            const mbId = ws.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
+            if (mbId) setMostbetId(mbId.number);
+            const card = ws.find(w => w.type === 'uzcard' || w.type === 'humo');
+            if (card) { setCardNumber(card.number); setCardExpiry(card.expiry || ''); }
+            const xb = ws.find(w => w.type === '1xbet');
+            if (xb) setXbetId(xb.number);
+        } catch(e) { console.error(e); }
     };
 
-    const handleDelete = async (walletId) => {
+    const saveWallet = async (type, number, expiry = '') => {
+        if (!number.trim()) return toast.error("Raqam kiriting");
+        const existing = wallets.find(w => w.type === type);
         try {
-            await axios.post(`${API_URL}/wallets/delete`, { 
-                telegram_id: user.telegram_id, 
-                wallet_id: walletId 
-            });
-            toast.success(lang === 'uz' ? "Hamyon o'chirildi" : "Кошелек удален");
+            if (existing) {
+                await axios.post(`${API_URL}/wallets/update`, { telegram_id: user.telegram_id, wallet_id: existing.id, wallet: { number, expiry, type } });
+            } else {
+                await axios.post(`${API_URL}/wallets/add`, { telegram_id: user.telegram_id, wallet: { type, number, expiry, name: '' } });
+            }
+            toast.success("Saqlandi!");
             fetchWallets();
-        } catch(e) { 
-            toast.error(t.error); 
-        }
-        setDeletingId(null);
+        } catch(e) { toast.error("Xatolik yuz berdi"); }
     };
 
-    const handleUpdate = async () => {
-        if(!editingWallet.number) return toast.error(t.enter_valid_number);
-        const isCard = editingWallet.type === 'uzcard' || editingWallet.type === 'humo';
-        if(isCard && !editingWallet.expiry) return toast.error("Expiry required");
-        
+    const submitPartnership = async () => {
+        if (!partnerToken.trim()) return toast.error("Token kiriting");
         try {
-            await axios.post(`${API_URL}/wallets/update`, {
-                telegram_id: user.telegram_id,
-                wallet_id: editingWallet.id,
-                wallet: {
-                    number: editingWallet.number,
-                    expiry: editingWallet.expiry || '',
-                    type: editingWallet.type
-                }
-            });
-            toast.success(lang === 'uz' ? "Hamyon yangilandi" : "Кошелек обновлен");
-            setEditingWallet(null);
-            fetchWallets();
-        } catch(e) {
-            toast.error(t.error);
-        }
+            await axios.post(`${API_URL}/partnership/apply`, { telegram_id: user.telegram_id, bot_token: partnerToken, bot_name: partnerName });
+            toast.success("So'rov yuborildi! Adminlar ko'rib chiqadi.");
+            setPartnerToken(''); setPartnerName('');
+        } catch(e) { toast.error("Xatolik yuz berdi"); }
     };
-    
-    const isCard = newWallet.type === 'uzcard' || newWallet.type === 'humo';
-    const isEditCard = editingWallet?.type === 'uzcard' || editingWallet?.type === 'humo';
+
+    const existingMbId  = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
+    const existingMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
+    const existingXbId  = wallets.find(w => w.type === '1xbet');
+
+    const tabs = [
+        { id: 'hamyonim',   label: 'Hamyonim' },
+        { id: 'hamyonlarim', label: 'Hamyonlarim' },
+        { id: 'referal',    label: 'Referal' },
+        { id: 'hamkorlik',  label: 'Hamkorlik' },
+    ];
 
     return (
-        <div className="p-4 space-y-6 pb-24">
-            <h1 className="text-2xl font-bold">{t.my_wallets}</h1>
-            
-            {/* Add Wallet Form */}
-            {isAdding ? (
-                <Card className="animate-in zoom-in-95 duration-200">
-                    <h3 className="font-bold mb-4">{t.add_wallet}</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">{t.type}</label>
-                            <select 
-                                className="w-full bg-midnight border border-slate-700 rounded-xl h-12 px-4 text-white outline-none" 
-                                value={newWallet.type} 
-                                onChange={e => setNewWallet({...newWallet, type: e.target.value})}
-                            >
-                                <option value="uzcard">Uzcard</option>
-                                <option value="humo">Humo</option>
-                                <option value="mostbet_uzs">Mostbet UZS</option>
-                                <option value="mostbet_usd">Mostbet USD</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-xs text-slate-400 mb-1 block">
-                                {isCard ? t.card_number : t.mostbet_id}
-                            </label>
-                            <Input 
-                                value={newWallet.number} 
-                                onChange={e => {
-                                    if(isCard) {
-                                        const val = e.target.value.replace(/[^\d\s]/g, '').replace(/\s/g, '').slice(0, 16);
-                                        const formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
-                                        setNewWallet({...newWallet, number: formatted});
-                                    } else {
-                                        setNewWallet({...newWallet, number: e.target.value});
-                                    }
-                                }}
-                                placeholder={isCard ? "8600 0000 0000 0000" : "123456789"}
-                                maxLength={isCard ? 19 : undefined}
-                                inputMode={isCard ? "numeric" : "text"}
-                            />
-                        </div>
-                        
-                        {isCard && (
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
-                                <div className="relative">
-                                    <Input 
-                                        value={newWallet.expiry} 
-                                        onChange={e => setNewWallet({...newWallet, expiry: e.target.value})} 
-                                        placeholder="MM/YY" 
-                                        maxLength={5}
-                                    />
-                                    <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex gap-2 pt-2">
-                            <Button variant="secondary" onClick={() => setIsAdding(false)} className="flex-1">{t.cancel}</Button>
-                            <Button onClick={handleAdd} className="flex-1">{t.save}</Button>
-                        </div>
+        <div className="pb-28 animate-in fade-in duration-300">
+            {/* Profile Header */}
+            <div className="p-4 pb-0">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-2xl shadow-lg">
+                        {user?.first_name?.[0]?.toUpperCase()}
                     </div>
-                </Card>
-            ) : (<Button onClick={() => setIsAdding(true)} className="w-full" variant="secondary">+ {t.add_wallet}</Button>)}
-
-            {/* Edit Wallet Modal */}
-            {editingWallet && (
-                <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <Card className="w-full max-w-sm bg-midnight border-slate-700 animate-in zoom-in-95">
-                        <h3 className="font-bold text-lg mb-4">{lang === 'uz' ? "Hamyonni tahrirlash" : "Редактировать кошелек"}</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">{t.type}</label>
-                                <div className="w-full bg-slate-800 border border-slate-700 rounded-xl h-12 px-4 text-slate-400 flex items-center uppercase">
-                                    {editingWallet.type.replace('_', ' ')}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">
-                                    {isEditCard ? t.card_number : t.mostbet_id}
-                                </label>
-                                <Input 
-                                    value={editingWallet.number} 
-                                    onChange={e => setEditingWallet({...editingWallet, number: e.target.value})} 
-                                    placeholder={isEditCard ? "8600 0000 0000 0000" : "123456789"} 
-                                />
-                            </div>
-                            
-                            {isEditCard && (
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">{t.expiry}</label>
-                                    <div className="relative">
-                                        <Input 
-                                            value={editingWallet.expiry || ''} 
-                                            onChange={e => setEditingWallet({...editingWallet, expiry: e.target.value})} 
-                                            placeholder="MM/YY" 
-                                            maxLength={5}
-                                        />
-                                        <Calendar className="absolute right-4 top-3 text-slate-500" size={18} />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-2 pt-2">
-                                <Button variant="secondary" onClick={() => setEditingWallet(null)} className="flex-1">{t.cancel}</Button>
-                                <Button onClick={handleUpdate} className="flex-1">{t.save}</Button>
-                            </div>
-                        </div>
-                    </Card>
+                    <div>
+                        <h1 className="text-xl font-bold">{user?.first_name}</h1>
+                        <p className="text-sm text-slate-400">ID: {user?.internal_id || user?.telegram_id}</p>
+                    </div>
                 </div>
-            )}
-            
-            {/* Wallets List */}
-            <div className="space-y-3">
-                {wallets.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 border border-dashed border-slate-700 rounded-xl">
-                        {lang === 'uz' ? "Hamyonlar yo'q" : "Нет кошельков"}
+                {/* Tabs */}
+                <div className="flex bg-slate-900 rounded-xl p-1 gap-1">
+                    {tabs.map(t => (
+                        <button key={t.id} onClick={() => setTab(t.id)}
+                            className={`flex-1 py-2 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${tab === t.id ? 'bg-yellow-400 text-black' : 'text-slate-400 hover:text-white'}`}>
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="p-4 space-y-4 mt-2">
+                {/* ── HAMYONIM ── */}
+                {tab === 'hamyonim' && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                        <div className="rounded-2xl p-5 shadow-xl" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.2)" }}>
+                            <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Mening hisobim</p>
+                            <div className="flex items-end gap-2 mb-3">
+                                <span className="text-4xl font-bold text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
+                                <span className="text-lg font-semibold text-yellow-400 mb-1">UZS</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-1.5 w-fit mb-5">
+                                <span className="text-xs text-slate-400">USD</span>
+                                <span className="text-sm font-bold text-white">${balanceUSD.toFixed(2)}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all">
+                                    <ArrowDownToLine size={16}/> To'ldirish
+                                </button>
+                                <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold text-sm active:scale-95 transition-all">
+                                    <ArrowUpFromLine size={16}/> Yechish
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                ) : (
-                    wallets.map((w) => (
-                        <div key={w.id} className="p-4 bg-midnight-light border border-slate-800 rounded-xl flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                                    <CreditCard size={20} className="text-slate-300" />
+                )}
+
+                {/* ── HAMYONLARIM ── */}
+                {tab === 'hamyonlarim' && (
+                    <div className="space-y-5 animate-in fade-in duration-200">
+                        {/* Mostbet */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center"><span className="text-xs font-extrabold text-yellow-400">MB</span></div>
+                                <h3 className="font-bold">Mostbet</h3>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">Mostbet ID</label>
+                                    <div className="flex gap-2">
+                                        <Input value={mostbetId} onChange={e => setMostbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
+                                        <button onClick={() => saveWallet('mostbet_uzs', mostbetId)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                    </div>
+                                    {existingMbId && <p className="text-xs text-green-400 mt-1">✓ {existingMbId.number}</p>}
                                 </div>
                                 <div>
-                                    <div className="font-bold uppercase text-white">{w.type.replace('_', ' ')}</div>
-                                    <div className="text-slate-500 text-sm font-mono">{w.number}</div>
-                                    {w.expiry && <div className="text-[10px] text-slate-600 font-mono mt-0.5">{w.expiry}</div>}
+                                    <label className="text-xs text-slate-400 mb-1 block">Karta raqami (Uzcard / Humo)</label>
+                                    <div className="flex gap-2">
+                                        <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
+                                        <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''), cardExpiry)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                    </div>
+                                    <Input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
+                                    {existingMbCard && <p className="text-xs text-green-400 mt-1">✓ {existingMbCard.number}</p>}
                                 </div>
                             </div>
-                            
-                            {deletingId === w.id ? (
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => handleDelete(w.id)}
-                                        className="p-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
-                                        data-testid={`confirm-delete-${w.id}`}
-                                    >
-                                        <CheckCircle2 size={18} />
-                                    </button>
-                                    <button 
-                                        onClick={() => setDeletingId(null)}
-                                        className="p-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-1">
-                                    <button 
-                                        onClick={() => setEditingWallet({...w})}
-                                        className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-                                        data-testid={`edit-wallet-${w.id}`}
-                                    >
-                                        <Edit size={18} />
-                                    </button>
-                                    <button 
-                                        onClick={() => setDeletingId(w.id)}
-                                        className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                        data-testid={`delete-wallet-${w.id}`}
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            )}
                         </div>
-                    ))
+                        <div className="border-t border-slate-800"/>
+                        {/* 1xbet */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center"><span className="text-xs font-extrabold text-blue-400">1X</span></div>
+                                <h3 className="font-bold">1xbet</h3>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">1xbet ID</label>
+                                    <div className="flex gap-2">
+                                        <Input value={xbetId} onChange={e => setXbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
+                                        <button onClick={() => saveWallet('1xbet', xbetId)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                    </div>
+                                    {existingXbId && <p className="text-xs text-green-400 mt-1">✓ {existingXbId.number}</p>}
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">Karta raqami (Uzcard / Humo)</label>
+                                    <div className="flex gap-2">
+                                        <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
+                                        <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''), xbetCardExpiry)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                                    </div>
+                                    <Input value={xbetCardExpiry} onChange={e => setXbetCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── REFERAL ── */}
+                {tab === 'referal' && (
+                    <div className="animate-in fade-in duration-200">
+                        <div className="rounded-2xl p-5 bg-slate-900 border border-slate-800">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center"><Users size={20} className="text-purple-400"/></div>
+                                <div>
+                                    <h3 className="font-bold">Referal dasturi</h3>
+                                    <p className="text-xs text-slate-400">Do'stlaringizni taklif qiling</p>
+                                </div>
+                            </div>
+                            <div className="bg-slate-800 rounded-xl p-4 mb-3">
+                                <p className="text-xs text-slate-400 mb-1">Sizning havolangiz:</p>
+                                <p className="text-sm font-mono text-yellow-400 break-all">{referralLink}</p>
+                            </div>
+                            <button onClick={() => { navigator.clipboard.writeText(referralLink); toast.success("Nusxalandi!"); }}
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold active:scale-95 transition-all">
+                                <Copy size={16}/> Nusxa olish
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── HAMKORLIK ── */}
+                {tab === 'hamkorlik' && (
+                    <div className="animate-in fade-in duration-200">
+                        <div className="rounded-2xl p-5 bg-slate-900 border border-slate-800">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center"><Shield size={20} className="text-green-400"/></div>
+                                <div>
+                                    <h3 className="font-bold">Hamkor bo'ling</h3>
+                                    <p className="text-xs text-slate-400">O'z botingizni ulang</p>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">Bot nomi (ixtiyoriy)</label>
+                                    <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="@mybotname"/>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
+                                    <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
+                                    <p className="text-xs text-slate-500 mt-1">BotFather'dan /newbot yoki /mybots orqali oling</p>
+                                </div>
+                                <button onClick={submitPartnership}
+                                    className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all">
+                                    So'rov yuborish
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

@@ -939,6 +939,22 @@ async def update_settings(data: Settings):
         await db.settings.update_one({}, {"$set": update_data}, upsert=True)
     return {"status": "updated"}
 
+@api_router.post("/partnership/apply")
+async def apply_partnership(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    bot_token = data.get("bot_token", "").strip()
+    bot_name = data.get("bot_name", "").strip()
+    if not telegram_id or not bot_token:
+        raise HTTPException(status_code=400, detail="telegram_id va bot_token kerak")
+    await db.partnerships.insert_one({
+        "telegram_id": telegram_id,
+        "bot_token": bot_token,
+        "bot_name": bot_name,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"status": "submitted"}
+
 @api_router.post("/admin/required_channels/add")
 async def add_required_channel(data: dict = Body(...)):
     channel_id = data.get("channel_id", "").strip()
