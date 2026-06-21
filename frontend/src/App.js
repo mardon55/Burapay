@@ -44,6 +44,7 @@ const tg = window.Telegram?.WebApp;
 const translations = {
   uz: {
     home: "Asosiy",
+    otkazmalar: "O'tkazmalar",
     deposit: "To'ldirish",
     withdraw: "Yechish",
     wallets: "Hamyonlar",
@@ -99,6 +100,7 @@ const translations = {
   },
   ru: {
     home: "Главная",
+    otkazmalar: "Переводы",
     deposit: "Пополнить",
     withdraw: "Вывести",
     wallets: "Кошельки",
@@ -197,8 +199,7 @@ const BottomNav = ({ isAdmin, lang }) => {
   
   const navItems = [
     { icon: <Wallet size={20} />, label: t.home, path: "/" },
-    { icon: <ArrowUpRight size={20} />, label: t.deposit, path: "/deposit" },
-    { icon: <ArrowDownLeft size={20} />, label: t.withdraw, path: "/withdraw" },
+    { icon: <ArrowUpRight size={20} />, label: t.otkazmalar, path: "/deposit" },
     { icon: <CreditCard size={20} />, label: t.wallets, path: "/wallets" },
   ];
 
@@ -382,7 +383,77 @@ const Home = ({ user, lang, setLang }) => {
   );
 };
 
-const Deposit = ({ user, lang }) => {
+const Otkazmalar = ({ lang }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="p-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h1 className="text-2xl font-bold">{translations[lang].otkazmalar}</h1>
+
+      {/* Mostbet */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+            <span className="text-xs font-extrabold text-yellow-400">MB</span>
+          </div>
+          <h2 className="text-lg font-bold text-white">Mostbet</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/mostbet-deposit')}
+            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
+              <ArrowDownToLine size={20} className="text-yellow-400" />
+            </div>
+            <span className="text-sm font-bold text-yellow-400">To'ldirish</span>
+          </button>
+          <button
+            onClick={() => navigate('/mostbet-withdraw')}
+            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
+              <ArrowUpFromLine size={20} className="text-slate-300" />
+            </div>
+            <span className="text-sm font-bold text-slate-300">Yechish</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 1xbet */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
+            <span className="text-xs font-extrabold text-blue-400">1X</span>
+          </div>
+          <h2 className="text-lg font-bold text-white">1xbet</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/1xbet-deposit')}
+            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center">
+              <ArrowDownToLine size={20} className="text-blue-400" />
+            </div>
+            <span className="text-sm font-bold text-blue-400">To'ldirish</span>
+          </button>
+          <button
+            onClick={() => navigate('/1xbet-withdraw')}
+            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
+              <ArrowUpFromLine size={20} className="text-slate-300" />
+            </div>
+            <span className="text-sm font-bold text-slate-300">Yechish</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Deposit = ({ user, lang, platform = "mostbet" }) => {
+  const platformLabel = platform === "1xbet" ? "1xbet" : "Mostbet";
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS"); // UZS, USD
@@ -458,7 +529,12 @@ const Deposit = ({ user, lang }) => {
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">{t.deposit_title}</h1>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/deposit')} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:bg-slate-700 active:scale-95 transition-all">
+          <ArrowDownLeft size={18} className="rotate-45" />
+        </button>
+        <h1 className="text-2xl font-bold">{platformLabel} — {t.deposit_title}</h1>
+      </div>
       
       {step === 1 ? (
           <div className="space-y-6 animate-in fade-in">
@@ -572,7 +648,8 @@ const Deposit = ({ user, lang }) => {
   );
 };
 
-const Withdraw = ({ user, lang }) => {
+const Withdraw = ({ user, lang, platform = "mostbet" }) => {
+  const platformLabel = platform === "1xbet" ? "1xbet" : "Mostbet";
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [code, setCode] = useState("");
@@ -652,7 +729,12 @@ const Withdraw = ({ user, lang }) => {
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <h1 className="text-2xl font-bold">{t.withdraw_title}</h1>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/deposit')} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:bg-slate-700 active:scale-95 transition-all">
+          <ArrowDownLeft size={18} className="rotate-45" />
+        </button>
+        <h1 className="text-2xl font-bold">{platformLabel} — {t.withdraw_title}</h1>
+      </div>
       <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm text-slate-400">{t.select_wallet}</label>
@@ -1450,8 +1532,12 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
-          <Route path="/deposit" element={<Deposit user={user} lang={lang} />} />
-          <Route path="/withdraw" element={<Withdraw user={user} lang={lang} />} />
+          <Route path="/deposit" element={<Otkazmalar lang={lang} />} />
+          <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
+          <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
+          <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
+          <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
+          <Route path="/withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
         </Routes>
