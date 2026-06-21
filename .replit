@@ -37,3 +37,11 @@ externalPort = 80
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "start.sh"]
+
+[userenv]
+
+[userenv.shared]
+MONGO_URL = "mongodb://localhost:27017"
+DB_NAME = "burapay"
+ADMIN_IDS = "1617111900,8335743983"
+WEBAPP_URL = "https://bb1f4da8-f261-4e28-b083-baa9404b174a-00-1560jkutp5hhw.sisko.replit.dev"
