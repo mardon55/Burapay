@@ -806,12 +806,80 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
   );
 };
 
-const Wallets = ({ user, lang }) => {
-    return <Profil user={user} lang={lang} />;
+const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => {
+    const colors = {
+        yellow: { bg: 'bg-yellow-500/15', text: 'text-yellow-400' },
+        blue:   { bg: 'bg-blue-500/15',   text: 'text-blue-400' },
+        purple: { bg: 'bg-purple-500/15',  text: 'text-purple-400' },
+        green:  { bg: 'bg-green-500/15',   text: 'text-green-400' },
+    };
+    const c = colors[accentColor];
+    return (
+        <button
+            onClick={onClick}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl border border-slate-800 bg-slate-900/60 text-left
+                       hover:bg-slate-900 hover:border-slate-700 active:scale-[0.98] transition-all duration-200"
+        >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.bg}`}>
+                <span className={c.text}>{icon}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="font-bold text-white">{title}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+            </div>
+            <ChevronRight size={18} className="text-slate-500 flex-shrink-0"/>
+        </button>
+    );
 };
 
-const Profil = ({ user, lang }) => {
-    const [tab, setTab] = useState('hamyonim');
+const PageHeader = ({ title, onBack }) => {
+    const navigate = useNavigate();
+    return (
+        <div className="flex items-center gap-3 p-4 border-b border-slate-800 sticky top-0 bg-midnight z-10">
+            <button
+                onClick={onBack || (() => navigate(-1))}
+                className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center active:scale-95 transition-all duration-200"
+            >
+                <ChevronRight size={18} className="rotate-180 text-white"/>
+            </button>
+            <h1 className="text-lg font-bold">{title}</h1>
+        </div>
+    );
+};
+
+const WalletPage = ({ user }) => {
+    const navigate = useNavigate();
+    const balanceUZS = user?.balance_uzs ?? 0;
+    const balanceUSD = user?.balance_usd ?? 0;
+    return (
+        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+            <PageHeader title="Hamyonim"/>
+            <div className="p-4 space-y-4">
+                <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
+                    <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Mening hisobim</p>
+                    <div className="flex items-end gap-2 mb-2">
+                        <span className="text-3xl font-bold text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
+                        <span className="text-base font-semibold text-yellow-400 mb-0.5">UZS</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1 w-fit">
+                        <span className="text-xs text-slate-400">USD</span>
+                        <span className="text-sm font-bold text-white">${balanceUSD.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all duration-200">
+                        <ArrowDownToLine size={16}/> To'ldirish
+                    </button>
+                    <button onClick={() => navigate('/withdraw')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold text-sm active:scale-95 transition-all duration-200">
+                        <ArrowUpFromLine size={16}/> Yechish
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [mostbetId, setMostbetId] = useState('');
     const [cardNumber, setCardNumber] = useState('');
@@ -819,16 +887,6 @@ const Profil = ({ user, lang }) => {
     const [xbetId, setXbetId] = useState('');
     const [xbetCard, setXbetCard] = useState('');
     const [xbetCardExpiry, setXbetCardExpiry] = useState('');
-    const [partnerToken, setPartnerToken] = useState('');
-    const [partnerName, setPartnerName] = useState('');
-    const [partnerResult, setPartnerResult] = useState(null);
-    const [partnerLoading, setPartnerLoading] = useState(false);
-    const navigate = useNavigate();
-
-    const balanceUZS = user?.balance_uzs ?? 0;
-    const balanceUSD = user?.balance_usd ?? 0;
-    const BOT_USERNAME = 'MR_KASSABOT';
-    const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
 
     useEffect(() => { if(user?.telegram_id) fetchWallets(); }, [user]);
 
@@ -860,6 +918,97 @@ const Profil = ({ user, lang }) => {
         } catch(e) { toast.error("Xatolik yuz berdi"); }
     };
 
+    const existingMbId  = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
+    const existingMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
+    const existingXbId  = wallets.find(w => w.type === '1xbet');
+
+    return (
+        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+            <PageHeader title="Hamyonlarim"/>
+            <div className="p-4 space-y-5">
+                <div>
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg bg-yellow-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-yellow-400">MB</span></div>
+                        <span className="font-bold text-sm">Mostbet</span>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">Mostbet ID</label>
+                            <div className="flex gap-2">
+                                <Input value={mostbetId} onChange={e => setMostbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
+                                <button onClick={() => saveWallet('mostbet_uzs', mostbetId)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                            </div>
+                            {existingMbId && <p className="text-xs text-green-400 mt-1">✓ {existingMbId.number}</p>}
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
+                            <div className="flex gap-2">
+                                <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
+                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''), cardExpiry)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                            </div>
+                            <Input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
+                            {existingMbCard && <p className="text-xs text-green-400 mt-1">✓ {existingMbCard.number}</p>}
+                        </div>
+                    </div>
+                </div>
+                <div className="border-t border-slate-800"/>
+                <div>
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-blue-400">1X</span></div>
+                        <span className="font-bold text-sm">1xbet</span>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">1xbet ID</label>
+                            <div className="flex gap-2">
+                                <Input value={xbetId} onChange={e => setXbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
+                                <button onClick={() => saveWallet('1xbet', xbetId)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                            </div>
+                            {existingXbId && <p className="text-xs text-green-400 mt-1">✓ {existingXbId.number}</p>}
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
+                            <div className="flex gap-2">
+                                <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
+                                <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''), xbetCardExpiry)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
+                            </div>
+                            <Input value={xbetCardExpiry} onChange={e => setXbetCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ReferralPage = ({ user }) => {
+    const BOT_USERNAME = 'MR_KASSABOT';
+    const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
+    return (
+        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+            <PageHeader title="Referal"/>
+            <div className="p-4 space-y-4">
+                <div className="bg-slate-800 rounded-xl p-4">
+                    <p className="text-xs text-slate-400 mb-1">Sizning havolangiz:</p>
+                    <p className="text-sm font-mono text-yellow-400 break-all">{referralLink}</p>
+                </div>
+                <button
+                    onClick={() => { navigator.clipboard.writeText(referralLink); toast.success("Nusxalandi!"); }}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold active:scale-95 transition-all duration-200"
+                >
+                    <Copy size={16}/> Nusxa olish
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const PartnershipPage = ({ user }) => {
+    const [partnerToken, setPartnerToken] = useState('');
+    const [partnerName, setPartnerName] = useState('');
+    const [partnerResult, setPartnerResult] = useState(null);
+    const [partnerLoading, setPartnerLoading] = useState(false);
+
     const submitPartnership = async () => {
         if (!partnerToken.trim()) return toast.error("Token kiriting");
         setPartnerLoading(true);
@@ -874,43 +1023,68 @@ const Profil = ({ user, lang }) => {
         } finally { setPartnerLoading(false); }
     };
 
-    const existingMbId  = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
-    const existingMbCard = wallets.find(w => w.type === 'uzcard' || w.type === 'humo');
-    const existingXbId  = wallets.find(w => w.type === '1xbet');
-
-    const Section = ({ id, icon, title, subtitle, accentColor = 'yellow', children }) => {
-        const isOpen = tab === id;
-        const colors = {
-            yellow: { bg: 'bg-yellow-500/15', text: 'text-yellow-400', border: 'border-yellow-400/20' },
-            blue:   { bg: 'bg-blue-500/15',   text: 'text-blue-400',   border: 'border-blue-400/20' },
-            purple: { bg: 'bg-purple-500/15',  text: 'text-purple-400', border: 'border-purple-400/20' },
-            green:  { bg: 'bg-green-500/15',   text: 'text-green-400',  border: 'border-green-400/20' },
-        };
-        const c = colors[accentColor];
-        return (
-            <div className={`rounded-2xl border overflow-hidden transition-all duration-200 ${isOpen ? 'border-slate-700 bg-slate-900' : 'border-slate-800 bg-slate-900/60'}`}>
-                <button onClick={() => setTab(isOpen ? null : id)} className="w-full flex items-center gap-3 p-4 text-left">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.bg}`}>
-                        <span className={c.text}>{icon}</span>
+    return (
+        <div className="min-h-screen pb-28 animate-in fade-in duration-300">
+            <PageHeader title="Hamkorlik"/>
+            <div className="p-4">
+                {partnerResult ? (
+                    <div className="space-y-3">
+                        <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/30">
+                            <div className="flex items-center gap-2 mb-3">
+                                <CheckCircle2 size={18} className="text-green-400"/>
+                                <p className="font-bold text-green-400">Bot muvaffaqiyatli ulandi!</p>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                                    <span className="text-slate-400">Bot nomi</span>
+                                    <span className="font-bold text-white">{partnerResult.bot_name}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                                    <span className="text-slate-400">Username</span>
+                                    <span className="font-bold text-yellow-400">@{partnerResult.bot_username}</span>
+                                </div>
+                                <div className="pt-1">
+                                    <p className="text-slate-400 text-xs mb-1">Web App URL</p>
+                                    <p className="text-xs font-mono text-slate-300 break-all bg-slate-800 rounded-lg px-3 py-2">{partnerResult.webapp_url}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setPartnerResult(null)} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 text-sm font-bold active:scale-95 transition-all">
+                            Yangi bot ulash
+                        </button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white">{title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
-                    </div>
-                    <ChevronDown size={18} className={`text-slate-500 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}/>
-                </button>
-                {isOpen && (
-                    <div className={`px-4 pb-4 border-t ${c.border}`}>
-                        <div className="pt-4">{children}</div>
+                ) : (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
+                            <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
+                            <p className="text-xs text-slate-500 mt-1">BotFather → /newbot yoki /mybots → API token</p>
+                        </div>
+                        <button onClick={submitPartnership} disabled={partnerLoading}
+                            className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                            {partnerLoading ? (
+                                <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Tekshirilmoqda...</>
+                            ) : "Botni ulash"}
+                        </button>
+                        <div className="rounded-xl p-3 bg-slate-800/60 border border-slate-700/50">
+                            <p className="text-xs text-slate-500 font-semibold mb-1.5">Avtomatik sozlanadi:</p>
+                            {["✓ Token tekshiriladi", "✓ Menu button → BuraPay", "✓ /start komandasi", "✓ Web App URL aniqlanadi"].map(item => (
+                                <p key={item} className="text-xs text-slate-600">{item}</p>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
-        );
-    };
+        </div>
+    );
+};
+
+const Profil = ({ user, lang }) => {
+    const navigate = useNavigate();
+    const balanceUZS = user?.balance_uzs ?? 0;
 
     return (
         <div className="pb-28 animate-in fade-in duration-300">
-            {/* Profile Header */}
             <div className="p-4 pb-3">
                 <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-2xl shadow-lg flex-shrink-0">
@@ -922,163 +1096,11 @@ const Profil = ({ user, lang }) => {
                     </div>
                 </div>
             </div>
-
             <div className="px-4 space-y-3">
-                {/* ── HAMYONIM ── */}
-                <Section id="hamyonim" accentColor="yellow"
-                    icon={<Wallet size={20}/>}
-                    title="Hamyonim"
-                    subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`}>
-                    <div className="rounded-xl p-4 mb-3" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
-                        <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Mening hisobim</p>
-                        <div className="flex items-end gap-2 mb-2">
-                            <span className="text-3xl font-bold text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
-                            <span className="text-base font-semibold text-yellow-400 mb-0.5">UZS</span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1 w-fit">
-                            <span className="text-xs text-slate-400">USD</span>
-                            <span className="text-sm font-bold text-white">${balanceUSD.toFixed(2)}</span>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all">
-                            <ArrowDownToLine size={16}/> To'ldirish
-                        </button>
-                        <button onClick={() => navigate('/deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold text-sm active:scale-95 transition-all">
-                            <ArrowUpFromLine size={16}/> Yechish
-                        </button>
-                    </div>
-                </Section>
-
-                {/* ── HAMYONLARIM ── */}
-                <Section id="hamyonlarim" accentColor="blue"
-                    icon={<CreditCard size={20}/>}
-                    title="Hamyonlarim"
-                    subtitle="Mostbet va 1xbet ID / Karta">
-                    <div className="space-y-5">
-                        {/* Mostbet */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-yellow-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-yellow-400">MB</span></div>
-                                <span className="font-bold text-sm">Mostbet</span>
-                            </div>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">Mostbet ID</label>
-                                    <div className="flex gap-2">
-                                        <Input value={mostbetId} onChange={e => setMostbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                        <button onClick={() => saveWallet('mostbet_uzs', mostbetId)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
-                                    </div>
-                                    {existingMbId && <p className="text-xs text-green-400 mt-1">✓ {existingMbId.number}</p>}
-                                </div>
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
-                                    <div className="flex gap-2">
-                                        <Input value={cardNumber} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setCardNumber(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                        <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', cardNumber.replace(/\s/g,''), cardExpiry)} className="px-3 bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
-                                    </div>
-                                    <Input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
-                                    {existingMbCard && <p className="text-xs text-green-400 mt-1">✓ {existingMbCard.number}</p>}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="border-t border-slate-800"/>
-                        {/* 1xbet */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center"><span className="text-[10px] font-extrabold text-blue-400">1X</span></div>
-                                <span className="font-bold text-sm">1xbet</span>
-                            </div>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">1xbet ID</label>
-                                    <div className="flex gap-2">
-                                        <Input value={xbetId} onChange={e => setXbetId(e.target.value)} placeholder="123456789" inputMode="numeric"/>
-                                        <button onClick={() => saveWallet('1xbet', xbetId)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
-                                    </div>
-                                    {existingXbId && <p className="text-xs text-green-400 mt-1">✓ {existingXbId.number}</p>}
-                                </div>
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">Karta raqami</label>
-                                    <div className="flex gap-2">
-                                        <Input value={xbetCard} onChange={e => { const v=e.target.value.replace(/[^\d]/g,'').slice(0,16); setXbetCard(v.replace(/(\d{4})(?=\d)/g,'$1 ')); }} placeholder="8600 0000 0000 0000" inputMode="numeric" maxLength={19}/>
-                                        <button onClick={() => saveWallet(existingMbCard?.type||'uzcard', xbetCard.replace(/\s/g,''), xbetCardExpiry)} className="px-3 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">Saqlash</button>
-                                    </div>
-                                    <Input value={xbetCardExpiry} onChange={e => setXbetCardExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} className="mt-2"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </Section>
-
-                {/* ── REFERAL ── */}
-                <Section id="referal" accentColor="purple"
-                    icon={<Users size={20}/>}
-                    title="Referal"
-                    subtitle="Do'stlaringizni taklif qiling">
-                    <div className="bg-slate-800 rounded-xl p-4 mb-3">
-                        <p className="text-xs text-slate-400 mb-1">Sizning havolangiz:</p>
-                        <p className="text-sm font-mono text-yellow-400 break-all">{referralLink}</p>
-                    </div>
-                    <button onClick={() => { navigator.clipboard.writeText(referralLink); toast.success("Nusxalandi!"); }}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold active:scale-95 transition-all">
-                        <Copy size={16}/> Nusxa olish
-                    </button>
-                </Section>
-
-                {/* ── HAMKORLIK ── */}
-                <Section id="hamkorlik" accentColor="green"
-                    icon={<Shield size={20}/>}
-                    title="Hamkorlik"
-                    subtitle="O'z botingizni BuraPay ga ulang">
-                    {partnerResult ? (
-                        <div className="space-y-3">
-                            <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/30">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <CheckCircle2 size={18} className="text-green-400"/>
-                                    <p className="font-bold text-green-400">Bot muvaffaqiyatli ulandi!</p>
-                                </div>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between items-center py-1.5 border-b border-white/5">
-                                        <span className="text-slate-400">Bot nomi</span>
-                                        <span className="font-bold text-white">{partnerResult.bot_name}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1.5 border-b border-white/5">
-                                        <span className="text-slate-400">Username</span>
-                                        <span className="font-bold text-yellow-400">@{partnerResult.bot_username}</span>
-                                    </div>
-                                    <div className="pt-1">
-                                        <p className="text-slate-400 text-xs mb-1">Web App URL</p>
-                                        <p className="text-xs font-mono text-slate-300 break-all bg-slate-800 rounded-lg px-3 py-2">{partnerResult.webapp_url}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <button onClick={() => setPartnerResult(null)} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 text-sm font-bold active:scale-95 transition-all">
-                                Yangi bot ulash
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
-                                <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
-                                <p className="text-xs text-slate-500 mt-1">BotFather → /newbot yoki /mybots → API token</p>
-                            </div>
-                            <button onClick={submitPartnership} disabled={partnerLoading}
-                                className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                                {partnerLoading ? (
-                                    <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Tekshirilmoqda...</>
-                                ) : "Botni ulash"}
-                            </button>
-                            <div className="rounded-xl p-3 bg-slate-800/60 border border-slate-700/50">
-                                <p className="text-xs text-slate-500 font-semibold mb-1.5">Avtomatik sozlanadi:</p>
-                                {["✓ Token tekshiriladi", "✓ Menu button → BuraPay", "✓ /start komandasi", "✓ Web App URL aniqlanadi"].map(item => (
-                                    <p key={item} className="text-xs text-slate-600">{item}</p>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </Section>
+                <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
+                <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
+                <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
+                <NavCard icon={<Shield size={20}/>} title="Hamkorlik" subtitle="O'z botingizni BuraPay ga ulang" accentColor="green" onClick={() => navigate('/partnership')}/>
             </div>
         </div>
     );
@@ -1567,7 +1589,10 @@ function App() {
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
           <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
           <Route path="/withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
+          <Route path="/wallet" element={<WalletPage user={user} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
+          <Route path="/referral" element={<ReferralPage user={user} />} />
+          <Route path="/partnership" element={<PartnershipPage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin} lang={lang} />
