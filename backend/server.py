@@ -980,21 +980,10 @@ logging.basicConfig(level=logging.INFO)
 @app.on_event("startup")
 async def start_bot():
     if bot:
-        # Delete any existing webhook and set new one
+        # Delete any existing webhook and use polling mode
         await bot.delete_webhook(drop_pending_updates=True)
-        
-        # Get webhook URL - use base URL without /api prefix
-        base_url = WEBAPP_URL.rstrip('/')
-        webhook_url = f"{base_url}/api/webhook"
-        
-        # Set webhook
-        try:
-            result = await bot.set_webhook(webhook_url)
-            logging.info(f"Webhook set to: {webhook_url}, result: {result}")
-        except Exception as e:
-            logging.error(f"Failed to set webhook: {e}")
-            # Fallback to polling if webhook fails
-            asyncio.create_task(dp.start_polling(bot))
+        asyncio.create_task(dp.start_polling(bot))
+        logging.info("Bot started in polling mode")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
