@@ -820,6 +820,8 @@ const Profil = ({ user, lang }) => {
     const [xbetCardExpiry, setXbetCardExpiry] = useState('');
     const [partnerToken, setPartnerToken] = useState('');
     const [partnerName, setPartnerName] = useState('');
+    const [partnerResult, setPartnerResult] = useState(null);
+    const [partnerLoading, setPartnerLoading] = useState(false);
     const navigate = useNavigate();
 
     const balanceUZS = user?.balance_uzs ?? 0;
@@ -859,11 +861,16 @@ const Profil = ({ user, lang }) => {
 
     const submitPartnership = async () => {
         if (!partnerToken.trim()) return toast.error("Token kiriting");
+        setPartnerLoading(true);
         try {
-            await axios.post(`${API_URL}/partnership/apply`, { telegram_id: user.telegram_id, bot_token: partnerToken, bot_name: partnerName });
-            toast.success("So'rov yuborildi! Adminlar ko'rib chiqadi.");
+            const res = await axios.post(`${API_URL}/partnership/apply`, { telegram_id: user.telegram_id, bot_token: partnerToken, bot_name: partnerName });
+            setPartnerResult(res.data);
+            toast.success("Bot muvaffaqiyatli ulandi!");
             setPartnerToken(''); setPartnerName('');
-        } catch(e) { toast.error("Xatolik yuz berdi"); }
+        } catch(e) {
+            const msg = e.response?.data?.detail || "Xatolik yuz berdi";
+            toast.error(msg);
+        } finally { setPartnerLoading(false); }
     };
 
     const existingMbId  = wallets.find(w => w.type === 'mostbet_uzs' || w.type === 'mostbet_usd');
@@ -1010,29 +1017,65 @@ const Profil = ({ user, lang }) => {
 
                 {/* ── HAMKORLIK ── */}
                 {tab === 'hamkorlik' && (
-                    <div className="animate-in fade-in duration-200">
-                        <div className="rounded-2xl p-5 bg-slate-900 border border-slate-800">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center"><Shield size={20} className="text-green-400"/></div>
-                                <div>
-                                    <h3 className="font-bold">Hamkor bo'ling</h3>
-                                    <p className="text-xs text-slate-400">O'z botingizni ulang</p>
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                        {/* Success card */}
+                        {partnerResult && (
+                            <div className="rounded-2xl p-4 bg-green-500/10 border border-green-500/30 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center"><CheckCircle2 size={18} className="text-green-400"/></div>
+                                    <p className="font-bold text-green-400">Bot muvaffaqiyatli ulandi!</p>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                                        <span className="text-slate-400">Bot nomi</span>
+                                        <span className="font-bold text-white">{partnerResult.bot_name}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+                                        <span className="text-slate-400">Username</span>
+                                        <span className="font-bold text-yellow-400">@{partnerResult.bot_username}</span>
+                                    </div>
+                                    <div className="pt-1">
+                                        <p className="text-slate-400 text-xs mb-1">Web App URL</p>
+                                        <p className="text-xs font-mono text-slate-300 break-all bg-slate-800 rounded-lg px-3 py-2">{partnerResult.webapp_url}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setPartnerResult(null)} className="w-full mt-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-sm font-bold active:scale-95 transition-all">
+                                    Yangi bot ulash
+                                </button>
+                            </div>
+                        )}
+
+                        {!partnerResult && (
+                            <div className="rounded-2xl p-5 bg-slate-900 border border-slate-800">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center"><Shield size={20} className="text-green-400"/></div>
+                                    <div>
+                                        <h3 className="font-bold">Hamkor bo'ling</h3>
+                                        <p className="text-xs text-slate-400">BotFather tokenini kiriting — qolganini tizim o'zi qiladi</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
+                                        <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
+                                        <p className="text-xs text-slate-500 mt-1">BotFather → /newbot yoki /mybots → API token</p>
+                                    </div>
+                                    <button onClick={submitPartnership} disabled={partnerLoading}
+                                        className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {partnerLoading ? (
+                                            <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Tekshirilmoqda...</>
+                                        ) : "Botni ulash"}
+                                    </button>
                                 </div>
                             </div>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">Bot nomi (ixtiyoriy)</label>
-                                    <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="@mybotname"/>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
-                                    <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
-                                    <p className="text-xs text-slate-500 mt-1">BotFather'dan /newbot yoki /mybots orqali oling</p>
-                                </div>
-                                <button onClick={submitPartnership}
-                                    className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all">
-                                    So'rov yuborish
-                                </button>
+                        )}
+
+                        <div className="rounded-xl p-4 bg-slate-900/50 border border-slate-800">
+                            <p className="text-xs text-slate-400 font-bold mb-2">Avtomatik sozlanadigan narsa:</p>
+                            <div className="space-y-1.5">
+                                {["✓ Bot token tekshiriladi", "✓ Menu button → BuraPay Mini App", "✓ /start komandasi o'rnatiladi", "✓ Web App URL avtomatik aniqlanadi"].map(t => (
+                                    <p key={t} className="text-xs text-slate-500">{t}</p>
+                                ))}
                             </div>
                         </div>
                     </div>

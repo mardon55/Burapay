@@ -941,19 +941,54 @@ async def update_settings(data: Settings):
 
 @api_router.post("/partnership/apply")
 async def apply_partnership(data: dict = Body(...)):
+    import httpx
     telegram_id = data.get("telegram_id")
     bot_token = data.get("bot_token", "").strip()
     bot_name = data.get("bot_name", "").strip()
     if not telegram_id or not bot_token:
         raise HTTPException(status_code=400, detail="telegram_id va bot_token kerak")
+
+    tg_api = f"https://api.telegram.org/bot{bot_token}"
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        me_res = await client.get(f"{tg_api}/getMe")
+        me_data = me_res.json()
+        if not me_data.get("ok"):
+            raise HTTPException(status_code=400, detail="Bot token noto'g'ri. Qayta tekshiring.")
+
+        bot_info = me_data["result"]
+        detected_username = bot_info.get("username", "")
+        detected_name = bot_info.get("first_name", bot_name)
+
+        webapp_url = WEBAPP_URL.rstrip("/")
+
+        menu_payload = {
+            "menu_button": {
+                "type": "web_app",
+                "text": "BuraPay",
+                "web_app": {"url": webapp_url}
+            }
+        }
+        await client.post(f"{tg_api}/setChatMenuButton", json=menu_payload)
+
+        start_cmd = [{"command": "start", "description": "BuraPay ilovasini ochish"}]
+        await client.post(f"{tg_api}/setMyCommands", json={"commands": start_cmd})
+
     await db.partnerships.insert_one({
         "telegram_id": telegram_id,
         "bot_token": bot_token,
-        "bot_name": bot_name,
-        "status": "pending",
+        "bot_name": detected_name,
+        "bot_username": detected_username,
+        "webapp_url": webapp_url,
+        "status": "active",
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    return {"status": "submitted"}
+    return {
+        "status": "active",
+        "bot_username": detected_username,
+        "bot_name": detected_name,
+        "webapp_url": webapp_url
+    }
 
 @api_router.post("/admin/required_channels/add")
 async def add_required_channel(data: dict = Body(...)):
