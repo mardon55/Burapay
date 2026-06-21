@@ -331,25 +331,6 @@ const Home = ({ user, lang, setLang }) => {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-3 px-4 mt-4">
-        <Link to="/deposit" className="w-full">
-          <button className="w-full flex flex-col items-center gap-2 py-4 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 hover:bg-yellow-400/20 active:scale-95 transition-all">
-            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
-              <ArrowDownToLine size={20} className="text-yellow-400" />
-            </div>
-            <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
-          </button>
-        </Link>
-        <Link to="/withdraw" className="w-full">
-          <button className="w-full flex flex-col items-center gap-2 py-4 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all">
-            <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center">
-              <ArrowUpFromLine size={20} className="text-slate-300" />
-            </div>
-            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
-          </button>
-        </Link>
-      </div>
 
 
       {/* Recent Activity */}
