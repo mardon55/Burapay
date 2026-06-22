@@ -1257,8 +1257,25 @@ app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO)
 
+# Health check endpoint (for Railway, Render, etc.)
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "webapp_url": WEBAPP_URL}
+
 # Serve React frontend static files
-FRONTEND_BUILD = Path(__file__).parent.parent / "frontend" / "build"
+# Support both Replit (/home/runner/workspace) and Railway/Docker (/app) paths
+def find_frontend_build() -> Path:
+    candidates = [
+        Path(__file__).parent.parent / "frontend" / "build",   # Replit
+        Path("/app/frontend/build"),                            # Railway / Docker
+        Path(__file__).parent / "frontend" / "build",          # flat layout
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]  # default (may not exist, guarded below)
+
+FRONTEND_BUILD = find_frontend_build()
 if FRONTEND_BUILD.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD / "static")), name="static")
 

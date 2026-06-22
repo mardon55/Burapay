@@ -25,7 +25,7 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
-# Production builds
+# Production builds (root only — frontend/build is kept for Railway deploy)
 /build
 dist/
 dist
