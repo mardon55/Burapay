@@ -34,7 +34,7 @@ db = client[os.environ['DB_NAME']]
 # Bot Setup
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
-BOT_USERNAME = "BuraPay_bot" 
+BOT_USERNAME = "MR_KASSABOT" 
 WEBAPP_URL = os.environ.get('WEBAPP_URL', 'https://burapay.com')
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
@@ -344,7 +344,7 @@ async def cmd_start(message: types.Message):
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
-            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/BuraPay")]
+            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/MR_KASSABOT")]
         ])
         
         await message.answer(
@@ -389,7 +389,7 @@ async def cb_check_sub(callback: CallbackQuery):
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
-            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/BuraPay")]
+            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/MR_KASSABOT")]
         ])
         await callback.message.edit_text(
             MESSAGES[lang]["welcome"].format(name=callback.from_user.first_name),
