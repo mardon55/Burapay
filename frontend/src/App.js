@@ -333,7 +333,7 @@ const Home = ({ user, lang, setLang }) => {
           <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-xs text-slate-400">ID: {user.internal_id || user.telegram_id}</span>
+              <span className="text-xs text-slate-400">{user.bot_id || `ID: ${user.internal_id || user.telegram_id}`}</span>
             </div>
             <div className="flex gap-1">
               <div className="w-5 h-5 rounded-full bg-yellow-500 opacity-80 -mr-2"></div>
