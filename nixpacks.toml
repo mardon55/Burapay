@@ -4,8 +4,8 @@ nixPkgs = ["python312", "nodejs_22", "nodePackages_latest.npm"]
 [phases.install]
 cmds = [
   "pip install -r backend/requirements.txt",
-  "cd frontend && npm install --legacy-peer-deps --no-fund --no-audit",
-  "mkdir -p frontend/node_modules/ajv/dist/compile && node -e \"const fs=require('fs'),path=require('path');const shimPath=path.join('frontend/node_modules/ajv/dist/compile/codegen.js');const target=path.join('frontend/node_modules/terser-webpack-plugin/node_modules/ajv/dist/compile/codegen');fs.writeFileSync(shimPath,\\\"const path=require('path');module.exports=require(path.join(__dirname,'../../../../node_modules/terser-webpack-plugin/node_modules/ajv/dist/compile/codegen'));\\\");console.log('ajv shim created');\""
+  "cd frontend && npm install",
+  "node scripts/create-ajv-shim.js"
 ]
 
 [phases.build]
