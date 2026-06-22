@@ -2043,7 +2043,7 @@ const Reports = ({ user, lang }) => {
             </div>
             <div className="text-center">
               <p className="text-slate-400 text-sm font-semibold">Hozircha tranzaksiyalar mavjud emas</p>
-              <p className="text-slate-600 text-xs mt-1">To'ldirish yoki yechish amalga oshirilganda bu yerda ko'rinadi</p>
+
             </div>
           </div>
         ) : (
