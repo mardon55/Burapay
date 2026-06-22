@@ -34,8 +34,42 @@ db = client[os.environ['DB_NAME']]
 # Bot Setup
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
-BOT_USERNAME = "MR_KASSABOT" 
-WEBAPP_URL = os.environ.get('WEBAPP_URL', 'https://burapay.com')
+BOT_USERNAME = "MR_KASSABOT"
+
+def detect_public_url() -> str:
+    """Auto-detect public URL from any hosting platform environment variables."""
+    # Manually set — highest priority
+    if os.environ.get('WEBAPP_URL'):
+        return os.environ['WEBAPP_URL'].rstrip('/')
+    # Replit
+    if os.environ.get('REPLIT_DEV_DOMAIN'):
+        return f"https://{os.environ['REPLIT_DEV_DOMAIN']}"
+    if os.environ.get('REPLIT_DOMAINS'):
+        domain = os.environ['REPLIT_DOMAINS'].split(',')[0].strip()
+        return f"https://{domain}"
+    # Railway
+    if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
+        return f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}"
+    if os.environ.get('RAILWAY_STATIC_URL'):
+        url = os.environ['RAILWAY_STATIC_URL']
+        return url if url.startswith('http') else f"https://{url}"
+    # Render
+    if os.environ.get('RENDER_EXTERNAL_URL'):
+        return os.environ['RENDER_EXTERNAL_URL'].rstrip('/')
+    # Fly.io
+    if os.environ.get('FLY_APP_NAME'):
+        return f"https://{os.environ['FLY_APP_NAME']}.fly.dev"
+    # Heroku
+    if os.environ.get('HEROKU_APP_NAME'):
+        return f"https://{os.environ['HEROKU_APP_NAME']}.herokuapp.com"
+    # Generic fallback
+    if os.environ.get('PUBLIC_URL'):
+        return os.environ['PUBLIC_URL'].rstrip('/')
+    if os.environ.get('BASE_URL'):
+        return os.environ['BASE_URL'].rstrip('/')
+    return ''
+
+WEBAPP_URL = detect_public_url()
 
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
@@ -1242,11 +1276,47 @@ async def start_bot():
     await db.deposit_requests.create_index("short_id", unique=True)
     await db.deposit_requests.create_index([("user_telegram_id", 1), ("status", 1)])
     logging.info("Deposit requests indexes ensured")
+
     if bot:
-        # Delete any existing webhook and use polling mode
-        await bot.delete_webhook(drop_pending_updates=True)
-        asyncio.create_task(dp.start_polling(bot))
-        logging.info("Bot started in polling mode")
+        public_url = detect_public_url()
+        logging.info(f"Detected public URL: {public_url or 'none (will use polling)'}")
+
+        if public_url:
+            # Webhook mode — works on any external platform
+            webhook_url = f"{public_url}/api/webhook"
+            await bot.set_webhook(
+                url=webhook_url,
+                drop_pending_updates=True,
+                allowed_updates=["message", "callback_query", "my_chat_member"]
+            )
+            logging.info(f"Webhook set to: {webhook_url}")
+
+            # Auto-set mini app menu button so users see it without /start
+            try:
+                from aiogram.types import MenuButtonWebApp, WebAppInfo as TgWebAppInfo
+                await bot.set_chat_menu_button(
+                    menu_button=MenuButtonWebApp(
+                        text="BuraPay",
+                        web_app=TgWebAppInfo(url=public_url)
+                    )
+                )
+                logging.info("Bot menu button (Mini App) set automatically")
+            except Exception as e:
+                logging.warning(f"Could not set menu button: {e}")
+
+            # Set bot commands
+            try:
+                from aiogram.types import BotCommand
+                await bot.set_my_commands([
+                    BotCommand(command="start", description="BuraPay ilovasini ochish")
+                ])
+            except Exception as e:
+                logging.warning(f"Could not set commands: {e}")
+        else:
+            # Polling mode — local development / no public URL
+            await bot.delete_webhook(drop_pending_updates=True)
+            asyncio.create_task(dp.start_polling(bot))
+            logging.info("Bot started in polling mode (no public URL detected)")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
