@@ -1,9 +1,10 @@
-FROM node:20-slim AS frontend-build
+FROM node:22-slim AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/yarn.lock* ./
+COPY frontend/.npmrc ./
+COPY frontend/package.json ./
 RUN npm install --legacy-peer-deps
 COPY frontend/ ./
-RUN GENERATE_SOURCEMAP=false npm run build
+RUN GENERATE_SOURCEMAP=false CI=false npm run build
 
 FROM python:3.12-slim
 WORKDIR /app
