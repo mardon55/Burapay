@@ -38,6 +38,10 @@ import axios from "axios";
 // Config
 const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 
+// Superadmin — always has full admin access regardless of DB value
+const SUPERADMIN_ID = 8321879273;
+const isSuperAdmin = (id) => Number(id) === SUPERADMIN_ID || String(id) === String(SUPERADMIN_ID);
+
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
 
@@ -1515,7 +1519,7 @@ const Admin = ({ user }) => {
     const [depositFilter, setDepositFilter] = useState('pending');
 
     useEffect(() => { 
-        if(user?.is_admin) {
+        if(user?.is_admin || isSuperAdmin(user?.telegram_id)) {
             fetchStats();
             fetchPending();
             fetchUsers();
@@ -1525,7 +1529,7 @@ const Admin = ({ user }) => {
     }, [user]);
 
     useEffect(() => {
-        if (user?.is_admin && activeTab === 'balans') fetchDepositReqs();
+        if ((user?.is_admin || isSuperAdmin(user?.telegram_id)) && activeTab === 'balans') fetchDepositReqs();
     }, [activeTab, depositFilter]);
 
     const fetchStats = async () => { try { const res = await axios.get(`${API_URL}/admin/stats`); setStats(res.data); } catch (e) { console.error(e); } };
@@ -1579,7 +1583,7 @@ const Admin = ({ user }) => {
         } catch(e) { toast.error("Xatolik"); }
     };
 
-    if (!user?.is_admin) return (
+    if (!user?.is_admin && !isSuperAdmin(user?.telegram_id)) return (
         <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]">
             <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
                 <Shield size={40} className="text-red-500" />
@@ -2169,7 +2173,7 @@ function App() {
 
   if (subCheck.loading) return <div className="min-h-screen bg-midnight flex items-center justify-center"><div className="text-slate-400">Yuklanmoqda...</div></div>;
 
-  if (!subCheck.subscribed && !user?.is_admin) return (
+  if (!subCheck.subscribed && !user?.is_admin && !isSuperAdmin(user?.telegram_id)) return (
     <div className="min-h-screen bg-midnight text-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm text-center space-y-6">
         <div className="text-4xl">⚠️</div>
@@ -2212,7 +2216,7 @@ function App() {
           <Route path="/referral" element={<ReferralPage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
         </Routes>
-        <BottomNav isAdmin={user?.is_admin} lang={lang} />
+        <BottomNav isAdmin={user?.is_admin || isSuperAdmin(user?.telegram_id)} lang={lang} />
       </BrowserRouter>
       <Toaster position="top-center" theme="dark" />
     </div>

