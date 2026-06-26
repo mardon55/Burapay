@@ -498,9 +498,6 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
   return (
     <div className="p-4 space-y-6 pb-24">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/deposit')} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:bg-slate-700 active:scale-95 transition-all">
-          <ArrowDownLeft size={18} className="rotate-45" />
-        </button>
         <h1 className="text-2xl font-bold">{platformLabel} — {t.deposit_title}</h1>
       </div>
       
@@ -704,9 +701,6 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
   return (
     <div className="p-4 space-y-6 pb-24">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/deposit')} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:bg-slate-700 active:scale-95 transition-all">
-          <ArrowDownLeft size={18} className="rotate-45" />
-        </button>
         <h1 className="text-2xl font-bold">{platformLabel} — {t.withdraw_title}</h1>
       </div>
       <div>
@@ -809,16 +803,9 @@ const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => 
     );
 };
 
-const PageHeader = ({ title, onBack }) => {
-    const navigate = useNavigate();
+const PageHeader = ({ title }) => {
     return (
         <div className="flex items-center gap-3 p-4 border-b border-slate-800 sticky top-0 bg-midnight z-10">
-            <button
-                onClick={onBack || (() => navigate(-1))}
-                className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center active:scale-95 transition-all duration-200"
-            >
-                <ChevronRight size={18} className="rotate-180 text-white"/>
-            </button>
             <h1 className="text-lg font-bold">{title}</h1>
         </div>
     );
