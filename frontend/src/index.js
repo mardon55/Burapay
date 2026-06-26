@@ -7,39 +7,47 @@ import App from "./App";
 if (window.Telegram?.WebApp) {
   const tg = window.Telegram.WebApp;
 
-  // Force full-screen mode
+  // 1. Force full-screen (expands viewport to fill Telegram window)
   tg.expand();
 
-  // Prevent accidental closing via confirmation dialog
-  tg.enableClosingConfirmation();
+  // 2. True full-screen — hides Telegram header bar (Bot API 8.0+)
+  if (typeof tg.requestFullScreen === "function") {
+    tg.requestFullScreen();
+  }
 
-  // Disable vertical swipes to close (Telegram API 7.7+)
+  // 3. Disable swipe-down-to-close gesture (API 7.7+)
   if (typeof tg.disableVerticalSwipes === "function") {
     tg.disableVerticalSwipes();
   } else if ("isVerticalSwipesEnabled" in tg) {
     tg.isVerticalSwipesEnabled = false;
   }
+
+  // 4. Show confirmation dialog on accidental close attempt
+  tg.enableClosingConfirmation();
 }
 
-// CSS fallback: block overscroll/pull-to-refresh at the DOM level
+// CSS fallback: block overscroll / pull-to-refresh at the DOM level
 document.documentElement.style.overscrollBehavior = "none";
 document.body.style.overscrollBehavior = "none";
+document.documentElement.style.touchAction = "none";
+document.body.style.touchAction = "none";
 
-// JS fallback: prevent touchmove from propagating past the root element
+// JS fallback: prevent touchmove on non-scrollable elements
 document.addEventListener(
   "touchmove",
   (e) => {
     if (e.touches.length > 1) return; // allow pinch-zoom
-    const el = e.target;
     const isScrollable = (node) => {
       if (!node || node === document.body) return false;
-      const style = window.getComputedStyle(node);
-      const overflow = style.overflowY;
-      const canScroll = overflow === "auto" || overflow === "scroll";
-      if (canScroll && node.scrollHeight > node.clientHeight) return true;
+      const { overflowY } = window.getComputedStyle(node);
+      if (
+        (overflowY === "auto" || overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight
+      )
+        return true;
       return isScrollable(node.parentElement);
     };
-    if (!isScrollable(el)) {
+    if (!isScrollable(e.target)) {
       e.preventDefault();
     }
   },

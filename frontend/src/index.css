@@ -49,3 +49,21 @@
     @apply font-heading uppercase;
   }
 }
+
+/* Telegram Mini App: block all pull-to-refresh and swipe-to-close at CSS level */
+html,
+body,
+#root {
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+/* Allow vertical scroll only inside explicitly scrollable containers */
+.scrollable {
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
