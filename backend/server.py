@@ -1276,7 +1276,7 @@ def find_frontend_build() -> Path:
     return candidates[0]  # default (may not exist, guarded below)
 
 FRONTEND_BUILD = find_frontend_build()
-if FRONTEND_BUILD.exists():
+if FRONTEND_BUILD.exists() and (FRONTEND_BUILD / "static").exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD / "static")), name="static")
 
     @app.get("/{full_path:path}")
