@@ -2119,9 +2119,9 @@ function App() {
   const [subCheck, setSubCheck] = useState({ loading: true, subscribed: true, channels: [] });
 
   useEffect(() => {
-    let telegramId = 123456789;
-    let firstName = "Demo User";
-    let username = "demouser";
+    let telegramId = 8321879273;
+    let firstName = "Admin";
+    let username = "superadmin";
 
     if (tg?.initDataUnsafe?.user) {
         telegramId = tg.initDataUnsafe.user.id;
