@@ -2092,6 +2092,36 @@ const Reports = ({ user, lang }) => {
   );
 };
 
+// Telegram BackButton — bosh sahifada yashirin, ichki sahifalarda ko'rinadi
+function TelegramBackButton() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!tg?.BackButton) return;
+
+    const isHome = location.pathname === "/";
+
+    if (isHome) {
+      tg.BackButton.hide();
+    } else {
+      tg.BackButton.show();
+    }
+
+    const handleBack = () => {
+      navigate(-1);
+    };
+
+    tg.BackButton.onClick(handleBack);
+
+    return () => {
+      tg.BackButton.offClick(handleBack);
+    };
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [lang, setLang] = useState('uz');
@@ -2176,6 +2206,7 @@ function App() {
   return (
     <div className="App min-h-screen bg-midnight text-white font-body selection:bg-gold selection:text-black">
       <BrowserRouter>
+        <TelegramBackButton />
         <Routes>
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
           <Route path="/deposit" element={<Otkazmalar lang={lang} />} />
