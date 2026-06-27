@@ -21,136 +21,35 @@ function drawSunburst(ctx, W, H) {
   }
 }
 
-// Pre-render the plane silhouette once to an offscreen canvas.
-// Returns {canvas, w, h} — reused every frame via ctx.drawImage().
-let _planeCache = null;
-function getPlaneCache() {
-  if (_planeCache) return _planeCache;
-
-  // Logical size of the master silhouette (in px at 1× scale)
-  const W = 520, H = 240;
-  const oc = document.createElement('canvas');
-  oc.width = W; oc.height = H;
-  const g = oc.getContext('2d');
-
-  const RED   = '#cc1122';
-  const DARK  = '#aa0011';
-
-  g.fillStyle = RED;
-
-  // ── Fuselage ───────────────────────────────────────────────────────────
-  g.beginPath();
-  g.moveTo(490, 120);                   // nose tip
-  g.bezierCurveTo(470, 102, 380, 96, 260, 102);
-  g.lineTo(40, 116);                    // belly line forward
-  g.bezierCurveTo(20, 118, 8, 122, 6, 126);
-  g.bezierCurveTo(8, 130, 20, 132, 40, 132);
-  g.lineTo(260, 138);
-  g.bezierCurveTo(380, 144, 470, 138, 490, 120);
-  g.closePath();
-  g.fill();
-
-  // ── Engine cowling (rounded nose) ─────────────────────────────────────
-  g.beginPath();
-  g.ellipse(490, 120, 28, 28, 0, 0, Math.PI * 2);
-  g.fillStyle = DARK;
-  g.fill();
-
-  // ── Propeller disc ────────────────────────────────────────────────────
-  g.beginPath();
-  g.ellipse(510, 120, 10, 100, 0, 0, Math.PI * 2);
-  g.fillStyle = RED;
-  g.globalAlpha = 0.35;
-  g.fill();
-  g.globalAlpha = 1;
-
-  // ── Cockpit canopy ────────────────────────────────────────────────────
-  g.beginPath();
-  g.moveTo(310, 102);
-  g.bezierCurveTo(320, 72, 360, 64, 400, 68);
-  g.bezierCurveTo(430, 72, 440, 90, 438, 102);
-  g.closePath();
-  g.fillStyle = DARK;
-  g.fill();
-
-  // ── Main wing ─────────────────────────────────────────────────────────
-  g.beginPath();
-  g.moveTo(310, 126);
-  g.lineTo(270, 226);
-  g.lineTo(100, 210);
-  g.lineTo(140, 132);
-  g.closePath();
-  g.fillStyle = RED;
-  g.fill();
-
-  // Wing shading
-  g.beginPath();
-  g.moveTo(310, 126);
-  g.lineTo(270, 226);
-  g.lineTo(200, 216);
-  g.lineTo(230, 128);
-  g.closePath();
-  g.fillStyle = DARK;
-  g.fill();
-
-  // ── Horizontal stabilizer ─────────────────────────────────────────────
-  g.beginPath();
-  g.moveTo(90, 122);
-  g.lineTo(58, 174);
-  g.lineTo(16, 166);
-  g.lineTo(38, 130);
-  g.closePath();
-  g.fillStyle = RED;
-  g.fill();
-
-  // ── Vertical tail fin ─────────────────────────────────────────────────
-  g.beginPath();
-  g.moveTo(50, 116);
-  g.lineTo(34, 62);
-  g.lineTo(70, 70);
-  g.lineTo(78, 116);
-  g.closePath();
-  g.fillStyle = RED;
-  g.fill();
-
-  // ── Landing gear ──────────────────────────────────────────────────────
-  g.fillStyle = DARK;
-  g.fillRect(232, 178, 18, 30);
-  g.beginPath();
-  g.ellipse(241, 212, 20, 12, 0, 0, Math.PI * 2);
-  g.fillStyle = '#880010';
-  g.fill();
-
-  _planeCache = { canvas: oc, w: W, h: H };
-  return _planeCache;
-}
+// Module-level plane image — starts loading immediately when script parses
+const _planeImg = new Image();
+_planeImg.src = '/static/plane.png';
 
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
-  const cache = getPlaneCache();
-
+  const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
   ctx.save();
 
-  // canvasW is device-pixels (includes DPR). Use it directly for sizing.
-  // scale = planeScale * dpr — use only for the minimum fallback.
-  const iw = Math.max(80 * scale, canvasW * 0.15);
-  const ih = iw * (cache.h / cache.w);
+  const iw = Math.max(80 * scale, canvasW * 0.18);
+  const ih = loaded ? iw * (_planeImg.naturalHeight / _planeImg.naturalWidth) : iw * 0.46;
 
-  // Pull centre back so the nose (rightmost part) clears the canvas edge
-  const pull = iw * 0.62;
+  const pull = iw * 0.55;
   ctx.translate(
     x - pull * Math.cos(angle),
     y - pull * Math.sin(angle)
   );
   ctx.rotate(angle);
 
-  // Subtle glow
-  ctx.shadowColor = crashed ? '#ff0000' : '#ff2244';
-  ctx.shadowBlur  = 12 * scale;
+  if (crashed) ctx.globalAlpha = 0.6;
 
-  // Draw the cached silhouette
-  ctx.drawImage(cache.canvas, -iw * 0.5, -ih * 0.5, iw, ih);
+  ctx.shadowColor = crashed ? '#ff0000' : '#ff4466';
+  ctx.shadowBlur  = 16 * scale;
+
+  if (loaded) {
+    ctx.drawImage(_planeImg, -iw * 0.5, -ih * 0.5, iw, ih);
+  }
 
   ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
@@ -166,6 +65,7 @@ export default function AviatorGame({ user }) {
   const betRef = useRef(null);
   const frameRef = useRef(null);
   const canvasSizeRef = useRef({ w: 360, h: 240 });
+  const planeImgRef = useRef(null);
 
   const [phase, setPhase] = useState('waiting');
   const [mult, setMult] = useState(1.0);
@@ -183,6 +83,13 @@ export default function AviatorGame({ user }) {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { multRef.current = mult; }, [mult]);
   useEffect(() => { betRef.current = activeBet; }, [activeBet]);
+
+  // Load the custom plane image
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/plane.png';
+    img.onload = () => { planeImgRef.current = img; };
+  }, []);
 
   // Resize canvas to match container pixel size
   useEffect(() => {
