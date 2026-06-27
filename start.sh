@@ -1,14 +1,8 @@
 #!/bin/bash
 set -e
 
-# Start MongoDB
-mkdir -p /tmp/mongodb-data
-if ! pgrep -x mongod > /dev/null; then
-  mongod --dbpath /tmp/mongodb-data --fork --logpath /tmp/mongod.log --bind_ip 127.0.0.1
-  echo "MongoDB started"
-else
-  echo "MongoDB already running"
-fi
+# Add venv packages to PYTHONPATH (sqlalchemy, asyncpg, etc.)
+export PYTHONPATH="/home/runner/workspace/.venv/lib/python3.12/site-packages:$PYTHONPATH"
 
 # Build frontend if build dir doesn't exist
 if [ ! -d "/home/runner/workspace/frontend/build" ]; then
