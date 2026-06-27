@@ -27,8 +27,10 @@ function drawBackground(ctx, W, H) {
 }
 
 // Module-level plane image — starts loading immediately when script parses
+// plane.png lives in frontend/public/static/ so CRA copies it to build/static/plane.png automatically
 const _planeImg = new Image();
 _planeImg.src = '/static/plane.png';
+_planeImg.onerror = () => { _planeImg.src = '/plane.png'; };
 
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
@@ -79,24 +81,17 @@ export default function AviatorGame({ user }) {
   const [countdown, setCountdown] = useState(7);
   const [history, setHistory] = useState([]);
   const [crashPt, setCrashPt] = useState(null);
-  const [betAmt, setBetAmt] = useState('1.00');
+  const [betAmt, setBetAmt] = useState('1000');
   const [activeBet, setActiveBet] = useState(null);
   const [cashedOut, setCashedOut] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [balance, setBalance] = useState(user?.balance_usd || 0);
+  const [balance, setBalance] = useState(user?.balance_uzs || 0);
   const [betTab, setBetTab] = useState('bet');
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { multRef.current = mult; }, [mult]);
   useEffect(() => { betRef.current = activeBet; }, [activeBet]);
-
-  // Load the custom plane image
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/plane.png';
-    img.onload = () => { planeImgRef.current = img; };
-  }, []);
 
   // Resize canvas to match container pixel size
   useEffect(() => {
@@ -321,12 +316,12 @@ export default function AviatorGame({ user }) {
 
   const placeBet = async () => {
     const amt = parseFloat(betAmt);
-    if (!amt || amt < 1) { setErr('Min: 1.00 USD'); return; }
+    if (!amt || amt < 1000) { setErr('Min: 1 000 UZS'); return; }
     if (phaseRef.current !== 'waiting') { setErr('Faqat kutish vaqtida tikish mumkin'); return; }
     if (betRef.current) { setErr('Allaqachon tikdingiz'); return; }
     setLoading(true); setErr('');
     try {
-      await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'USD' });
+      await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'UZS' });
       setActiveBet({ amount: amt }); betRef.current = { amount: amt };
       setBalance(b => b - amt);
     } catch (ex) {
@@ -360,10 +355,12 @@ export default function AviatorGame({ user }) {
   const canBet = !activeBet && phase === 'waiting';
   const inputDisabled = !!activeBet || phase === 'flying';
 
+  const fmtUzs = (n) => Math.round(n).toLocaleString('uz-UZ').replace(/,/g, ' ');
+
   const adjustAmt = (delta) => {
-    const cur = parseFloat(betAmt) || 1;
-    const next = Math.max(1, parseFloat((cur + delta).toFixed(2)));
-    setBetAmt(next.toFixed(2));
+    const cur = parseFloat(betAmt) || 1000;
+    const next = Math.max(1000, Math.round(cur + delta));
+    setBetAmt(String(next));
   };
 
   return (
@@ -648,7 +645,7 @@ export default function AviatorGame({ user }) {
                 <div className="av-countdown-label">Yangi raund boshlangʼuncha</div>
                 <div style={{ ...multStyle }} className="av-countdown-text">{countdown}s</div>
                 {activeBet && (
-                  <div className="av-bet-placed-badge">✓ ${activeBet.amount.toFixed(2)} tikildi</div>
+                  <div className="av-bet-placed-badge">✓ {fmtUzs(activeBet.amount)} UZS tikildi</div>
                 )}
               </div>
             )}
@@ -667,7 +664,7 @@ export default function AviatorGame({ user }) {
         {/* Feedback */}
         {cashedOut && (
           <div className="av-feedback av-cashout-success">
-            ✅ {fmt(cashedOut.mult)} da yechdingiz! +${Number(cashedOut.win).toFixed(2)}
+            ✅ {fmt(cashedOut.mult)} da yechdingiz! +{fmtUzs(cashedOut.win)} UZS
           </div>
         )}
         {err && !cashedOut && (
@@ -685,25 +682,25 @@ export default function AviatorGame({ user }) {
               onClick={() => setBetTab('auto')}>Auto</button>
           </div>
 
-          {/* Amount row: ⊖  1.00  ⊕ */}
+          {/* Amount row: ⊖  1 000  ⊕ */}
           <div className="av-amount-row">
             <button className="av-circle-btn" disabled={inputDisabled}
-              onClick={() => adjustAmt(-1)}>−</button>
-            <div className="av-amount-display">{parseFloat(betAmt).toFixed(2)}</div>
+              onClick={() => adjustAmt(-1000)}>−</button>
+            <div className="av-amount-display">{fmtUzs(parseFloat(betAmt) || 1000)} <span style={{fontSize:'0.55em',opacity:0.6}}>UZS</span></div>
             <button className="av-circle-btn" disabled={inputDisabled}
-              onClick={() => adjustAmt(1)}>+</button>
+              onClick={() => adjustAmt(1000)}>+</button>
           </div>
 
           {/* Quick amounts */}
           <div className="av-quick-grid">
-            {[1, 2, 5, 10].map(v => {
+            {[1000, 2000, 5000, 10000].map(v => {
               const sel = parseFloat(betAmt) === v;
               return (
                 <button key={v}
                   disabled={inputDisabled}
-                  onClick={() => setBetAmt(v.toFixed(2))}
+                  onClick={() => setBetAmt(String(v))}
                   className={`av-quick-btn${sel ? ' sel' : ''}`}>
-                  {v}
+                  {fmtUzs(v)}
                 </button>
               );
             })}
@@ -714,7 +711,7 @@ export default function AviatorGame({ user }) {
             <button onClick={cashOut} disabled={loading} className="av-bet-btn"
               style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
               <span>CASH OUT</span>
-              <span className="av-bet-btn-sub">${liveCash} USD</span>
+              <span className="av-bet-btn-sub">{fmtUzs(parseFloat(liveCash))} UZS</span>
             </button>
           ) : (
             <button onClick={placeBet}
@@ -730,8 +727,8 @@ export default function AviatorGame({ user }) {
                 <>✓ TIKILDI</>
               ) : (
                 <>
-                  <span>BET</span>
-                  <span className="av-bet-btn-sub">{parseFloat(betAmt).toFixed(2)} USD</span>
+                  <span>TIKISH</span>
+                  <span className="av-bet-btn-sub">{fmtUzs(parseFloat(betAmt) || 1000)} UZS</span>
                 </>
               )}
             </button>

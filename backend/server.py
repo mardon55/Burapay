@@ -1444,11 +1444,16 @@ def find_frontend_build() -> Path:
     return candidates[0]
 
 FRONTEND_BUILD = find_frontend_build()
-if FRONTEND_BUILD.exists() and (FRONTEND_BUILD / "static").exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD / "static")), name="static")
+if FRONTEND_BUILD.exists():
+    if (FRONTEND_BUILD / "static").exists():
+        app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD / "static")), name="static")
 
     @app.get("/{full_path:path}")
-    async def serve_react(full_path: str):
+    async def serve_react(full_path: str, request: Request):
+        # Serve existing files from build root (favicon, plane.png, etc.)
+        target = FRONTEND_BUILD / full_path
+        if target.exists() and target.is_file():
+            return FileResponse(str(target))
         index_file = FRONTEND_BUILD / "index.html"
         return FileResponse(str(index_file))
 
