@@ -172,12 +172,13 @@ export default function AviatorGame({ user }) {
   const [countdown, setCountdown] = useState(7);
   const [history, setHistory] = useState([]);
   const [crashPt, setCrashPt] = useState(null);
-  const [betAmt, setBetAmt] = useState('10000');
+  const [betAmt, setBetAmt] = useState('1.00');
   const [activeBet, setActiveBet] = useState(null);
   const [cashedOut, setCashedOut] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [balance, setBalance] = useState(user?.balance_uzs || 0);
+  const [balance, setBalance] = useState(user?.balance_usd || 0);
+  const [betTab, setBetTab] = useState('bet');
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { multRef.current = mult; }, [mult]);
@@ -402,12 +403,12 @@ export default function AviatorGame({ user }) {
 
   const placeBet = async () => {
     const amt = parseFloat(betAmt);
-    if (!amt || amt < 1000) { setErr('Min: 1,000 UZS'); return; }
+    if (!amt || amt < 1) { setErr('Min: 1.00 USD'); return; }
     if (phaseRef.current !== 'waiting') { setErr('Faqat kutish vaqtida tikish mumkin'); return; }
     if (betRef.current) { setErr('Allaqachon tikdingiz'); return; }
     setLoading(true); setErr('');
     try {
-      await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt });
+      await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'USD' });
       setActiveBet({ amount: amt }); betRef.current = { amount: amt };
       setBalance(b => b - amt);
     } catch (ex) {
@@ -437,9 +438,15 @@ export default function AviatorGame({ user }) {
   };
 
   const isCashoutActive = activeBet && phase === 'flying' && !cashedOut;
-  const liveCash = Math.floor((activeBet?.amount || 0) * mult);
+  const liveCash = ((activeBet?.amount || 0) * mult).toFixed(2);
   const canBet = !activeBet && phase === 'waiting';
   const inputDisabled = !!activeBet || phase === 'flying';
+
+  const adjustAmt = (delta) => {
+    const cur = parseFloat(betAmt) || 1;
+    const next = Math.max(1, parseFloat((cur + delta).toFixed(2)));
+    setBetAmt(next.toFixed(2));
+  };
 
   return (
     <>
@@ -448,63 +455,47 @@ export default function AviatorGame({ user }) {
           display: flex;
           flex-direction: column;
           height: 100dvh;
-          background: #0c0c0c;
+          background: #1a1a2e;
           color: #fff;
           user-select: none;
           overflow: hidden;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
-        .av-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 12px;
-          background: #131313;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          flex-shrink: 0;
-          min-height: 44px;
-        }
-        .av-back-btn {
-          color: #666;
-          font-size: 13px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 4px 8px;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .av-title {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-weight: 900;
-          letter-spacing: 3px;
-          font-size: 13px;
-          color: #ff1a3a;
-        }
-        .av-balance {
-          font-size: 11px;
-          color: #d4af37;
-          font-weight: 700;
-          white-space: nowrap;
-        }
         .av-history {
           display: flex;
-          gap: 5px;
-          padding: 5px 10px;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 10px;
           overflow-x: auto;
           flex-shrink: 0;
-          background: #131313;
+          background: #1a1a2e;
           scrollbar-width: none;
           -webkit-overflow-scrolling: touch;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .av-history::-webkit-scrollbar { display: none; }
         .av-history-badge {
           flex-shrink: 0;
-          padding: 2px 7px;
-          border-radius: 4px;
-          font-size: 10px;
+          padding: 3px 9px;
+          border-radius: 5px;
+          font-size: 11px;
           font-weight: 800;
+          letter-spacing: 0.2px;
+        }
+        .av-hist-icon {
+          margin-left: auto;
+          flex-shrink: 0;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          border: 1px solid rgba(255,255,255,0.15);
+          background: rgba(255,255,255,0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 13px;
+          -webkit-tap-highlight-color: transparent;
         }
         .av-canvas-wrap {
           position: relative;
@@ -526,13 +517,27 @@ export default function AviatorGame({ user }) {
           pointer-events: none;
         }
         .av-mult-text {
-          font-size: clamp(36px, 12vw, 72px);
+          font-size: clamp(42px, 14vw, 80px);
           color: #fff;
-          text-shadow: 0 2px 24px rgba(0,0,0,0.9);
+          text-shadow: 0 2px 32px rgba(0,0,0,0.95);
+          font-weight: 900;
+          letter-spacing: -2px;
+        }
+        .av-countdown-wrap {
+          text-align: center;
+        }
+        .av-countdown-label {
+          font-size: clamp(10px, 3vw, 13px);
+          color: rgba(255,255,255,0.45);
+          margin-bottom: 4px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
         }
         .av-countdown-text {
-          font-size: clamp(40px, 14vw, 68px);
+          font-size: clamp(42px, 14vw, 72px);
           color: #fff;
+          font-weight: 900;
+          letter-spacing: -1px;
         }
         .av-crashed-label {
           font-size: clamp(11px, 3.5vw, 14px);
@@ -540,20 +545,18 @@ export default function AviatorGame({ user }) {
           color: #ff2244;
           margin-bottom: 4px;
           text-shadow: 0 0 20px #ff0030;
+          letter-spacing: 1px;
         }
         .av-crashed-mult {
-          font-size: clamp(34px, 11vw, 64px);
+          font-size: clamp(42px, 13vw, 72px);
           color: #ff2244;
           text-shadow: 0 0 30px #ff0030;
-        }
-        .av-waiting-label {
-          font-size: clamp(10px, 3vw, 13px);
-          color: #555;
-          margin-bottom: 4px;
+          font-weight: 900;
+          letter-spacing: -2px;
         }
         .av-bet-placed-badge {
-          margin-top: 8px;
-          padding: 5px 14px;
+          margin-top: 10px;
+          padding: 5px 16px;
           border-radius: 20px;
           font-size: clamp(10px, 2.8vw, 12px);
           font-weight: 700;
@@ -570,168 +573,164 @@ export default function AviatorGame({ user }) {
           font-size: clamp(10px, 3vw, 12px);
           font-weight: 700;
         }
-        .av-cashout-success {
-          background: #006622;
-          color: #aaffcc;
-        }
-        .av-err {
-          color: #ff6677;
-          background: rgba(180,0,30,0.25);
-          border: 1px solid rgba(180,0,30,0.3);
-        }
+        .av-cashout-success { background: #006622; color: #aaffcc; }
+        .av-err { color: #ff6677; background: rgba(180,0,30,0.25); border: 1px solid rgba(180,0,30,0.3); }
+
+        /* ── Bottom Panel ── */
         .av-panel {
           flex-shrink: 0;
-          padding: 8px 10px 16px;
-          background: #131313;
-          border-top: 1px solid rgba(255,255,255,0.06);
+          background: #1e1e2e;
+          border-top: 1px solid rgba(255,255,255,0.08);
+          padding: 10px 12px 14px;
         }
-        /* safe area padding for iPhone home indicator */
         @supports (padding-bottom: env(safe-area-inset-bottom)) {
-          .av-panel {
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
-          }
+          .av-panel { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
         }
+
+        /* Bet / Auto tabs */
+        .av-tabs {
+          display: flex;
+          background: rgba(255,255,255,0.06);
+          border-radius: 10px;
+          padding: 3px;
+          margin-bottom: 10px;
+          width: fit-content;
+        }
+        .av-tab {
+          padding: 5px 20px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          color: rgba(255,255,255,0.4);
+          -webkit-tap-highlight-color: transparent;
+          transition: all 0.15s;
+        }
+        .av-tab.active {
+          background: rgba(255,255,255,0.12);
+          color: #fff;
+        }
+
+        /* Amount row */
+        .av-amount-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .av-circle-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.2);
+          background: transparent;
+          color: rgba(255,255,255,0.7);
+          font-size: 20px;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          transition: all 0.15s;
+        }
+        .av-circle-btn:disabled { opacity: 0.3; }
+        .av-amount-display {
+          flex: 1;
+          text-align: center;
+          font-size: clamp(18px, 5.5vw, 24px);
+          font-weight: 900;
+          color: #fff;
+          letter-spacing: -0.5px;
+        }
+
+        /* Quick amounts */
         .av-quick-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 5px;
-          margin-bottom: 7px;
+          gap: 6px;
+          margin-bottom: 10px;
         }
         .av-quick-btn {
-          padding: 7px 0;
+          padding: 6px 0;
           border-radius: 7px;
-          font-size: clamp(10px, 2.8vw, 12px);
+          font-size: 12px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.15s;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
-        }
-        .av-input-row {
-          display: flex;
-          gap: 7px;
-          align-items: stretch;
-        }
-        .av-input-wrap {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          background: #1c1c1c;
-          border-radius: 12px;
           border: 1px solid rgba(255,255,255,0.08);
-          overflow: hidden;
-          min-width: 0;
+          background: rgba(255,255,255,0.04);
+          color: rgba(255,255,255,0.5);
         }
-        .av-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          outline: none;
+        .av-quick-btn.sel {
+          background: rgba(255,255,255,0.13);
           color: #fff;
-          font-weight: 700;
-          font-size: clamp(12px, 3.5vw, 14px);
-          padding: 11px 8px;
-          min-width: 0;
+          border-color: rgba(255,255,255,0.22);
+        }
+        .av-quick-btn:disabled { opacity: 0.3; }
+
+        /* BET / CASHOUT button */
+        .av-bet-btn {
           width: 100%;
-          -webkit-appearance: none;
-        }
-        .av-input::-webkit-outer-spin-button,
-        .av-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-        .av-input[type=number] { -moz-appearance: textfield; }
-        .av-halve-col {
-          display: flex;
-          flex-direction: column;
-          border-left: 1px solid rgba(255,255,255,0.06);
-          flex-shrink: 0;
-        }
-        .av-halve-btn {
-          background: none;
-          border: none;
-          color: #666;
-          font-size: 10px;
-          padding: 5px 9px;
-          cursor: pointer;
-          font-weight: 700;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-        }
-        .av-halve-btn:last-child {
-          border-top: 1px solid rgba(255,255,255,0.05);
-        }
-        .av-action-btn {
-          flex: 1;
+          padding: 14px;
           border-radius: 12px;
           border: none;
           cursor: pointer;
           font-weight: 900;
+          font-size: clamp(15px, 4.5vw, 18px);
           transition: all 0.15s;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           line-height: 1.2;
-          min-width: 100px;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
+          letter-spacing: 0.5px;
         }
-        .av-action-btn-label {
-          font-size: clamp(13px, 4vw, 16px);
-        }
-        .av-action-btn-sub {
-          font-size: clamp(9px, 2.5vw, 11px);
+        .av-bet-btn-sub {
+          font-size: clamp(10px, 3vw, 12px);
           font-weight: 700;
-          margin-top: 2px;
           opacity: 0.85;
-        }
-
-        @media (max-width: 380px) {
-          .av-quick-grid {
-            grid-template-columns: repeat(4, 1fr);
-            gap: 4px;
-          }
-          .av-panel {
-            padding: 6px 8px 14px;
-          }
-          .av-action-btn {
-            min-width: 80px;
-          }
+          margin-top: 2px;
         }
       `}</style>
 
       <div className="av-root">
-        {/* Header */}
-        <div className="av-header">
-          <button className="av-back-btn" onClick={() => navigate('/casino')}>← Orqaga</button>
-          <div className="av-title">✈ AVIATOR</div>
-          <div className="av-balance">{Number(balance).toLocaleString()} UZS</div>
-        </div>
 
-        {/* History */}
+        {/* History bar */}
         <div className="av-history">
-          {history.length === 0 && <span style={{ fontSize: '11px', color: '#333' }}>Tarix yo'q</span>}
+          {history.length === 0 && <span style={{ fontSize: '11px', color: '#444' }}>—</span>}
           {history.map((cp, i) => {
-            const col = cp < 2 ? '#ff2244' : cp < 5 ? '#ffaa00' : '#00cc55';
-            const bg = cp < 2 ? 'rgba(255,0,40,0.15)' : cp < 5 ? 'rgba(255,170,0,0.15)' : 'rgba(0,180,60,0.15)';
+            let col, bg;
+            if (cp < 2)       { col = 'rgba(255,255,255,0.75)'; bg = 'rgba(255,255,255,0.08)'; }
+            else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
+            else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
             return (
-              <span key={i} className="av-history-badge"
-                style={{ color: col, background: bg, border: `1px solid ${col}44` }}>
+              <span key={i} className="av-history-badge" style={{ color: col, background: bg }}>
                 {fmt(cp)}
               </span>
             );
           })}
+          <div className="av-hist-icon" onClick={() => navigate('/casino')}>🕐</div>
         </div>
 
         {/* Canvas */}
         <div className="av-canvas-wrap" ref={containerRef}>
           <canvas ref={canvasRef} className="av-canvas" />
-
           <div className="av-overlay">
             {phase === 'waiting' && (
-              <div style={{ textAlign: 'center' }}>
-                <div className="av-waiting-label">Yangi raund boshlangʼuncha</div>
+              <div className="av-countdown-wrap">
+                <div className="av-countdown-label">Yangi raund boshlangʼuncha</div>
                 <div style={{ ...multStyle }} className="av-countdown-text">{countdown}s</div>
                 {activeBet && (
-                  <div className="av-bet-placed-badge">✓ {activeBet.amount.toLocaleString()} UZS tikildi</div>
+                  <div className="av-bet-placed-badge">✓ ${activeBet.amount.toFixed(2)} tikildi</div>
                 )}
               </div>
             )}
@@ -750,7 +749,7 @@ export default function AviatorGame({ user }) {
         {/* Feedback */}
         {cashedOut && (
           <div className="av-feedback av-cashout-success">
-            ✅ {fmt(cashedOut.mult)} da yechdingiz! +{Number(cashedOut.win).toLocaleString()} UZS
+            ✅ {fmt(cashedOut.mult)} da yechdingiz! +${Number(cashedOut.win).toFixed(2)}
           </div>
         )}
         {err && !cashedOut && (
@@ -759,65 +758,66 @@ export default function AviatorGame({ user }) {
 
         {/* Bet Panel */}
         <div className="av-panel">
+
+          {/* Bet / Auto tabs */}
+          <div className="av-tabs">
+            <button className={`av-tab${betTab === 'bet' ? ' active' : ''}`}
+              onClick={() => setBetTab('bet')}>Bet</button>
+            <button className={`av-tab${betTab === 'auto' ? ' active' : ''}`}
+              onClick={() => setBetTab('auto')}>Auto</button>
+          </div>
+
+          {/* Amount row: ⊖  1.00  ⊕ */}
+          <div className="av-amount-row">
+            <button className="av-circle-btn" disabled={inputDisabled}
+              onClick={() => adjustAmt(-1)}>−</button>
+            <div className="av-amount-display">{parseFloat(betAmt).toFixed(2)}</div>
+            <button className="av-circle-btn" disabled={inputDisabled}
+              onClick={() => adjustAmt(1)}>+</button>
+          </div>
+
+          {/* Quick amounts */}
           <div className="av-quick-grid">
-            {[5000, 10000, 25000, 50000].map(v => {
-              const selected = betAmt === String(v);
+            {[1, 2, 5, 10].map(v => {
+              const sel = parseFloat(betAmt) === v;
               return (
                 <button key={v}
                   disabled={inputDisabled}
-                  onClick={() => setBetAmt(String(v))}
-                  className="av-quick-btn"
-                  style={{
-                    background: selected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
-                    color: selected ? '#fff' : '#666',
-                    border: selected ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                    opacity: inputDisabled ? 0.3 : 1,
-                  }}>
-                  {v >= 1000 ? `${v / 1000}K` : v}
+                  onClick={() => setBetAmt(v.toFixed(2))}
+                  className={`av-quick-btn${sel ? ' sel' : ''}`}>
+                  {v}
                 </button>
               );
             })}
           </div>
 
-          <div className="av-input-row">
-            <div className="av-input-wrap">
-              <input
-                type="number"
-                value={betAmt}
-                onChange={e => setBetAmt(e.target.value)}
-                disabled={inputDisabled}
-                className="av-input"
-                placeholder="Stavka (UZS)"
-                style={{ opacity: inputDisabled ? 0.4 : 1 }}
-              />
-              <div className="av-halve-col">
-                <button disabled={inputDisabled} className="av-halve-btn"
-                  onClick={() => setBetAmt(v => String(Math.round(parseFloat(v || 0) * 2)))}>×2</button>
-                <button disabled={inputDisabled} className="av-halve-btn"
-                  onClick={() => setBetAmt(v => String(Math.max(1000, Math.round(parseFloat(v || 0) / 2))))}>÷2</button>
-              </div>
-            </div>
-
-            {isCashoutActive ? (
-              <button onClick={cashOut} disabled={loading} className="av-action-btn"
-                style={{ background: '#00bb44', color: '#000', boxShadow: '0 0 22px rgba(0,180,60,0.45)' }}>
-                <span className="av-action-btn-label">CASH OUT</span>
-                <span className="av-action-btn-sub">{liveCash.toLocaleString()} UZS</span>
-              </button>
-            ) : (
-              <button onClick={placeBet}
-                disabled={loading || !!activeBet || phase !== 'waiting'}
-                className="av-action-btn"
-                style={{
-                  background: activeBet ? '#1a2e1a' : '#00bb44',
-                  color: activeBet ? '#3a7a3a' : '#000',
-                  opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.5 : 1,
-                  fontSize: 'clamp(13px, 4vw, 16px)',
-                }}>
-                {loading ? '...' : activeBet ? '✓ TIKILDI' : 'BET'}
-              </button>
-            )}
-          </div>
+          {/* BET / CASHOUT button */}
+          {isCashoutActive ? (
+            <button onClick={cashOut} disabled={loading} className="av-bet-btn"
+              style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
+              <span>CASH OUT</span>
+              <span className="av-bet-btn-sub">${liveCash} USD</span>
+            </button>
+          ) : (
+            <button onClick={placeBet}
+              disabled={loading || !!activeBet || phase !== 'waiting'}
+              className="av-bet-btn"
+              style={{
+                background: activeBet ? '#14532d' : '#22c55e',
+                color: activeBet ? '#4ade80' : '#000',
+                opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.45 : 1,
+                boxShadow: (!activeBet && phase === 'waiting') ? '0 0 20px rgba(34,197,94,0.35)' : 'none',
+              }}>
+              {loading ? '...' : activeBet ? (
+                <>✓ TIKILDI</>
+              ) : (
+                <>
+                  <span>BET</span>
+                  <span className="av-bet-btn-sub">{parseFloat(betAmt).toFixed(2)} USD</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </>
