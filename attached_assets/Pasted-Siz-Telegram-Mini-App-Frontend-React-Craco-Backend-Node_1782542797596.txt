@@ -1,0 +1,21 @@
+Siz Telegram Mini App (Frontend: React/Craco, Backend: Node.js) bo'yicha katta dasturchisiz. Loyihani Android qurilmalarda mukammal ishlashi uchun quyidagi o'zgarishlarni kod darajasida qat'iy joriy qiling va qayta to'liq build qiling:
+
+1. TELEGRAM FULL SCREEN (ANDROID CHEKLOVI):
+- Faqat viewport o'zgarishi yetarli emas. Loyihaning frontend qismida (index.js yoki App.js ichida) Telegram WebApp SDK yuklangandan so'ng, majburiy ravishda `window.Telegram.WebApp.expand();` funksiyasini chaqiring.
+- Agar mavjud bo'lsa, status barni ham qoplash uchun `window.Telegram.WebApp.requestFullscreen();` metodini ham xavfsiz (try-catch ichida) ishga tushiring.
+- Android brauzerlaridagi dynamic toolbar muammosini hal qilish uchun CSS va JS orqali asosiy konteyner balandligini qat'iy ravishda `window.innerHeight` qiymatiga bog'lang (100vh ba'zan xato ishlaydi).
+
+2. VERTIKAL SWIPE (YOPILIB KETISHINI QAT'IY BLOKLASH):
+- Android'da ilovani pastga tortganda yopilib ketishini to'xtatish uchun `window.Telegram.WebApp.isVerticalSwipesEnabled = false;` sozlamasini kodga kiriting.
+- index.css ichida body va #root elementlariga quyidagi xususiyatlarni bering:
+  body, html { position: fixed; overflow: hidden; width: 100%; height: 100%; -webkit-overflow-scrolling: touch; }
+
+3. TELEGRAM BACKBUTTON NAVIGATSIYASI:
+- Ilova ichidagi barcha qo'lbola "Ortga" (Back) tugmalarini interfeysdan butunlay olib tashlang. Navigatsiya faqat va faqat Telegram'ning rasmiy `window.Telegram.WebApp.BackButton` obyekti orqali boshqarilsin.
+- Bosh sahifada (Home/Main) BackButton yashirilsin (`.hide()`), ichki sahifalarga kirganda esa ko'rinsin (`.show()`) va bosilganda React Router orqali bir qadam ortga qaytarsin (`history.goBack()` yoki `navigate(-1)`).
+
+4. AMALDAGI BOSHQA QOIDALARNI SAQLASH (PROD-READY):
+- 8321879273 Telegram ID-siga ega foydalanuvchi qat'iy va so'zsiz yagona Superadmin bo'lib qolsin (backend va frontendda qotirilgan holatda). U uchun kanalga a'zolikni tekshirish bypass (avtomatik o'tish) qilinsin.
+- `frontend/package.json` ichida `ajv@8.17.1` versiyasi to'g'ridan-to'g'ri dependency sifatida saqlanib qolsin (Craco build buzilmasligi uchun).
+
+Ushbu o'zgarishlarni amalga oshirgach, frontendni `craco build` buyrug'i orqali qayta to'liq muvaffaqiyatli build qiling va start.sh skripti ham ushbu builddan foydalanayotganini tekshiring.

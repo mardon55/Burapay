@@ -50,32 +50,28 @@
   }
 }
 
-/* Telegram Mini App: true full-screen */
-html {
-  height: 100vh;
-  height: var(--tg-viewport-stable-height, 100vh);
-  overscroll-behavior: none;
-  overflow: hidden;
-}
-
+/* Telegram Mini App: Android-safe full-screen lock */
+html,
 body {
-  height: 100vh;
-  height: var(--tg-viewport-stable-height, 100vh);
-  overscroll-behavior: none;
-  overflow: hidden;
-  touch-action: pan-x pan-y;
   position: fixed;
+  overflow: hidden;
   width: 100%;
+  height: 100%;
+  height: var(--app-height, var(--tg-viewport-stable-height, 100vh));
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: none;
   top: 0;
   left: 0;
 }
 
 #root {
+  position: relative;
   height: 100%;
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: none;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
