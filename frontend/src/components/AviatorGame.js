@@ -39,12 +39,11 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const iw = Math.max(80 * scale, canvasW * 0.18);
   const ih = loaded ? iw * (_planeImg.naturalHeight / _planeImg.naturalWidth) : iw * 0.46;
 
-  // 1. Burchakni keskin kamaytirish — samolyot raketaga o'xshamasligi uchun
-  const flatAngle = angle * 0.15;
-  const cappedAngle = Math.min(Math.max(flatAngle, -0.08), 0.08); // max ~4.6 daraja
+  // 1. Burchak mutloq nol — samolyot har doim gorizontal, raketa emas
+  const FIXED_ANGLE = 0; // hardcode: 0 rad = to'liq tekis uchish
 
-  ctx.translate(x, y); // Chiziqning eng oxirgi nuqtasiga siljish
-  ctx.rotate(cappedAngle); // Samolyotni deyarli tekis holatda ushlash
+  ctx.translate(x, y); // Chiziq oxirgi nuqtasiga siljish
+  ctx.rotate(FIXED_ANGLE); // Samolyot har doim o'ngga tekis qaraydi
 
   if (crashed) ctx.globalAlpha = 0.6;
 
@@ -52,9 +51,9 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
-    // 2. Rasmning chap-yuqori burchagi (dum qismi) chiziq uchida tursin,
-    //    tanasi o'ngga, qanoti yuqoriga qarab ketsin
-    ctx.drawImage(_planeImg, 0, -ih * 0.85, iw, ih);
+    // 2. Dum (chap-pastki burchak) aynan (0,0) chiziq uchida tursin:
+    //    rasm pastdan faqat ozgina chiqib turadi (~10px), qolgan qismi yuqoriga
+    ctx.drawImage(_planeImg, 0, -ih + 10, iw, ih);
   }
 
   ctx.shadowBlur = 0;
