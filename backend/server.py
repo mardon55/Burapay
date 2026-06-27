@@ -31,7 +31,7 @@ load_dotenv(ROOT_DIR / '.env')
 # ── Database moduli (asyncpg pool + retry + exception handling) ───────────────
 from database import (
     init_pool, close_pool, health_check as db_health_check,
-    fetchall, fetchone, execute
+    fetchall, fetchone, execute, get_pool
 )
 
 # ── Bot Setup ─────────────────────────────────────────────────────────────────
@@ -1245,12 +1245,106 @@ if FRONTEND_BUILD.exists() and (FRONTEND_BUILD / "static").exists():
         index_file = FRONTEND_BUILD / "index.html"
         return FileResponse(str(index_file))
 
+async def create_tables():
+    """Barcha jadvallarni avtomatik yaratadi (CREATE TABLE IF NOT EXISTS)."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                telegram_id BIGINT UNIQUE NOT NULL,
+                internal_id VARCHAR(20),
+                bot_id VARCHAR(20) UNIQUE,
+                first_name VARCHAR(200),
+                username VARCHAR(100),
+                balance_uzs NUMERIC(18,2) DEFAULT 0,
+                balance_usd NUMERIC(18,2) DEFAULT 0,
+                is_admin BOOLEAN DEFAULT false,
+                language VARCHAR(5) DEFAULT 'uz',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS wallets (
+                id VARCHAR(100) PRIMARY KEY,
+                user_telegram_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
+                type VARCHAR(50) NOT NULL,
+                number VARCHAR(100) NOT NULL,
+                expiry VARCHAR(20),
+                name VARCHAR(100),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS transactions (
+                id VARCHAR(100) PRIMARY KEY,
+                short_id VARCHAR(20),
+                user_id BIGINT,
+                type VARCHAR(20) NOT NULL,
+                amount NUMERIC(18,2) NOT NULL,
+                currency VARCHAR(10) DEFAULT 'UZS',
+                method VARCHAR(50) DEFAULT 'card',
+                wallet_number VARCHAR(100),
+                secret_code VARCHAR(100),
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_cards (
+                id VARCHAR(100) PRIMARY KEY,
+                type VARCHAR(50) NOT NULL,
+                number VARCHAR(100) NOT NULL,
+                holder_name VARCHAR(200),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                id SERIAL PRIMARY KEY,
+                deposit_channel_id VARCHAR(50),
+                withdraw_channel_id VARCHAR(50),
+                exchange_rate NUMERIC(10,2) DEFAULT 12800.0,
+                required_channels JSONB DEFAULT '[]'::jsonb,
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS deposit_requests (
+                id VARCHAR(100) PRIMARY KEY,
+                short_id VARCHAR(20),
+                user_telegram_id BIGINT,
+                user_bot_id VARCHAR(20),
+                amount NUMERIC(18,2) NOT NULL,
+                card_number VARCHAR(100),
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS partnerships (
+                id SERIAL PRIMARY KEY,
+                telegram_id BIGINT,
+                bot_token VARCHAR(200),
+                bot_name VARCHAR(200),
+                bot_username VARCHAR(100),
+                webapp_url VARCHAR(500),
+                status VARCHAR(20) DEFAULT 'active',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        """)
+        # settings jadvalida kamida bitta yozuv bo'lishi kerak
+        await conn.execute("""
+            INSERT INTO settings (deposit_channel_id, withdraw_channel_id, exchange_rate, required_channels)
+            SELECT NULL, NULL, 12800.0, '[]'::jsonb
+            WHERE NOT EXISTS (SELECT 1 FROM settings);
+        """)
+    logging.info("✅ Barcha jadvallar tekshirildi / yaratildi.")
+
+
 @app.on_event("startup")
 async def startup():
     # 1. DB pool ni ishga tushirish (retry bilan)
     await init_pool()
 
-    # 2. Health check — pool ishlayotganini tasdiqlash
+    # 2. Jadvallarni avtomatik yaratish (Railway/yangi muhit uchun)
+    await create_tables()
+
+    # 3. Health check — pool ishlayotganini tasdiqlash
     status = await db_health_check()
     if status.get("db") == "ok":
         logging.info(
