@@ -39,13 +39,10 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const iw = Math.max(80 * scale, canvasW * 0.18);
   const ih = loaded ? iw * (_planeImg.naturalHeight / _planeImg.naturalWidth) : iw * 0.46;
 
-  // Negative pull → plane CENTER moves FORWARD of curve tip,
-  // so the tail aligns with the curve endpoint (correct Aviator style)
-  const pull = -iw * 0.38;
-  ctx.translate(
-    x - pull * Math.cos(angle),
-    y - pull * Math.sin(angle)
-  );
+  // (x, y) is the curve tip — translate there, rotate, then draw the plane
+  // so its TAIL (left-middle of the image) sits exactly at the origin.
+  // drawImage offset: left edge at 0, vertically centered on the mid-line of the image.
+  ctx.translate(x, y);
   ctx.rotate(angle);
 
   if (crashed) ctx.globalAlpha = 0.6;
@@ -54,7 +51,9 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
-    ctx.drawImage(_planeImg, -iw * 0.5, -ih * 0.5, iw, ih);
+    // Tail (left edge) anchored at origin; plane extends to the right.
+    // Shift up by half the image height so the mid-fuselage belly aligns with the curve.
+    ctx.drawImage(_planeImg, 0, -ih * 0.5, iw, ih);
   }
 
   ctx.shadowBlur = 0;
@@ -244,14 +243,14 @@ export default function AviatorGame({ user }) {
       // Use a wide lookback window (40 pts) so the slope is the long-range trajectory,
       // not a momentary spike. Then blend 60% toward horizontal so the plane always
       // looks like it's gliding forward. Hard cap at 10° so it never looks like a rocket.
-      const MAX_ANGLE = Math.PI / 18; // 10 degrees
-      const lookback = Math.min(40, pts.length - 1);
+      const MAX_ANGLE = Math.PI / 25; // ~7 degrees hard cap
+      const lookback = Math.min(60, pts.length - 1);
       const refIdx = Math.max(0, pts.length - 1 - lookback);
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const rawAngle = Math.atan2(ly - prevY, lx - prevX);
-      // Blend toward 0 (horizontal) by 60% — keeps plane aerodynamic even on steep climbs
-      const blended = rawAngle * 0.4;
+      // Blend 80% toward horizontal — plane always looks like it's gliding, not rocketing
+      const blended = rawAngle * 0.2;
       const angle = Math.max(-MAX_ANGLE, Math.min(0, blended));
       drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
