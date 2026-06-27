@@ -1,11 +1,17 @@
 #!/bin/bash
 set -e
 
-# Use Railway's PORT env var, fallback to 8000
 PORT="${PORT:-8000}"
 
-echo "Starting BuraPay backend on port $PORT..."
+echo "🚀 BuraPay backend ishga tushmoqda (port: $PORT)..."
 
-# Start Backend (serves API + React static files)
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ XATO: DATABASE_URL muhit o'zgaruvchisi topilmadi!"
+  exit 1
+fi
+
+echo "✅ DATABASE_URL topildi."
+echo "✅ BOT_TOKEN: ${BOT_TOKEN:+mavjud}${BOT_TOKEN:-YO'Q}"
+
 cd /app/backend
-exec uvicorn server:app --host 0.0.0.0 --port "$PORT"
+exec uvicorn server:app --host 0.0.0.0 --port "$PORT" --workers 1

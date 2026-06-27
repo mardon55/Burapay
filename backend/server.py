@@ -683,7 +683,11 @@ async def add_wallet(request: Request, data: dict = Body(...)):
     user = await fetchone("SELECT telegram_id FROM users WHERE telegram_id = :tid", {"tid": telegram_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    new_wallet = WalletIn(**wallet_data)
+    from pydantic import ValidationError as PydanticValidationError
+    try:
+        new_wallet = WalletIn(**wallet_data)
+    except PydanticValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors())
     await execute(
         """INSERT INTO wallets (id, user_telegram_id, type, number, expiry, name)
            VALUES (:id, :uid, :type, :number, :expiry, :name)""",
