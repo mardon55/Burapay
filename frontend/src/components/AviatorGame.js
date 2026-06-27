@@ -4,34 +4,24 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
-function drawBackground(ctx, W, H, crashed) {
-  // Base fill — near-black
-  ctx.fillStyle = '#080810';
+function drawBackground(ctx, W, H) {
+  // Pure black base
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
-  // Radial glow in center (purple/violet like reference)
-  const gCx = W * 0.42, gCy = H * 0.38;
-  const gRad = Math.max(W, H) * 0.72;
-  const purpleGlow = ctx.createRadialGradient(gCx, gCy, 0, gCx, gCy, gRad);
-  purpleGlow.addColorStop(0,   crashed ? 'rgba(120,0,30,0.55)' : 'rgba(80,20,140,0.52)');
-  purpleGlow.addColorStop(0.4, crashed ? 'rgba(80,0,20,0.28)' : 'rgba(50,10,100,0.25)');
-  purpleGlow.addColorStop(1,   'rgba(0,0,0,0)');
-  ctx.fillStyle = purpleGlow;
-  ctx.fillRect(0, 0, W, H);
-
-  // Sunburst rays from bottom-left (like reference)
-  const sx = W * 0.06, sy = H * 0.94;
-  const rays = 32;
-  const len = Math.sqrt(W * W + H * H) * 1.8;
+  // Sunburst rays from bottom-left corner — bright white/light gray (like reference)
+  const sx = W * 0.04, sy = H * 0.96;
+  const rays = 30;
+  const len = Math.sqrt(W * W + H * H) * 2.0;
   for (let i = 0; i < rays; i++) {
-    const a1 = -Math.PI * 0.12 + (i / rays) * Math.PI * 1.55;
-    const a2 = -Math.PI * 0.12 + ((i + 0.48) / rays) * Math.PI * 1.55;
+    const a1 = -Math.PI * 0.08 + (i / rays) * Math.PI * 1.45;
+    const a2 = -Math.PI * 0.08 + ((i + 0.46) / rays) * Math.PI * 1.45;
     ctx.beginPath();
     ctx.moveTo(sx, sy);
     ctx.lineTo(sx + Math.cos(a1) * len, sy + Math.sin(a1) * len);
     ctx.lineTo(sx + Math.cos(a2) * len, sy + Math.sin(a2) * len);
     ctx.closePath();
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0)';
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0)';
     ctx.fill();
   }
 }
@@ -47,7 +37,9 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const iw = Math.max(80 * scale, canvasW * 0.18);
   const ih = loaded ? iw * (_planeImg.naturalHeight / _planeImg.naturalWidth) : iw * 0.46;
 
-  const pull = iw * 0.55;
+  // Negative pull → plane CENTER moves FORWARD of curve tip,
+  // so the tail aligns with the curve endpoint (correct Aviator style)
+  const pull = -iw * 0.38;
   ctx.translate(
     x - pull * Math.cos(angle),
     y - pull * Math.sin(angle)
@@ -57,7 +49,7 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   if (crashed) ctx.globalAlpha = 0.6;
 
   ctx.shadowColor = crashed ? '#ff0000' : '#ff4466';
-  ctx.shadowBlur  = 16 * scale;
+  ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
     ctx.drawImage(_planeImg, -iw * 0.5, -ih * 0.5, iw, ih);
@@ -135,10 +127,12 @@ export default function AviatorGame({ user }) {
     const pts = ptsRef.current;
 
     const crashed = ph === 'crashed';
-    drawBackground(ctx, W, H, crashed);
+    drawBackground(ctx, W, H);
 
     const dpr = window.devicePixelRatio || 1;
-    const PL = 44 * dpr, PR = 14 * dpr, PT = 14 * dpr, PB = 28 * dpr;
+    // PR must fit the plane (plane width ≈ 18% of W) so it doesn't clip off-screen
+    const planeW = Math.max(80 * dpr, W * 0.18);
+    const PL = 44 * dpr, PR = planeW * 1.05, PT = 14 * dpr, PB = 28 * dpr;
     const PW = W - PL - PR;
     const PH = H - PT - PB;
     const ox = PL, oy = H - PB;
@@ -251,13 +245,16 @@ export default function AviatorGame({ user }) {
     const ly = cy(pts[pts.length - 1]);
 
     if (!crashed) {
-      const refIdx = Math.max(0, pts.length - 6);
+      // Use a wider window for smoother angle, cap tilt to max ~28° upward
+      const refIdx = Math.max(0, pts.length - 10);
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
-      const angle = Math.atan2(ly - prevY, lx - prevX);
+      const rawAngle = Math.atan2(ly - prevY, lx - prevX);
+      // Canvas Y is inverted: negative angle = nose up. Clamp so plane stays mostly horizontal.
+      const angle = Math.max(-Math.PI * 0.28, Math.min(0, rawAngle));
       drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
-      drawPlane(ctx, lx, ly, Math.PI * 0.3, true, planeScale * dpr, W);
+      drawPlane(ctx, lx, ly, Math.PI * 0.22, true, planeScale * dpr, W);
     }
   }, []);
 
