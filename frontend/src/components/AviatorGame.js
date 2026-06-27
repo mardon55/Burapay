@@ -47,12 +47,16 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
-    // Canvas ga mos scaled o'lcham (natural o'lcham juda katta bo'ladi)
+    // Canvas ga mos scaled o'lcham
     const iw = Math.max(70 * scale, canvasW * 0.15);
     const ih = iw * (_planeImg.naturalHeight / _planeImg.naturalWidth);
 
-    // Foydalanuvchi ko'rsatgan offset: dum (chap-past) aynan (0,0) ga ulangani uchun Y = -ih
-    ctx.drawImage(_planeImg, 0, -ih, iw, ih);
+    // Rasm: 291x197. Pikselli o'lchash natijasi:
+    //   Eng chap ustun x=28 — uning pastki non-transparent piksel y=165
+    //   Shu nuqta (dum pastki uchi) = chiziq uchiga (0,0) ga ulanishi kerak
+    const xOff = -(28 / 291) * iw;   // dum uchi x=0
+    const yOff = -(165 / 197) * ih;  // dum pastki y=0
+    ctx.drawImage(_planeImg, xOff, yOff, iw, ih);
   }
 
   ctx.shadowBlur = 0;
