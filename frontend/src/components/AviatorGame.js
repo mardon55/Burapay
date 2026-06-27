@@ -35,27 +35,21 @@ _planeImg.onerror = () => { _planeImg.src = '/plane.png'; };
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
 
-  // FIXED_ANGLE har doim 0 bo'lsin, samolyot mutloq gorizontal (tekis) tursin
-  const FIXED_ANGLE = 0;
+  const iw = _planeImg.width;
+  const ih = _planeImg.height;
+
+  const xOff = -(28 / 291) * iw;
+  const yOff = -(190 / 197) * ih;
 
   ctx.save();
-  ctx.translate(x, y); // Chiziqning eng oxirgi nuqtasi
-  ctx.rotate(FIXED_ANGLE);
+  ctx.translate(x, y);
+  ctx.rotate(0);
 
   if (crashed) ctx.globalAlpha = 0.6;
   ctx.shadowColor = crashed ? '#ff0000' : '#ff4466';
   ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
-    // Canvas ga mos scaled o'lcham
-    const iw = Math.max(70 * scale, canvasW * 0.15);
-    const ih = iw * (_planeImg.naturalHeight / _planeImg.naturalWidth);
-
-    // Rasm: 291x197. Pikselli o'lchash natijasi:
-    //   Eng chap ustun x=28 — uning pastki non-transparent piksel y=165
-    //   Shu nuqta (dum pastki uchi) = chiziq uchiga (0,0) ga ulanishi kerak
-    const xOff = -(28 / 291) * iw;   // dum uchi x=0
-    const yOff = -(165 / 197) * ih;  // dum pastki y=0
     ctx.drawImage(_planeImg, xOff, yOff, iw, ih);
   }
 
