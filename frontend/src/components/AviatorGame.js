@@ -250,8 +250,8 @@ export default function AviatorGame({ user }) {
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const rawAngle = Math.atan2(ly - prevY, lx - prevX);
-      // Canvas Y is inverted: negative angle = nose up. Clamp so plane stays mostly horizontal.
-      const angle = Math.max(-Math.PI * 0.28, Math.min(0, rawAngle));
+      // Canvas Y is inverted: negative angle = nose up. Hard cap at 15° so it looks like a plane, not a rocket.
+      const angle = Math.max(-Math.PI / 12, Math.min(0, rawAngle));
       drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
       drawPlane(ctx, lx, ly, Math.PI * 0.22, true, planeScale * dpr, W);
