@@ -63,6 +63,7 @@ body {
   touch-action: none;
   top: 0;
   left: 0;
+  background-color: #020617; /* bg-midnight — status bar ortida ham to'g'ri rang */
 }
 
 #root {
@@ -73,6 +74,9 @@ body {
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
 }
 
 /* Allow vertical scroll only inside explicitly scrollable containers */
