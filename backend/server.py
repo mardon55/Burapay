@@ -1328,6 +1328,7 @@ async def aviator_ws(websocket: WebSocket):
         await websocket.send_text(json.dumps({
             "type": _aviator["phase"],
             "multiplier": _aviator["multiplier"],
+            "crash_point": _aviator.get("crash_point"),
             "countdown": _aviator.get("countdown", 7),
             "game_id": _aviator["game_id"],
             "history": _aviator["history"],

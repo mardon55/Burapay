@@ -3,7 +3,69 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
-const QUICK = [5000, 10000, 25000, 50000];
+
+// Draw sunburst rays
+function drawSunburst(ctx, W, H) {
+  const cx = W * 0.08, cy = H * 0.92;
+  const rays = 28;
+  const len = Math.sqrt(W * W + H * H) * 1.6;
+  for (let i = 0; i < rays; i++) {
+    const a1 = -Math.PI * 0.1 + (i / rays) * Math.PI * 1.6;
+    const a2 = -Math.PI * 0.1 + ((i + 0.5) / rays) * Math.PI * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a1) * len, cy + Math.sin(a1) * len);
+    ctx.lineTo(cx + Math.cos(a2) * len, cy + Math.sin(a2) * len);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.022)' : 'rgba(0,0,0,0)';
+    ctx.fill();
+  }
+}
+
+// Draw airplane silhouette
+function drawPlane(ctx, x, y, angle, crashed) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle - 0.15);
+  const col = crashed ? '#ff2244' : '#e8003d';
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = crashed ? 20 : 10;
+
+  // Fuselage
+  ctx.beginPath();
+  ctx.moveTo(32, 0);
+  ctx.bezierCurveTo(20, -6, -10, -5, -22, -1);
+  ctx.bezierCurveTo(-10, 1, 20, 6, 32, 0);
+  ctx.fill();
+
+  // Main wing
+  ctx.beginPath();
+  ctx.moveTo(8, -2);
+  ctx.lineTo(4, -24);
+  ctx.lineTo(-12, -16);
+  ctx.lineTo(-7, -1);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tail fin
+  ctx.beginPath();
+  ctx.moveTo(-14, -1);
+  ctx.lineTo(-18, -13);
+  ctx.lineTo(-24, -9);
+  ctx.lineTo(-20, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Engine pod
+  ctx.beginPath();
+  ctx.ellipse(2, -10, 5, 2.5, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
 
 export default function AviatorGame({ user }) {
   const navigate = useNavigate();
@@ -41,70 +103,101 @@ export default function AviatorGame({ user }) {
     const ph = phaseRef.current;
     const pts = ptsRef.current;
 
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#080d18';
+    // Black background
+    ctx.fillStyle = '#0c0c0c';
     ctx.fillRect(0, 0, W, H);
 
-    // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y <= H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    // Sunburst
+    drawSunburst(ctx, W, H);
 
     if (pts.length < 2) return;
 
     const maxM = Math.max(pts[pts.length - 1] * 1.18, 2.0);
-    const PL = 28, PR = 16, PT = 24, PB = 28;
-    const PW = W - PL - PR, PH = H - PT - PB;
-    const cx = (i) => PL + (i / (pts.length - 1)) * PW;
-    const cy = (m) => H - PB - Math.min((m - 1) / (maxM - 1), 1) * PH;
+    const PL = 50, PR = 18, PT = 18, PB = 32;
+    const PW = W - PL - PR;
+    const PH = H - PT - PB;
+
+    const ox = PL;
+    const oy = H - PB;
+
+    const cx = (i) => ox + (i / Math.max(pts.length - 1, 1)) * PW;
+    const cy = (m) => oy - Math.min((m - 1) / (maxM - 1), 1) * PH;
 
     const crashed = ph === 'crashed';
-    const col = crashed ? '#ff2244' : '#ff6935';
 
-    // Fill under curve
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, crashed ? 'rgba(255,30,60,0.20)' : 'rgba(255,110,53,0.20)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    // ── Fill under curve ──
     ctx.beginPath();
-    ctx.moveTo(cx(0), H - PB);
+    ctx.moveTo(ox, oy);
     pts.forEach((m, i) => ctx.lineTo(cx(i), cy(m)));
-    ctx.lineTo(cx(pts.length - 1), H - PB);
+    ctx.lineTo(cx(pts.length - 1), oy);
     ctx.closePath();
-    ctx.fillStyle = grad;
+
+    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
+    fillGrad.addColorStop(0, crashed ? 'rgba(160,0,40,0.7)' : 'rgba(140,0,35,0.65)');
+    fillGrad.addColorStop(1, crashed ? 'rgba(80,0,20,0.2)' : 'rgba(60,0,15,0.2)');
+    ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // Curve line
+    // ── Curve line ──
     ctx.beginPath();
-    pts.forEach((m, i) => { if (i === 0) ctx.moveTo(cx(i), cy(m)); else ctx.lineTo(cx(i), cy(m)); });
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = col;
-    ctx.shadowBlur = 14;
+    pts.forEach((m, i) => {
+      if (i === 0) ctx.moveTo(cx(i), cy(m));
+      else ctx.lineTo(cx(i), cy(m));
+    });
+    ctx.strokeStyle = crashed ? '#ff2244' : '#ff0036';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = crashed ? '#ff2244' : '#ff0036';
+    ctx.shadowBlur = 10;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Plane
-    const lx = cx(pts.length - 1), ly = cy(pts[pts.length - 1]);
-    if (!crashed && pts.length > 1) {
-      const px2 = cx(pts.length - 2), py2 = cy(pts[pts.length - 2]);
-      const angle = Math.atan2(ly - py2, lx - px2) - 0.22;
-      ctx.save();
-      ctx.translate(lx, ly);
-      ctx.rotate(angle);
-      ctx.font = '26px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = col;
-      ctx.shadowBlur = 22;
-      ctx.fillText('✈', 0, 0);
-      ctx.shadowBlur = 0;
-      ctx.restore();
+    // ── Y-axis labels & dots ──
+    const ySteps = 5;
+    for (let i = 1; i <= ySteps; i++) {
+      const m = 1 + (i / ySteps) * (maxM - 1);
+      const yy = cy(m);
+      // Dashed guide line
+      ctx.setLineDash([3, 6]);
+      ctx.beginPath();
+      ctx.moveTo(PL, yy);
+      ctx.lineTo(W - PR, yy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Dot
+      ctx.beginPath();
+      ctx.arc(PL - 6, yy, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,100,120,0.6)';
+      ctx.fill();
+      // Label
+      ctx.fillStyle = 'rgba(150,150,170,0.6)';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${m.toFixed(1)}x`, PL - 10, yy + 3);
+    }
+
+    // ── X-axis dots ──
+    for (let i = 0; i <= 8; i++) {
+      const xx = ox + (i / 8) * PW;
+      ctx.beginPath();
+      ctx.arc(xx, oy + 10, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,100,120,0.5)';
+      ctx.fill();
+    }
+
+    // ── Airplane at tip ──
+    const lx = cx(pts.length - 1);
+    const ly = cy(pts[pts.length - 1]);
+
+    if (!crashed && pts.length > 3) {
+      const refIdx = Math.max(0, pts.length - 6);
+      const prevX = cx(refIdx);
+      const prevY = cy(pts[refIdx]);
+      const angle = Math.atan2(ly - prevY, lx - prevX);
+      drawPlane(ctx, lx, ly, angle, false);
     } else if (crashed) {
-      ctx.font = '30px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('💥', lx, ly);
+      drawPlane(ctx, lx, ly, Math.PI * 0.3, true);
     }
   }, []);
 
@@ -130,22 +223,23 @@ export default function AviatorGame({ user }) {
         setMult(1.0); multRef.current = 1.0;
         setCrashPt(null);
         ptsRef.current = [1.0];
-        if (d.history) setHistory(d.history.slice(0, 10));
+        if (d.history) setHistory(d.history.slice(0, 12));
         setActiveBet(null); betRef.current = null;
         setCashedOut(null); setErr('');
       } else if (d.type === 'flying') {
         phaseRef.current = 'flying';
         setPhase('flying');
         setMult(d.multiplier); multRef.current = d.multiplier;
-        ptsRef.current = [...ptsRef.current, d.multiplier].slice(-300);
+        ptsRef.current = [...ptsRef.current, d.multiplier].slice(-500);
       } else if (d.type === 'crashed') {
+        const cp = d.crash_point || d.multiplier || multRef.current || 1.0;
         phaseRef.current = 'crashed';
         setPhase('crashed');
-        setCrashPt(d.crash_point);
-        setMult(d.crash_point);
-        if (d.history) setHistory(d.history.slice(0, 10));
+        setCrashPt(cp);
+        setMult(cp);
+        if (d.history) setHistory(d.history.slice(0, 12));
         if (betRef.current) {
-          setErr(`✈ ${d.crash_point}x da uchib ketdi — stavka yutqazildi`);
+          setErr(`✈ ${Number(cp).toFixed(2)}x da uchib ketdi`);
           setActiveBet(null); betRef.current = null;
         }
       }
@@ -163,7 +257,7 @@ export default function AviatorGame({ user }) {
   // ── Actions ────────────────────────────────────────────────────────────────
   const placeBet = async () => {
     const amt = parseFloat(betAmt);
-    if (!amt || amt < 1000) { setErr('Minimal stavka: 1,000 UZS'); return; }
+    if (!amt || amt < 1000) { setErr('Min: 1,000 UZS'); return; }
     if (phaseRef.current !== 'waiting') { setErr('Faqat kutish vaqtida tikish mumkin'); return; }
     if (betRef.current) { setErr('Allaqachon tikdingiz'); return; }
     setLoading(true); setErr('');
@@ -172,7 +266,7 @@ export default function AviatorGame({ user }) {
       setActiveBet({ amount: amt }); betRef.current = { amount: amt };
       setBalance(b => b - amt);
     } catch (ex) {
-      setErr(ex.response?.data?.detail || 'Xatolik yuz berdi');
+      setErr(ex.response?.data?.detail || 'Xatolik');
     } finally { setLoading(false); }
   };
 
@@ -189,61 +283,76 @@ export default function AviatorGame({ user }) {
     } finally { setLoading(false); }
   };
 
-  const mCol = (m) => m < 1.5 ? '#ff4455' : m < 3 ? '#ffaa00' : '#00dd77';
   const fmt = (m) => `${Number(m).toFixed(2)}x`;
-  const liveCash = activeBet ? Math.floor(activeBet.amount * mult).toLocaleString() : '0';
-  const bgCash = 'linear-gradient(135deg,#00dd77,#00aa55)';
+
+  const multStyle = {
+    fontFamily: "'Arial Black', 'Impact', sans-serif",
+    fontWeight: 900,
+    letterSpacing: '-1px',
+  };
+
+  const isCashoutActive = activeBet && phase === 'flying' && !cashedOut;
+  const liveCash = Math.floor((activeBet?.amount || 0) * mult);
 
   return (
-    <div className="min-h-screen flex flex-col text-white select-none" style={{ background: '#080d18' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-        <button onClick={() => navigate('/casino')} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition-colors">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#0c0c0c', color: '#fff', userSelect: 'none', overflow: 'hidden' }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#131313', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+        <button onClick={() => navigate('/casino')} style={{ color: '#555', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
           ← Orqaga
         </button>
-        <div className="flex items-center gap-2 font-black tracking-wider">
-          <span className="text-lg">✈</span>
-          <span style={{ color: '#ff6935' }}>AVIATOR</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 900, letterSpacing: '3px', fontSize: '13px', color: '#ff1a3a' }}>
+          ✈ AVIATOR
         </div>
-        <div className="text-xs font-bold text-yellow-400">
-          {Number(balance).toLocaleString()} <span className="text-yellow-600">UZS</span>
+        <div style={{ fontSize: '11px', color: '#d4af37', fontWeight: 700 }}>
+          {Number(balance).toLocaleString()} UZS
         </div>
       </div>
 
-      {/* History */}
-      <div className="flex gap-2 px-4 py-2 overflow-x-auto flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
-        {history.length === 0 && <span className="text-xs text-slate-700 italic">Tarix yo'q</span>}
-        {history.map((cp, i) => (
-          <span key={i} className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-black"
-            style={{ background: cp < 2 ? '#ff2244' : cp < 5 ? '#ffaa00' : '#00cc55', color: '#000' }}>
-            {fmt(cp)}
-          </span>
-        ))}
+      {/* ── History badges ── */}
+      <div style={{ display: 'flex', gap: '6px', padding: '6px 12px', overflowX: 'auto', flexShrink: 0, background: '#131313', scrollbarWidth: 'none' }}>
+        {history.length === 0 && <span style={{ fontSize: '11px', color: '#333' }}>Tarix yo'q</span>}
+        {history.map((cp, i) => {
+          const col = cp < 2 ? '#ff2244' : cp < 5 ? '#ffaa00' : '#00cc55';
+          const bg = cp < 2 ? 'rgba(255,0,40,0.15)' : cp < 5 ? 'rgba(255,170,0,0.15)' : 'rgba(0,180,60,0.15)';
+          return (
+            <span key={i} style={{ flexShrink: 0, padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, color: col, background: bg, border: `1px solid ${col}44` }}>
+              {fmt(cp)}
+            </span>
+          );
+        })}
       </div>
 
-      {/* Canvas */}
-      <div className="relative mx-3 rounded-2xl overflow-hidden flex-shrink-0"
-        style={{ height: '210px', border: '1px solid rgba(255,255,255,0.07)', background: '#080d18' }}>
-        <canvas ref={canvasRef} width={700} height={315} style={{ width: '100%', height: '100%', display: 'block' }} />
+      {/* ── Canvas ── */}
+      <div style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        <canvas ref={canvasRef} width={720} height={420}
+          style={{ width: '100%', height: '100%', display: 'block' }} />
 
-        {/* Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {/* Multiplier / status overlay */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           {phase === 'waiting' && (
-            <div className="text-center">
-              <div className="text-slate-500 text-sm mb-1">Yangi raund</div>
-              <div className="text-5xl font-black text-white tabular-nums">{countdown}s</div>
-              {activeBet && <div className="mt-2 text-green-400 text-sm font-bold animate-pulse">✓ {activeBet.amount.toLocaleString()} UZS tikildi</div>}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', color: '#555', marginBottom: '4px' }}>Yangi raund boshlangʼuncha</div>
+              <div style={{ ...multStyle, fontSize: '68px', color: '#fff' }}>{countdown}s</div>
+              {activeBet && (
+                <div style={{ marginTop: '10px', padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: '#44ff88', background: 'rgba(0,180,80,0.15)', border: '1px solid rgba(0,200,80,0.3)' }}>
+                  ✓ {activeBet.amount.toLocaleString()} UZS tikildi
+                </div>
+              )}
             </div>
           )}
           {phase === 'flying' && (
-            <div className="tabular-nums font-black" style={{ fontSize: '64px', lineHeight: 1, color: mCol(mult), textShadow: `0 0 40px ${mCol(mult)}` }}>
+            <div style={{ ...multStyle, fontSize: '72px', color: '#fff', textShadow: '0 2px 24px rgba(0,0,0,0.9)' }}>
               {fmt(mult)}
             </div>
           )}
           {phase === 'crashed' && (
-            <div className="text-center">
-              <div className="font-bold text-red-400 text-base mb-1" style={{ textShadow: '0 0 20px #ff2244' }}>✈ UCHIB KETDI!</div>
-              <div className="font-black tabular-nums text-red-500" style={{ fontSize: '54px', lineHeight: 1, textShadow: '0 0 30px #ff2244' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#ff2244', marginBottom: '6px', textShadow: '0 0 20px #ff0030' }}>
+                ✈ UCHIB KETDI!
+              </div>
+              <div style={{ ...multStyle, fontSize: '64px', color: '#ff2244', textShadow: '0 0 30px #ff0030' }}>
                 {fmt(crashPt || mult)}
               </div>
             </div>
@@ -251,60 +360,76 @@ export default function AviatorGame({ user }) {
         </div>
       </div>
 
-      {/* Cashout success */}
+      {/* ── Cashout success ── */}
       {cashedOut && (
-        <div className="mx-3 mt-2 px-4 py-3 rounded-xl text-center font-bold text-sm flex-shrink-0"
-          style={{ background: '#00cc55', color: '#001a0d' }}>
+        <div style={{ margin: '0 12px 6px', padding: '8px 16px', borderRadius: '10px', textAlign: 'center', fontWeight: 700, fontSize: '13px', background: '#006622', color: '#aaffcc', flexShrink: 0 }}>
           ✅ {fmt(cashedOut.mult)} da yechdingiz! +{Number(cashedOut.win).toLocaleString()} UZS
         </div>
       )}
-
-      {/* Error */}
-      {err && (
-        <div className="mx-3 mt-2 px-4 py-2 rounded-xl text-center text-xs text-red-400 flex-shrink-0"
-          style={{ background: 'rgba(255,50,70,0.10)', border: '1px solid rgba(255,50,70,0.2)' }}>
+      {err && !cashedOut && (
+        <div style={{ margin: '0 12px 4px', padding: '6px 12px', borderRadius: '8px', textAlign: 'center', fontSize: '11px', color: '#ff6677', background: 'rgba(180,0,30,0.25)', border: '1px solid rgba(180,0,30,0.3)', flexShrink: 0 }}>
           {err}
         </div>
       )}
 
-      {/* Betting panel */}
-      <div className="px-3 pt-3 pb-8 space-y-3 flex-shrink-0 mt-auto">
+      {/* ── Bet Panel ── */}
+      <div style={{ flexShrink: 0, padding: '10px 12px 20px', background: '#131313', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Quick amounts */}
-        <div className="grid grid-cols-4 gap-2">
-          {QUICK.map(v => (
-            <button key={v} disabled={!!activeBet || phase === 'flying'} onClick={() => setBetAmt(String(v))}
-              className="py-1.5 rounded-lg text-xs font-bold border border-white/15 hover:border-yellow-400/60 hover:text-yellow-400 transition-colors disabled:opacity-30">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '8px' }}>
+          {[5000, 10000, 25000, 50000].map(v => (
+            <button key={v} disabled={!!activeBet || phase === 'flying'}
+              onClick={() => setBetAmt(String(v))}
+              style={{
+                padding: '5px 0', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
+                background: betAmt === String(v) ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                color: betAmt === String(v) ? '#fff' : '#555',
+                border: betAmt === String(v) ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                opacity: (!!activeBet || phase === 'flying') ? 0.3 : 1,
+              }}>
               {v / 1000}K
             </button>
           ))}
         </div>
 
-        {/* Input + BET */}
-        <div className="flex gap-2">
-          <input type="number" value={betAmt} onChange={e => setBetAmt(e.target.value)}
-            disabled={!!activeBet || phase === 'flying'}
-            className="flex-1 rounded-xl px-4 py-3 text-white font-bold text-sm outline-none disabled:opacity-40"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
-            placeholder="Stavka (UZS)" />
+        {/* Input row */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+          {/* Amount input with ×2 ÷2 */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#1c1c1c', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <input type="number" value={betAmt}
+              onChange={e => setBetAmt(e.target.value)}
+              disabled={!!activeBet || phase === 'flying'}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontWeight: 700, fontSize: '14px', padding: '12px 10px', opacity: (!!activeBet || phase === 'flying') ? 0.4 : 1 }}
+              placeholder="Stavka (UZS)" />
+            <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+              <button disabled={!!activeBet || phase === 'flying'}
+                onClick={() => setBetAmt(v => String(Math.round(parseFloat(v || 0) * 2)))}
+                style={{ background: 'none', border: 'none', color: '#666', fontSize: '10px', padding: '4px 10px', cursor: 'pointer', fontWeight: 700 }}>×2</button>
+              <button disabled={!!activeBet || phase === 'flying'}
+                onClick={() => setBetAmt(v => String(Math.max(1000, Math.round(parseFloat(v || 0) / 2))))}
+                style={{ background: 'none', border: 'none', color: '#666', fontSize: '10px', padding: '4px 10px', cursor: 'pointer', fontWeight: 700, borderTop: '1px solid rgba(255,255,255,0.05)' }}>÷2</button>
+            </div>
+          </div>
 
-          {!(activeBet && phase === 'flying') && (
-            <button onClick={placeBet} disabled={loading || !!activeBet || phase !== 'waiting'}
-              className="px-6 py-3 rounded-xl font-black text-sm transition-all active:scale-95 disabled:opacity-40"
-              style={{ background: activeBet ? '#1a3a1a' : '#ff6935', color: activeBet ? '#4a8a4a' : '#fff', minWidth: '90px' }}>
+          {/* BET / CASHOUT */}
+          {isCashoutActive ? (
+            <button onClick={cashOut} disabled={loading}
+              style={{ flex: 1, borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#00bb44', color: '#000', fontWeight: 900, fontSize: '15px', boxShadow: '0 0 22px rgba(0,180,60,0.45)', transition: 'all .15s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.2 }}>
+              <span>CASH OUT</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, marginTop: '2px', opacity: 0.85 }}>{liveCash.toLocaleString()} UZS</span>
+            </button>
+          ) : (
+            <button onClick={placeBet}
+              disabled={loading || !!activeBet || phase !== 'waiting'}
+              style={{
+                flex: 1, borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 900, fontSize: '16px', transition: 'all .15s',
+                background: activeBet ? '#1a2e1a' : '#00bb44',
+                color: activeBet ? '#3a7a3a' : '#000',
+                opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.5 : 1,
+              }}>
               {loading ? '...' : activeBet ? '✓ TIKILDI' : 'BET'}
             </button>
           )}
         </div>
-
-        {/* CASH OUT big button */}
-        {activeBet && phase === 'flying' && !cashedOut && (
-          <button onClick={cashOut} disabled={loading}
-            className="w-full py-4 rounded-2xl font-black text-lg transition-all active:scale-95"
-            style={{ background: bgCash, color: '#001a0d', boxShadow: '0 0 28px rgba(0,200,80,0.55)' }}>
-            <div>CASH OUT 💰</div>
-            <div className="text-sm font-bold mt-0.5 opacity-90">{liveCash} UZS · {fmt(mult)}</div>
-          </button>
-        )}
       </div>
     </div>
   );
