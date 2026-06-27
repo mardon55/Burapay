@@ -13,8 +13,7 @@ fi
 # Build frontend if build dir doesn't exist
 if [ ! -d "/home/runner/workspace/frontend/build" ]; then
   echo "Building frontend..."
-  cd /home/runner/workspace/frontend
-  GENERATE_SOURCEMAP=false /home/runner/workspace/node_modules/.bin/react-scripts build
+  cd /home/runner/workspace/frontend && GENERATE_SOURCEMAP=false CI=false node_modules/.bin/craco build
   echo "Frontend built"
 fi
 
