@@ -131,7 +131,9 @@ export default function AviatorGame({ user }) {
     const PH = H - PT - PB;
     const ox = PL, oy = H - PB;
 
-    const axisMaxM = pts.length >= 2 ? Math.max(pts[pts.length - 1] * 1.18, 2.0) : 2.0;
+    // Y o'qi diapazonini kengroq tutamiz — chiziq pastda yotiq o'ssin, tikka emas
+    // currentMult * 3.5 → masalan 2x da Y o'qi 7x gacha, chiziq faqat 1/6 balandlikni egallaydi
+    const axisMaxM = pts.length >= 2 ? Math.max(pts[pts.length - 1] * 3.5, 5.0) : 5.0;
     const cy0 = (m) => oy - Math.min((m - 1) / (axisMaxM - 1), 1) * PH;
 
     const fs = Math.max(8, Math.round(10 * dpr));
