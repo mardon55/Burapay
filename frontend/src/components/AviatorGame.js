@@ -21,74 +21,51 @@ function drawSunburst(ctx, W, H) {
   }
 }
 
+let _planeImg = null;
+let _planeImgLoaded = false;
+function getPlaneImage() {
+  if (_planeImg) return _planeImg;
+  _planeImg = new Image();
+  _planeImg.onload = () => { _planeImgLoaded = true; };
+  _planeImg.src = '/neon_plane.png';
+  return _planeImg;
+}
+
 function drawPlane(ctx, x, y, angle, crashed, scale = 1) {
+  const img = getPlaneImage();
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(angle - 0.18);
-  ctx.scale(scale, scale);
+  ctx.rotate(angle - 0.1);
 
-  const col = crashed ? '#ff2244' : '#dd0030';
-  ctx.fillStyle = col;
-  ctx.strokeStyle = '#ff4466';
-  ctx.lineWidth = 1.2 / scale;
-  ctx.shadowColor = '#ff1135';
-  ctx.shadowBlur = 28;
+  const iw = 160 * scale;
+  const ih = iw * (img.naturalHeight / (img.naturalWidth || 160));
 
-  ctx.beginPath();
-  ctx.moveTo(62, 0);
-  ctx.bezierCurveTo(50, -11, 18, -13, -8, -10);
-  ctx.lineTo(-52, -6);
-  ctx.lineTo(-60, 0);
-  ctx.lineTo(-52, 6);
-  ctx.bezierCurveTo(-8, 10, 18, 13, 50, 11);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.beginPath();
-  ctx.ellipse(28, -8, 14, 7, -0.25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.beginPath();
-  ctx.moveTo(18, -10); ctx.lineTo(8, -50); ctx.lineTo(-16, -44); ctx.lineTo(-8, -8);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(18, 10); ctx.lineTo(8, 50); ctx.lineTo(-16, 44); ctx.lineTo(-8, 8);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(-36, -6); ctx.lineTo(-42, -27); ctx.lineTo(-58, -22); ctx.lineTo(-52, -5);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(-36, 6); ctx.lineTo(-42, 27); ctx.lineTo(-58, 22); ctx.lineTo(-52, 5);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(-36, 0); ctx.lineTo(-44, -30); ctx.lineTo(-60, -20); ctx.lineTo(-54, 0);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  ctx.save();
-  ctx.translate(64, 0);
-  const propSpin = (Date.now() / 80) % (Math.PI * 2);
-  for (let i = 0; i < 3; i++) {
-    ctx.save();
-    ctx.rotate(propSpin + (i / 3) * Math.PI * 2);
+  if (_planeImgLoaded) {
+    // Outer glow pass
+    ctx.shadowColor = crashed ? '#ff0022' : '#ff2244';
+    ctx.shadowBlur = 32 * scale;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(img, -iw * 0.6, -ih * 0.5, iw, ih);
+    // Second pass for stronger glow
+    ctx.shadowBlur = 16 * scale;
+    ctx.drawImage(img, -iw * 0.6, -ih * 0.5, iw, ih);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0;
+  } else {
+    // Fallback: simple neon shape while image loads
+    ctx.shadowColor = '#ff2244';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = crashed ? '#ff0022' : '#ff3355';
+    ctx.lineWidth = 2 * scale;
     ctx.beginPath();
-    ctx.ellipse(0, -20, 5, 18, 0.12, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    ctx.restore();
+    ctx.moveTo(60 * scale, 0);
+    ctx.lineTo(-50 * scale, -8 * scale);
+    ctx.lineTo(-60 * scale, 0);
+    ctx.lineTo(-50 * scale, 8 * scale);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
-  ctx.beginPath();
-  ctx.arc(0, 0, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.shadowBlur = 0;
   ctx.restore();
 }
 
@@ -210,17 +187,58 @@ export default function AviatorGame({ user }) {
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
+    // ── Neon outer glow pass ──
     ctx.beginPath();
     pts.forEach((m, i) => {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    ctx.strokeStyle = crashed ? '#ff2244' : '#ff0036';
-    ctx.lineWidth = 2.5 * dpr;
-    ctx.shadowColor = crashed ? '#ff2244' : '#ff0036';
-    ctx.shadowBlur = 10;
+    ctx.strokeStyle = crashed ? 'rgba(255,0,34,0.5)' : 'rgba(255,0,54,0.5)';
+    ctx.lineWidth = 10 * dpr;
+    ctx.shadowColor = crashed ? '#ff0022' : '#ff0036';
+    ctx.shadowBlur = 28;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // ── Neon mid glow pass ──
+    ctx.beginPath();
+    pts.forEach((m, i) => {
+      if (i === 0) ctx.moveTo(cx(i), cy(m));
+      else ctx.lineTo(cx(i), cy(m));
+    });
+    ctx.strokeStyle = crashed ? 'rgba(255,60,80,0.7)' : 'rgba(255,40,80,0.7)';
+    ctx.lineWidth = 4 * dpr;
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+
+    // ── Bright core line ──
+    ctx.beginPath();
+    pts.forEach((m, i) => {
+      if (i === 0) ctx.moveTo(cx(i), cy(m));
+      else ctx.lineTo(cx(i), cy(m));
+    });
+    ctx.strokeStyle = crashed ? '#ff6677' : '#ff8899';
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.shadowBlur = 6;
     ctx.stroke();
     ctx.shadowBlur = 0;
+
+    // ── Neon spark dots along tip ──
+    if (!crashed) {
+      const tipCount = Math.min(12, pts.length);
+      for (let i = pts.length - tipCount; i < pts.length; i++) {
+        const t = (i - (pts.length - tipCount)) / tipCount;
+        const alpha = t * 0.7;
+        const r = (1.5 + t * 2) * dpr;
+        ctx.beginPath();
+        ctx.arc(cx(i), cy(pts[i]), r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,120,140,${alpha})`;
+        ctx.shadowColor = '#ff2244';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
 
     const lx = cx(pts.length - 1);
     const ly = cy(pts[pts.length - 1]);
