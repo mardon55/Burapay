@@ -1,13 +1,17 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Body, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Optional, Literal, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 import asyncio
@@ -73,7 +77,12 @@ def detect_public_url() -> str:
 WEBAPP_URL = detect_public_url()
 bot = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 dp = Dispatcher()
+
+# ── Rate Limiter (slowapi) ─────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 api_router = APIRouter(prefix="/api")
 
 # ── Mostbet Kassa API ─────────────────────────────────────────────────────────
@@ -194,7 +203,12 @@ async def get_settings() -> dict:
         result['required_channels'] = json.loads(result['required_channels'])
     return result
 
-# ── Pydantic models (for API validation only) ─────────────────────────────────
+# ── Pydantic models (hardened — default values + validators) ──────────────────
+VALID_WALLET_TYPES = {
+    'uzcard', 'humo', 'visa', 'mastercard',
+    'mostbet_uzs', 'mostbet_usd', '1xbet_uzs', '1xbet_usd'
+}
+
 class WalletIn(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: str
@@ -202,20 +216,83 @@ class WalletIn(BaseModel):
     expiry: Optional[str] = None
     name: Optional[str] = None
 
+    @field_validator('type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in VALID_WALLET_TYPES:
+            raise ValueError(f"Noto'g'ri hamyon turi: {v}")
+        return v
+
+    @field_validator('number')
+    @classmethod
+    def validate_number(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Raqam bo'sh bo'lishi mumkin emas")
+        if len(v) > 50:
+            raise ValueError("Raqam 50 ta belgidan uzun bo'lishi mumkin emas")
+        return v
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def validate_name(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        return str(v).strip()[:100] or None
+
+
 class TransactionCreate(BaseModel):
     user_id: int
     type: Literal['deposit', 'withdraw']
     amount: float
-    currency: str
-    method: str
+    currency: Literal['UZS', 'USD'] = 'UZS'
+    method: str = 'card'
     wallet_number: Optional[str] = None
     secret_code: Optional[str] = None
+
+    @field_validator('amount')
+    @classmethod
+    def validate_amount(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Summa musbat bo'lishi kerak")
+        if v > 999_999_999:
+            raise ValueError("Summa juda katta")
+        return round(v, 2)
+
+    @field_validator('method')
+    @classmethod
+    def validate_method(cls, v: str) -> str:
+        return v.strip()[:50] if v else 'card'
+
+    @field_validator('wallet_number', 'secret_code', mode='before')
+    @classmethod
+    def validate_optional_str(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s[:100] if s else None
+
 
 class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
     exchange_rate: float = 12800.0
     required_channels: List[dict] = []
+
+    @field_validator('exchange_rate')
+    @classmethod
+    def validate_exchange_rate(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Kurs musbat bo'lishi kerak")
+        return v
+
+    @field_validator('deposit_channel_id', 'withdraw_channel_id', mode='before')
+    @classmethod
+    def validate_channel_id(cls, v: Any) -> Optional[str]:
+        if v is None or v == '':
+            return None
+        return str(v).strip()[:50]
 
 # ── Subscription check ────────────────────────────────────────────────────────
 async def check_subscription(user_id: int) -> dict:
@@ -532,7 +609,8 @@ async def root():
     return {"message": "BuraPay API Running"}
 
 @api_router.post("/auth/login")
-async def login(data: dict = Body(...)):
+@limiter.limit("30/minute")
+async def login(request: Request, data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
     if not telegram_id:
         raise HTTPException(status_code=400, detail="Telegram ID required")
@@ -596,7 +674,8 @@ async def update_language(data: dict = Body(...)):
     return {"status": "ok"}
 
 @api_router.post("/wallets/add")
-async def add_wallet(data: dict = Body(...)):
+@limiter.limit("20/minute")
+async def add_wallet(request: Request, data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
     wallet_data = data.get("wallet")
     if not telegram_id or not wallet_data:
@@ -655,7 +734,8 @@ async def update_wallet(data: dict = Body(...)):
     return {"message": "Hamyon yangilandi"}
 
 @api_router.post("/transactions/create")
-async def create_transaction(tx: TransactionCreate):
+@limiter.limit("10/minute")
+async def create_transaction(request: Request, tx: TransactionCreate):
     user = await get_user_with_wallets(tx.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -987,7 +1067,8 @@ async def api_check_subscription(telegram_id: int):
     return await check_subscription(telegram_id)
 
 @api_router.post("/balance/deposit")
-async def create_balance_deposit(data: dict = Body(...)):
+@limiter.limit("10/minute")
+async def create_balance_deposit(request: Request, data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
     amount = float(data.get("amount", 0))
     if not telegram_id or amount < 1000:
@@ -1089,7 +1170,8 @@ async def reject_balance_deposit_admin(req_id: str):
     return {"status": "rejected"}
 
 @api_router.post("/partnership/apply")
-async def apply_partnership(data: dict = Body(...)):
+@limiter.limit("5/minute")
+async def apply_partnership(request: Request, data: dict = Body(...)):
     telegram_id = data.get("telegram_id")
     bot_token = data.get("bot_token", "").strip()
     bot_name = data.get("bot_name", "").strip()
@@ -1130,6 +1212,7 @@ async def telegram_webhook(request: Request):
     return {"ok": True}
 
 app.include_router(api_router)
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO)
 

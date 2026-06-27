@@ -38,6 +38,33 @@ import {
 } from "lucide-react";
 import axios from "axios";
 
+// ── Axios Global Config & Interceptors ────────────────────────────────────────
+axios.defaults.timeout = 30000;
+
+axios.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const status = error?.response?.status;
+    const detail = error?.response?.data?.detail;
+    const msg = typeof detail === "string" ? detail : null;
+
+    if (status === 429) {
+      toast.error("Juda ko'p so'rov yuborildi. Biroz kuting ⏳");
+    } else if (status === 422) {
+      toast.error(msg || "Ma'lumot noto'g'ri formatda yuborildi");
+    } else if (status >= 500) {
+      toast.error("Tizimda vaqtincha uzilish yuz berdi. Qayta urinib ko'ring 🔄");
+    } else if (!error.response) {
+      if (error.code === "ECONNABORTED") {
+        toast.error("So'rov vaqti tugadi. Internet aloqani tekshiring 📡");
+      } else if (error.message && error.message.includes("Network")) {
+        toast.error("Tarmoq xatosi. Serverga ulanib bo'lmadi 🔌");
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Config
 const API_URL = process.env.REACT_APP_BACKEND_URL + "/api";
 
