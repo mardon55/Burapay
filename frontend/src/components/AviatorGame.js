@@ -35,11 +35,12 @@ _planeImg.onerror = () => { _planeImg.src = '/plane.png'; };
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
 
-  const iw = 60;
-  const ih = 40;
+  if (!loaded) return;
+  const iw = _planeImg.width;
+  const ih = _planeImg.height;
 
-  const xOff = -5;
-  const yOff = -38;
+  const xOff = -(28 / 291) * iw;
+  const yOff = -(172 / 197) * ih;
 
   ctx.save();
   ctx.translate(x, y);
@@ -49,9 +50,7 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.shadowColor = crashed ? '#ff0000' : '#ff4466';
   ctx.shadowBlur  = 14 * scale;
 
-  if (loaded) {
-    ctx.drawImage(_planeImg, xOff, yOff, iw, ih);
-  }
+  ctx.drawImage(_planeImg, xOff, yOff, iw, ih);
 
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
