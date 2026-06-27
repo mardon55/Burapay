@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import casinoImg from "./casino.png";
+import AviatorGame from "./components/AviatorGame";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { 
@@ -1513,10 +1514,61 @@ const Profil = ({ user, lang }) => {
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
                 <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
-                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => {}}/>
+                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => navigate('/casino')}/>
             </div>
         </div>
     );
+};
+
+const Casino = ({ user, lang }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="pb-28 animate-in fade-in duration-300 min-h-screen" style={{ background: '#080d18' }}>
+      <div className="px-4 pt-6 pb-3">
+        <button onClick={() => navigate(-1)} className="text-slate-500 text-sm mb-4 flex items-center gap-1">
+          ← Orqaga
+        </button>
+        <h1 className="text-2xl font-black text-white">🎰 Kazino</h1>
+        <p className="text-sm text-slate-500 mt-0.5">O'yinlar va bonuslar</p>
+      </div>
+
+      <div className="px-4 space-y-3 mt-2">
+        {/* Aviator card */}
+        <button onClick={() => navigate('/aviator')}
+          className="w-full rounded-2xl overflow-hidden transition-all active:scale-95 text-left"
+          style={{ background: 'linear-gradient(135deg,#140825 0%,#1f0d45 60%,#0d1825 100%)', border: '1px solid rgba(255,105,53,0.35)' }}>
+          <div className="p-5 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0"
+              style={{ background: 'rgba(255,105,53,0.13)', border: '1px solid rgba(255,105,53,0.25)' }}>
+              ✈️
+            </div>
+            <div className="flex-1">
+              <div className="font-black text-xl text-white tracking-wide">AVIATOR</div>
+              <div className="text-sm text-slate-400 mt-0.5">Crash o'yini — real vaqt</div>
+              <div className="flex gap-2 mt-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black" style={{ background: '#ff6935', color: '#fff' }}>🔥 HOT</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: '#aaa' }}>Provably Fair</span>
+              </div>
+            </div>
+            <div className="text-slate-600 text-2xl flex-shrink-0">›</div>
+          </div>
+          {/* Animated neon bar */}
+          <div style={{ height: '3px', background: 'linear-gradient(90deg, transparent, #ff6935, transparent)' }} />
+        </button>
+
+        {/* Coming soon placeholder */}
+        <div className="rounded-2xl p-5 flex items-center gap-4 opacity-40"
+          style={{ border: '1px dashed rgba(255,255,255,0.15)' }}>
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl"
+            style={{ background: 'rgba(255,255,255,0.05)' }}>🎰</div>
+          <div>
+            <div className="font-bold text-white">Ko'proq o'yinlar</div>
+            <div className="text-sm text-slate-600 mt-0.5">Tez orada…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const KassaBalance = () => {
@@ -2246,6 +2298,8 @@ function App() {
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
           <Route path="/referral" element={<ReferralPage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
+          <Route path="/casino" element={<Casino user={user} lang={lang} />} />
+          <Route path="/aviator" element={<AviatorGame user={user} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin || isSuperAdmin(user?.telegram_id)} lang={lang} />
       </BrowserRouter>

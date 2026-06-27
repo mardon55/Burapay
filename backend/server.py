@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Body, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Body, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import httpx
 import json
+import math
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart, CommandObject
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
@@ -1215,6 +1216,211 @@ async def telegram_webhook(request: Request):
         logging.error(f"Webhook error: {e}")
     return {"ok": True}
 
+# ── Aviator Crash Game ────────────────────────────────────────────────────────
+_aviator: dict = {
+    "phase": "waiting",
+    "multiplier": 1.0,
+    "crash_point": 2.0,
+    "game_id": None,
+    "countdown": 7,
+    "history": [],
+    "bets": {},
+}
+_aviator_sockets: set = set()
+
+
+def _gen_crash() -> float:
+    h = hashlib.sha256(os.urandom(32)).hexdigest()
+    u = int(h[:8], 16) / (2 ** 32)
+    if u < 0.04:
+        return 1.0
+    return min(round(0.96 / (1 - u), 2), 500.0)
+
+
+async def _avi_broadcast(msg: dict):
+    dead = set()
+    text = json.dumps(msg)
+    for ws in list(_aviator_sockets):
+        try:
+            await ws.send_text(text)
+        except Exception:
+            dead.add(ws)
+    _aviator_sockets.difference_update(dead)
+
+
+async def aviator_game_loop():
+    while True:
+        try:
+            await _aviator_round()
+        except Exception as exc:
+            logging.error(f"Aviator loop error: {exc}")
+            await asyncio.sleep(5)
+
+
+async def _aviator_round():
+    global _aviator
+    crash_point = _gen_crash()
+    game_id = str(uuid.uuid4())
+
+    await execute(
+        "INSERT INTO aviator_games (id, crash_point, status) VALUES (:id, :cp, 'waiting')",
+        {"id": game_id, "cp": crash_point}
+    )
+
+    _aviator.update({
+        "phase": "waiting", "multiplier": 1.0,
+        "crash_point": crash_point, "game_id": game_id, "bets": {}
+    })
+
+    for sec in range(7, 0, -1):
+        _aviator["countdown"] = sec
+        await _avi_broadcast({
+            "type": "waiting", "countdown": sec,
+            "game_id": game_id, "history": _aviator["history"]
+        })
+        await asyncio.sleep(1)
+
+    _aviator["phase"] = "flying"
+    await execute(
+        "UPDATE aviator_games SET status='flying', started_at=NOW() WHERE id=:id",
+        {"id": game_id}
+    )
+
+    loop = asyncio.get_event_loop()
+    start = loop.time()
+    while True:
+        elapsed = loop.time() - start
+        m = round(math.e ** (0.07 * elapsed), 2)
+        _aviator["multiplier"] = m
+        if m >= crash_point:
+            _aviator["multiplier"] = crash_point
+            break
+        await _avi_broadcast({"type": "flying", "multiplier": m, "game_id": game_id})
+        await asyncio.sleep(0.1)
+
+    _aviator["phase"] = "crashed"
+    for tid, bet in list(_aviator["bets"].items()):
+        if not bet["cashed_out"]:
+            await execute(
+                "UPDATE aviator_bets SET result='lost', profit=:p WHERE id=:id",
+                {"p": -bet["amount"], "id": bet["id"]}
+            )
+    await execute(
+        "UPDATE aviator_games SET status='crashed', ended_at=NOW() WHERE id=:id",
+        {"id": game_id}
+    )
+    hist = _aviator["history"]
+    hist.insert(0, crash_point)
+    _aviator["history"] = hist[:20]
+
+    await _avi_broadcast({
+        "type": "crashed", "crash_point": crash_point,
+        "game_id": game_id, "history": _aviator["history"]
+    })
+    await asyncio.sleep(4)
+
+
+@api_router.websocket("/aviator/ws")
+async def aviator_ws(websocket: WebSocket):
+    await websocket.accept()
+    _aviator_sockets.add(websocket)
+    try:
+        await websocket.send_text(json.dumps({
+            "type": _aviator["phase"],
+            "multiplier": _aviator["multiplier"],
+            "countdown": _aviator.get("countdown", 7),
+            "game_id": _aviator["game_id"],
+            "history": _aviator["history"],
+        }))
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        pass
+    finally:
+        _aviator_sockets.discard(websocket)
+
+
+@api_router.post("/aviator/bet")
+@limiter.limit("15/minute")
+async def aviator_place_bet(request: Request, data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    amount = float(data.get("amount", 0))
+    if not telegram_id:
+        raise HTTPException(status_code=400, detail="telegram_id kerak")
+    if amount < 1000:
+        raise HTTPException(status_code=400, detail="Minimal stavka: 1,000 UZS")
+    if _aviator["phase"] != "waiting":
+        raise HTTPException(status_code=400, detail="Faqat kutish vaqtida tikish mumkin")
+    tid = str(telegram_id)
+    if tid in _aviator["bets"]:
+        raise HTTPException(status_code=400, detail="Siz allaqachon tikdingiz")
+    user = await fetchone(
+        "SELECT balance_uzs FROM users WHERE telegram_id=:t", {"t": int(telegram_id)}
+    )
+    if not user or user["balance_uzs"] < amount:
+        raise HTTPException(status_code=400, detail="Balansingiz yetarli emas")
+    await execute(
+        "UPDATE users SET balance_uzs = balance_uzs - :a WHERE telegram_id=:t",
+        {"a": amount, "t": int(telegram_id)}
+    )
+    bet_id = str(uuid.uuid4())
+    await execute(
+        "INSERT INTO aviator_bets (id, game_id, user_telegram_id, amount, result) "
+        "VALUES (:id, :gid, :tid, :amt, 'pending')",
+        {"id": bet_id, "gid": _aviator["game_id"], "tid": int(telegram_id), "amt": amount}
+    )
+    _aviator["bets"][tid] = {"id": bet_id, "amount": amount, "cashed_out": False}
+    return {"status": "ok", "bet_id": bet_id, "amount": amount}
+
+
+@api_router.post("/aviator/cashout")
+async def aviator_cashout_api(data: dict = Body(...)):
+    telegram_id = str(data.get("telegram_id"))
+    if _aviator["phase"] != "flying":
+        raise HTTPException(status_code=400, detail="O'yin uchmoqda emas")
+    bet = _aviator["bets"].get(telegram_id)
+    if not bet:
+        raise HTTPException(status_code=400, detail="Siz bu raundda tikmadingiz")
+    if bet["cashed_out"]:
+        raise HTTPException(status_code=400, detail="Allaqachon yechdingiz")
+    m = _aviator["multiplier"]
+    winnings = round(bet["amount"] * m, 2)
+    profit = round(winnings - bet["amount"], 2)
+    bet["cashed_out"] = True
+    await execute(
+        "UPDATE users SET balance_uzs = balance_uzs + :w WHERE telegram_id=:t",
+        {"w": winnings, "t": int(data.get("telegram_id"))}
+    )
+    await execute(
+        "UPDATE aviator_bets SET result='won', cashout_multiplier=:m, profit=:p WHERE id=:id",
+        {"m": m, "p": profit, "id": bet["id"]}
+    )
+    return {"status": "ok", "multiplier": m, "winnings": winnings, "profit": profit}
+
+
+@api_router.get("/aviator/state")
+async def aviator_state_api():
+    return {
+        "phase": _aviator["phase"],
+        "multiplier": _aviator["multiplier"],
+        "countdown": _aviator.get("countdown", 0),
+        "game_id": _aviator["game_id"],
+        "history": _aviator["history"][:10],
+    }
+
+
+@api_router.get("/aviator/history")
+async def aviator_history_api():
+    rows = await fetchall(
+        "SELECT crash_point, created_at FROM aviator_games "
+        "WHERE status='crashed' ORDER BY created_at DESC LIMIT 20"
+    )
+    for r in rows:
+        if isinstance(r.get("created_at"), datetime):
+            r["created_at"] = r["created_at"].isoformat()
+    return rows
+
+
 app.include_router(api_router)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1326,6 +1532,26 @@ async def create_tables():
                 status VARCHAR(20) DEFAULT 'active',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS aviator_games (
+                id VARCHAR(100) PRIMARY KEY,
+                crash_point NUMERIC(10,2) NOT NULL,
+                status VARCHAR(20) DEFAULT 'waiting',
+                started_at TIMESTAMPTZ,
+                ended_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS aviator_bets (
+                id VARCHAR(100) PRIMARY KEY,
+                game_id VARCHAR(100),
+                user_telegram_id BIGINT,
+                amount NUMERIC(18,2) NOT NULL,
+                cashout_multiplier NUMERIC(10,2),
+                result VARCHAR(20) DEFAULT 'pending',
+                profit NUMERIC(18,2),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
         """)
         # settings jadvalida kamida bitta yozuv bo'lishi kerak
         await conn.execute("""
@@ -1343,6 +1569,9 @@ async def startup():
 
     # 2. Jadvallarni avtomatik yaratish (Railway/yangi muhit uchun)
     await create_tables()
+
+    # 2b. Aviator game loop ni ishga tushirish
+    asyncio.create_task(aviator_game_loop())
 
     # 3. Health check — pool ishlayotganini tasdiqlash
     status = await db_health_check()

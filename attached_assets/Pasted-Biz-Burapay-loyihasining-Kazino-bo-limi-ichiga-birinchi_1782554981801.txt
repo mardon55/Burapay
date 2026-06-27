@@ -1,0 +1,24 @@
+Biz "Burapay" loyihasining "Kazino" bo'limi ichiga birinchi o'yin — "Aviator" (Crash) o'yinini qo'shishimiz kerak. Uni xuddi professional platformalardagidek (Mostbet kabi) ishlaydigan mukammal tizimda yaratishingizni so'rayman.
+
+Quyidagi talablarni birin-ketin amalga oshir:
+
+1. UI/UX va Vizual qism (Frontend):
+   - Kazino bo'limiga kirganda chiroyli neon uslubidagi samolyot ikonkali "Aviator" tugmasi bo'lsin.
+   - Tugma bosilganda alohida o'yin oynasi ochilsin. Fon to'q ko'k/qora (BuraPay dizayniga mos) bo'lishi kerak.
+   - Markazda HTML5 Canvas yoki zamonaviy CSS animatsiya yordamida uchadigan qizil neon samolyot trayektoriyasi chizilsin.
+   - Samolyot uchayotganda ekran markazida juda yirik shriftdagi o'sib boruvchi koeffitsient (X) ko'rinib tursin (masalan: 1.00x, 1.50x, 2.40x...).
+   - Samolyot uchib ketganda (Crash bo'lganda) ekran qizil rangga kirib, "FLEW AWAY! (Uchib ketdi)" yozuvi chiqsin va animatsiya to'xtasin.
+   - Tepada oxirgi 5 ta raundning yutuqli koeffitsientlari tarixi chiroyli dumaloq indicatorlar ichida ko'rinsin.
+
+2. Tikish paneli (Stavka tizimi):
+   - Foydalanuvchi "Stavka miqdori"ni kiritadigan va "BET" (Garov tikish) tugmasini bosadigan oyna bo'lsin.
+   - Samolyot uchishidan oldin (5 soniyalik tayyorgarlik vaqtida) foydalanuvchi pul tikishga ulgurishi kerak.
+   - O'yin boshlangach, "BET" tugmasi yorqin "CASH OUT" (Pulni yechish) tugmasiga aylansin va unda joriy yutuq miqdori (Stavka * joriy X) jonli hisoblanib tursin.
+
+3. Backend va Algoritm (FastAPI + PostgreSQL):
+   - Tasodifiy sonlar generatori (RNG - Provably Fair algoritmi) har bir raund uchun samolyot aynan qaysi koeffitsientda uchib ketishini (Crash nuqtasini) oldindan aniqlasin.
+   - Foydalanuvchi "CASH OUT" tugmasini samolyot uchib ketguncha bossa, uning balansi (UZS) yutuq miqdoriga ko'payib, PostgreSQL bazasida yangilansin.
+   - Agar ulgurmasa, tikilgan pul balansdan chegirilsin va bazaga yozilsin.
+   - Real-time aloqani ta'minlash uchun WebSocket yoki tezkor API so'rovlaridan foydalan.
+
+Iltimos, barcha frontend va backend kodlarini yozib, xatoliksiz integratsiya qil va GitHub-ga push qil.
