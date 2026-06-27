@@ -50,15 +50,33 @@
   }
 }
 
-/* Telegram Mini App: block all pull-to-refresh and swipe-to-close at CSS level */
-html,
-body,
-#root {
+/* Telegram Mini App: true full-screen */
+html {
+  height: 100vh;
+  height: var(--tg-viewport-stable-height, 100vh);
   overscroll-behavior: none;
-  touch-action: pan-x pan-y;
   overflow: hidden;
+}
+
+body {
+  height: 100vh;
+  height: var(--tg-viewport-stable-height, 100vh);
+  overscroll-behavior: none;
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+#root {
   height: 100%;
   width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Allow vertical scroll only inside explicitly scrollable containers */

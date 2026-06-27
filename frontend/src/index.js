@@ -3,6 +3,16 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 
+// Update CSS variable for Telegram viewport height
+function setViewportHeight() {
+  if (window.Telegram?.WebApp?.viewportStableHeight) {
+    document.documentElement.style.setProperty(
+      "--tg-viewport-stable-height",
+      window.Telegram.WebApp.viewportStableHeight + "px"
+    );
+  }
+}
+
 // Telegram Mini App initialization
 if (window.Telegram?.WebApp) {
   const tg = window.Telegram.WebApp;
@@ -24,19 +34,26 @@ if (window.Telegram?.WebApp) {
 
   // 4. Show confirmation dialog on accidental close attempt
   tg.enableClosingConfirmation();
+
+  // 5. Set initial viewport height
+  setViewportHeight();
+
+  // 6. Update viewport height on change (keyboard open/close etc.)
+  tg.onEvent("viewportChanged", () => {
+    tg.expand();
+    setViewportHeight();
+  });
 }
 
 // CSS fallback: block overscroll / pull-to-refresh at the DOM level
 document.documentElement.style.overscrollBehavior = "none";
 document.body.style.overscrollBehavior = "none";
-document.documentElement.style.touchAction = "none";
-document.body.style.touchAction = "none";
 
 // JS fallback: prevent touchmove on non-scrollable elements
 document.addEventListener(
   "touchmove",
   (e) => {
-    if (e.touches.length > 1) return; // allow pinch-zoom
+    if (e.touches.length > 1) return;
     const isScrollable = (node) => {
       if (!node || node === document.body) return false;
       const { overflowY } = window.getComputedStyle(node);
