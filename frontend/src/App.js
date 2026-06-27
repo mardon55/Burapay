@@ -32,6 +32,7 @@ import {
   Plus,
   Coins,
   Shield,
+  Gamepad2,
   ChevronDown
 } from "lucide-react";
 import axios from "axios";
@@ -1484,6 +1485,7 @@ const Profil = ({ user, lang }) => {
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
                 <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
+                <NavCard icon={<Gamepad2 size={20}/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => {}}/>
             </div>
         </div>
     );
