@@ -39,11 +39,12 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const iw = Math.max(80 * scale, canvasW * 0.18);
   const ih = loaded ? iw * (_planeImg.naturalHeight / _planeImg.naturalWidth) : iw * 0.46;
 
-  // (x, y) is the curve tip — translate there, rotate, then draw the plane
-  // so its TAIL (left-middle of the image) sits exactly at the origin.
-  // drawImage offset: left edge at 0, vertically centered on the mid-line of the image.
-  ctx.translate(x, y);
-  ctx.rotate(angle);
+  // 1. Burchakni keskin kamaytirish — samolyot raketaga o'xshamasligi uchun
+  const flatAngle = angle * 0.15;
+  const cappedAngle = Math.min(Math.max(flatAngle, -0.08), 0.08); // max ~4.6 daraja
+
+  ctx.translate(x, y); // Chiziqning eng oxirgi nuqtasiga siljish
+  ctx.rotate(cappedAngle); // Samolyotni deyarli tekis holatda ushlash
 
   if (crashed) ctx.globalAlpha = 0.6;
 
@@ -51,9 +52,9 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.shadowBlur  = 14 * scale;
 
   if (loaded) {
-    // Tail (left edge) anchored at origin; plane extends to the right.
-    // Shift up by half the image height so the mid-fuselage belly aligns with the curve.
-    ctx.drawImage(_planeImg, 0, -ih * 0.5, iw, ih);
+    // 2. Rasmning chap-yuqori burchagi (dum qismi) chiziq uchida tursin,
+    //    tanasi o'ngga, qanoti yuqoriga qarab ketsin
+    ctx.drawImage(_planeImg, 0, -ih * 0.85, iw, ih);
   }
 
   ctx.shadowBlur = 0;
