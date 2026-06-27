@@ -4,19 +4,34 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
-function drawSunburst(ctx, W, H) {
-  const cx = W * 0.08, cy = H * 0.92;
-  const rays = 28;
-  const len = Math.sqrt(W * W + H * H) * 1.6;
+function drawBackground(ctx, W, H, crashed) {
+  // Base fill — near-black
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, W, H);
+
+  // Radial glow in center (purple/violet like reference)
+  const gCx = W * 0.42, gCy = H * 0.38;
+  const gRad = Math.max(W, H) * 0.72;
+  const purpleGlow = ctx.createRadialGradient(gCx, gCy, 0, gCx, gCy, gRad);
+  purpleGlow.addColorStop(0,   crashed ? 'rgba(120,0,30,0.55)' : 'rgba(80,20,140,0.52)');
+  purpleGlow.addColorStop(0.4, crashed ? 'rgba(80,0,20,0.28)' : 'rgba(50,10,100,0.25)');
+  purpleGlow.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = purpleGlow;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sunburst rays from bottom-left (like reference)
+  const sx = W * 0.06, sy = H * 0.94;
+  const rays = 32;
+  const len = Math.sqrt(W * W + H * H) * 1.8;
   for (let i = 0; i < rays; i++) {
-    const a1 = -Math.PI * 0.1 + (i / rays) * Math.PI * 1.6;
-    const a2 = -Math.PI * 0.1 + ((i + 0.5) / rays) * Math.PI * 1.6;
+    const a1 = -Math.PI * 0.12 + (i / rays) * Math.PI * 1.55;
+    const a2 = -Math.PI * 0.12 + ((i + 0.48) / rays) * Math.PI * 1.55;
     ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(a1) * len, cy + Math.sin(a1) * len);
-    ctx.lineTo(cx + Math.cos(a2) * len, cy + Math.sin(a2) * len);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(a1) * len, sy + Math.sin(a1) * len);
+    ctx.lineTo(sx + Math.cos(a2) * len, sy + Math.sin(a2) * len);
     ctx.closePath();
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.022)' : 'rgba(0,0,0,0)';
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0)';
     ctx.fill();
   }
 }
@@ -119,10 +134,8 @@ export default function AviatorGame({ user }) {
     const ph = phaseRef.current;
     const pts = ptsRef.current;
 
-    ctx.fillStyle = '#0c0c0c';
-    ctx.fillRect(0, 0, W, H);
-
-    drawSunburst(ctx, W, H);
+    const crashed = ph === 'crashed';
+    drawBackground(ctx, W, H, crashed);
 
     const dpr = window.devicePixelRatio || 1;
     const PL = 44 * dpr, PR = 14 * dpr, PT = 14 * dpr, PB = 28 * dpr;
@@ -166,17 +179,18 @@ export default function AviatorGame({ user }) {
     const maxM = axisMaxM;
     const cx = (i) => ox + (i / Math.max(pts.length - 1, 1)) * PW;
     const cy = (m) => oy - Math.min((m - 1) / (maxM - 1), 1) * PH;
-    const crashed = ph === 'crashed';
 
+    // ── Filled area under the curve (solid, like reference) ──
     ctx.beginPath();
     ctx.moveTo(ox, oy);
     pts.forEach((m, i) => ctx.lineTo(cx(i), cy(m)));
     ctx.lineTo(cx(pts.length - 1), oy);
     ctx.closePath();
 
-    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
-    fillGrad.addColorStop(0, crashed ? 'rgba(160,0,40,0.7)' : 'rgba(140,0,35,0.65)');
-    fillGrad.addColorStop(1, crashed ? 'rgba(80,0,20,0.2)' : 'rgba(60,0,15,0.2)');
+    const fillGrad = ctx.createLinearGradient(0, cy(pts[pts.length - 1]), 0, oy);
+    fillGrad.addColorStop(0,   crashed ? 'rgba(180,0,40,0.92)' : 'rgba(160,0,35,0.88)');
+    fillGrad.addColorStop(0.5, crashed ? 'rgba(140,0,30,0.82)' : 'rgba(120,0,28,0.78)');
+    fillGrad.addColorStop(1,   crashed ? 'rgba(80,0,15,0.75)'  : 'rgba(60,0,12,0.72)');
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
@@ -186,10 +200,10 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    ctx.strokeStyle = crashed ? 'rgba(255,0,34,0.5)' : 'rgba(255,0,54,0.5)';
-    ctx.lineWidth = 10 * dpr;
+    ctx.strokeStyle = crashed ? 'rgba(255,0,34,0.55)' : 'rgba(255,0,54,0.55)';
+    ctx.lineWidth = 12 * dpr;
     ctx.shadowColor = crashed ? '#ff0022' : '#ff0036';
-    ctx.shadowBlur = 28;
+    ctx.shadowBlur = 32;
     ctx.lineCap = 'round';
     ctx.stroke();
 
@@ -199,9 +213,9 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    ctx.strokeStyle = crashed ? 'rgba(255,60,80,0.7)' : 'rgba(255,40,80,0.7)';
-    ctx.lineWidth = 4 * dpr;
-    ctx.shadowBlur = 14;
+    ctx.strokeStyle = crashed ? 'rgba(255,60,80,0.75)' : 'rgba(255,40,80,0.75)';
+    ctx.lineWidth = 5 * dpr;
+    ctx.shadowBlur = 16;
     ctx.stroke();
 
     // ── Bright core line ──
@@ -210,9 +224,9 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    ctx.strokeStyle = crashed ? '#ff6677' : '#ff8899';
-    ctx.lineWidth = 1.5 * dpr;
-    ctx.shadowBlur = 6;
+    ctx.strokeStyle = crashed ? '#ff8888' : '#ffaaaa';
+    ctx.lineWidth = 2 * dpr;
+    ctx.shadowBlur = 8;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
