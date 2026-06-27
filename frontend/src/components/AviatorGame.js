@@ -21,51 +21,124 @@ function drawSunburst(ctx, W, H) {
   }
 }
 
-let _planeImg = null;
-let _planeImgLoaded = false;
-function getPlaneImage() {
-  if (_planeImg) return _planeImg;
-  _planeImg = new Image();
-  _planeImg.onload = () => { _planeImgLoaded = true; };
-  _planeImg.src = '/neon_plane.png';
-  return _planeImg;
+// Neon tube stroke helper — draws the same path multiple times for glow layering
+function neonStroke(ctx, color, outerBlur, outerWidth, innerBlur, innerWidth, coreColor) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = outerWidth;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = outerBlur;
+  ctx.stroke();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = innerWidth;
+  ctx.shadowBlur = innerBlur;
+  ctx.stroke();
+
+  ctx.strokeStyle = coreColor;
+  ctx.lineWidth = Math.max(1, innerWidth * 0.4);
+  ctx.shadowBlur = 4;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
 }
 
-function drawPlane(ctx, x, y, angle, crashed, scale = 1) {
-  const img = getPlaneImage();
+function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle - 0.1);
 
-  const iw = 160 * scale;
-  const ih = iw * (img.naturalHeight / (img.naturalWidth || 160));
+  // Pull back from curve tip so full plane stays on screen
+  const offset = Math.max(70, canvasW * 0.09) * scale;
+  ctx.translate(
+    x - offset * Math.cos(angle),
+    y - offset * Math.sin(angle)
+  );
+  ctx.rotate(angle);
 
-  if (_planeImgLoaded) {
-    // Outer glow pass
-    ctx.shadowColor = crashed ? '#ff0022' : '#ff2244';
-    ctx.shadowBlur = 32 * scale;
-    ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(img, -iw * 0.6, -ih * 0.5, iw, ih);
-    // Second pass for stronger glow
-    ctx.shadowBlur = 16 * scale;
-    ctx.drawImage(img, -iw * 0.6, -ih * 0.5, iw, ih);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.shadowBlur = 0;
-  } else {
-    // Fallback: simple neon shape while image loads
-    ctx.shadowColor = '#ff2244';
-    ctx.shadowBlur = 20;
-    ctx.strokeStyle = crashed ? '#ff0022' : '#ff3355';
-    ctx.lineWidth = 2 * scale;
+  const s = scale;
+  const neon = crashed ? '#ff0011' : '#ff1133';
+  const core = crashed ? '#ff8899' : '#ff99aa';
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // ── Fuselage ─────────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(75 * s, 0);                        // nose
+  ctx.bezierCurveTo(55 * s, -10 * s, 15 * s, -12 * s, -10 * s, -9 * s);
+  ctx.lineTo(-58 * s, -5 * s);                  // tail top
+  ctx.lineTo(-68 * s, 0);                       // tail end
+  ctx.lineTo(-58 * s, 5 * s);                   // tail bottom
+  ctx.bezierCurveTo(-10 * s, 9 * s, 15 * s, 12 * s, 55 * s, 10 * s);
+  ctx.closePath();
+  neonStroke(ctx, neon, 22 * s, 5 * s, 10 * s, 3 * s, core);
+
+  // ── Main wing (upper) ────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(20 * s, -9 * s);
+  ctx.lineTo(5 * s, -52 * s);
+  ctx.lineTo(-22 * s, -45 * s);
+  ctx.lineTo(-10 * s, -9 * s);
+  ctx.closePath();
+  neonStroke(ctx, neon, 20 * s, 4 * s, 8 * s, 2.5 * s, core);
+
+  // ── Main wing (lower) ────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(20 * s, 9 * s);
+  ctx.lineTo(5 * s, 52 * s);
+  ctx.lineTo(-22 * s, 45 * s);
+  ctx.lineTo(-10 * s, 9 * s);
+  ctx.closePath();
+  neonStroke(ctx, neon, 20 * s, 4 * s, 8 * s, 2.5 * s, core);
+
+  // ── Horizontal stabilizers ───────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(-40 * s, -5 * s);
+  ctx.lineTo(-48 * s, -26 * s);
+  ctx.lineTo(-62 * s, -21 * s);
+  ctx.lineTo(-56 * s, -5 * s);
+  ctx.closePath();
+  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
+
+  ctx.beginPath();
+  ctx.moveTo(-40 * s, 5 * s);
+  ctx.lineTo(-48 * s, 26 * s);
+  ctx.lineTo(-62 * s, 21 * s);
+  ctx.lineTo(-56 * s, 5 * s);
+  ctx.closePath();
+  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
+
+  // ── Vertical fin ─────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(-40 * s, 0);
+  ctx.lineTo(-50 * s, -28 * s);
+  ctx.lineTo(-65 * s, -18 * s);
+  ctx.lineTo(-58 * s, 0);
+  ctx.closePath();
+  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
+
+  // ── Propeller circle ─────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.arc(75 * s, 0, 8 * s, 0, Math.PI * 2);
+  neonStroke(ctx, neon, 18 * s, 3 * s, 8 * s, 2 * s, core);
+
+  // Spinning blades
+  ctx.save();
+  ctx.translate(75 * s, 0);
+  const spin = (Date.now() / 60) % (Math.PI * 2);
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.rotate(spin + (i / 3) * Math.PI * 2);
     ctx.beginPath();
-    ctx.moveTo(60 * scale, 0);
-    ctx.lineTo(-50 * scale, -8 * scale);
-    ctx.lineTo(-60 * scale, 0);
-    ctx.lineTo(-50 * scale, 8 * scale);
-    ctx.closePath();
+    ctx.ellipse(0, -18 * s, 3.5 * s, 14 * s, 0.1, 0, Math.PI * 2);
+    ctx.strokeStyle = neon;
+    ctx.lineWidth = 2 * s;
+    ctx.shadowColor = neon;
+    ctx.shadowBlur = 12 * s;
     ctx.stroke();
     ctx.shadowBlur = 0;
+    ctx.restore();
   }
+  ctx.restore();
+
   ctx.restore();
 }
 
@@ -166,7 +239,7 @@ export default function AviatorGame({ user }) {
     const planeScale = Math.max(0.4, Math.min(1.0, (W / dpr) / 720));
 
     if (pts.length < 2) {
-      drawPlane(ctx, ox + 10 * dpr, oy, 0, false, planeScale * dpr);
+      drawPlane(ctx, ox + 10 * dpr, oy, 0, false, planeScale * dpr, W);
       return;
     }
 
@@ -248,9 +321,9 @@ export default function AviatorGame({ user }) {
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const angle = Math.atan2(ly - prevY, lx - prevX);
-      drawPlane(ctx, lx, ly, angle, false, planeScale * dpr);
+      drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
-      drawPlane(ctx, lx, ly, Math.PI * 0.3, true, planeScale * dpr);
+      drawPlane(ctx, lx, ly, Math.PI * 0.3, true, planeScale * dpr, W);
     }
   }, []);
 
