@@ -26,6 +26,7 @@ import {
   Megaphone,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ArrowDownUp,
   Key,
   Trash2,
   Plus,
@@ -212,7 +213,7 @@ const BottomNav = ({ isAdmin, lang }) => {
 
   const navItems = [
     { icon: <Wallet size={22} />, label: t.home, path: "/", match: ["/"] },
-    { icon: <ArrowUpRight size={22} />, label: t.otkazmalar, path: "/transfers", match: ["/transfers", "/deposit"] },
+    { icon: <ArrowDownUp size={22} />, label: t.otkazmalar, path: "/transfers", match: ["/transfers", "/deposit"] },
     { icon: <History size={22} />, label: "Hisobotlar", path: "/reports", match: ["/reports"] },
     { icon: <CreditCard size={22} />, label: "Profil", path: "/profile", match: ["/profile", "/profil"] },
   ];
