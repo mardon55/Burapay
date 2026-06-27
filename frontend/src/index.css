@@ -74,8 +74,8 @@ body {
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
+  padding-bottom: var(--safe-bottom, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
 
