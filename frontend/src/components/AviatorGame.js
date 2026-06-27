@@ -241,12 +241,18 @@ export default function AviatorGame({ user }) {
 
     if (!crashed) {
       // Use a wider window for smoother angle, cap tilt to max ~28° upward
-      const refIdx = Math.max(0, pts.length - 10);
+      // Use a wide lookback window (40 pts) so the slope is the long-range trajectory,
+      // not a momentary spike. Then blend 60% toward horizontal so the plane always
+      // looks like it's gliding forward. Hard cap at 10° so it never looks like a rocket.
+      const MAX_ANGLE = Math.PI / 18; // 10 degrees
+      const lookback = Math.min(40, pts.length - 1);
+      const refIdx = Math.max(0, pts.length - 1 - lookback);
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const rawAngle = Math.atan2(ly - prevY, lx - prevX);
-      // Canvas Y is inverted: negative angle = nose up. Hard cap at 15° so it looks like a plane, not a rocket.
-      const angle = Math.max(-Math.PI / 12, Math.min(0, rawAngle));
+      // Blend toward 0 (horizontal) by 60% — keeps plane aerodynamic even on steep climbs
+      const blended = rawAngle * 0.4;
+      const angle = Math.max(-MAX_ANGLE, Math.min(0, blended));
       drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
       drawPlane(ctx, lx, ly, Math.PI * 0.22, true, planeScale * dpr, W);
