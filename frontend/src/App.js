@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import casinoImg from "./casino.png";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { 
@@ -1485,7 +1486,7 @@ const Profil = ({ user, lang }) => {
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
                 <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
-                <NavCard icon={<img src="/casino.png" alt="kazino" className="w-5 h-5 object-contain"/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => {}}/>
+                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => {}}/>
             </div>
         </div>
     );
