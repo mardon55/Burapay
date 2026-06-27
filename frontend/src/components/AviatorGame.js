@@ -22,46 +22,107 @@ function drawSunburst(ctx, W, H) {
   }
 }
 
-// Draw airplane silhouette
+// Draw detailed airplane silhouette (large, clear)
 function drawPlane(ctx, x, y, angle, crashed) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(angle - 0.15);
-  const col = crashed ? '#ff2244' : '#e8003d';
+  ctx.rotate(angle - 0.18);
+
+  const col = crashed ? '#ff2244' : '#dd0030';
   ctx.fillStyle = col;
-  ctx.strokeStyle = col;
-  ctx.shadowColor = col;
-  ctx.shadowBlur = crashed ? 20 : 10;
+  ctx.strokeStyle = '#ff4466';
+  ctx.lineWidth = 1.2;
+  ctx.shadowColor = '#ff1135';
+  ctx.shadowBlur = 28;
 
-  // Fuselage
+  // ── Fuselage ──────────────────────────────────────────────
   ctx.beginPath();
-  ctx.moveTo(32, 0);
-  ctx.bezierCurveTo(20, -6, -10, -5, -22, -1);
-  ctx.bezierCurveTo(-10, 1, 20, 6, 32, 0);
-  ctx.fill();
-
-  // Main wing
-  ctx.beginPath();
-  ctx.moveTo(8, -2);
-  ctx.lineTo(4, -24);
-  ctx.lineTo(-12, -16);
-  ctx.lineTo(-7, -1);
+  ctx.moveTo(62, 0);                          // nose tip
+  ctx.bezierCurveTo(50, -11, 18, -13, -8, -10);
+  ctx.lineTo(-52, -6);                        // tail top
+  ctx.lineTo(-60, 0);                         // tail end
+  ctx.lineTo(-52, 6);                         // tail bottom
+  ctx.bezierCurveTo(-8, 10, 18, 13, 50, 11);
   ctx.closePath();
   ctx.fill();
+  ctx.stroke();
 
-  // Tail fin
+  // ── Cockpit canopy (dark oval cutout) ────────────────────
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.beginPath();
-  ctx.moveTo(-14, -1);
-  ctx.lineTo(-18, -13);
-  ctx.lineTo(-24, -9);
-  ctx.lineTo(-20, 0);
+  ctx.ellipse(28, -8, 14, 7, -0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // ── Main wings ────────────────────────────────────────────
+  // Left wing (up)
+  ctx.beginPath();
+  ctx.moveTo(18, -10);
+  ctx.lineTo(8, -50);
+  ctx.lineTo(-16, -44);
+  ctx.lineTo(-8, -8);
   ctx.closePath();
   ctx.fill();
+  ctx.stroke();
 
-  // Engine pod
+  // Right wing (down)
   ctx.beginPath();
-  ctx.ellipse(2, -10, 5, 2.5, -0.3, 0, Math.PI * 2);
+  ctx.moveTo(18, 10);
+  ctx.lineTo(8, 50);
+  ctx.lineTo(-16, 44);
+  ctx.lineTo(-8, 8);
+  ctx.closePath();
   ctx.fill();
+  ctx.stroke();
+
+  // ── Horizontal stabilizers ────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(-36, -6);
+  ctx.lineTo(-42, -27);
+  ctx.lineTo(-58, -22);
+  ctx.lineTo(-52, -5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-36, 6);
+  ctx.lineTo(-42, 27);
+  ctx.lineTo(-58, 22);
+  ctx.lineTo(-52, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // ── Vertical fin ──────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(-36, 0);
+  ctx.lineTo(-44, -30);
+  ctx.lineTo(-60, -20);
+  ctx.lineTo(-54, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // ── Propeller (3 blades) ──────────────────────────────────
+  ctx.save();
+  ctx.translate(64, 0);
+  const propSpin = (Date.now() / 80) % (Math.PI * 2);
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.rotate(propSpin + (i / 3) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.ellipse(0, -20, 5, 18, 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Hub
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -110,16 +171,43 @@ export default function AviatorGame({ user }) {
     // Sunburst
     drawSunburst(ctx, W, H);
 
-    if (pts.length < 2) return;
-
-    const maxM = Math.max(pts[pts.length - 1] * 1.18, 2.0);
     const PL = 50, PR = 18, PT = 18, PB = 32;
     const PW = W - PL - PR;
     const PH = H - PT - PB;
+    const ox = PL, oy = H - PB;
 
-    const ox = PL;
-    const oy = H - PB;
+    // Always draw axes even if no data yet
+    const axisMaxM = pts.length >= 2 ? Math.max(pts[pts.length - 1] * 1.18, 2.0) : 2.0;
+    const cy0 = (m) => oy - Math.min((m - 1) / (axisMaxM - 1), 1) * PH;
 
+    // Y-axis
+    for (let i = 1; i <= 5; i++) {
+      const m = 1 + (i / 5) * (axisMaxM - 1);
+      const yy = cy0(m);
+      ctx.setLineDash([3, 6]);
+      ctx.beginPath(); ctx.moveTo(PL, yy); ctx.lineTo(W - PR, yy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(PL - 6, yy, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,100,120,0.6)'; ctx.fill();
+      ctx.fillStyle = 'rgba(150,150,170,0.6)';
+      ctx.font = '10px monospace'; ctx.textAlign = 'right';
+      ctx.fillText(`${m.toFixed(1)}x`, PL - 10, yy + 3);
+    }
+    // X-axis
+    for (let i = 0; i <= 8; i++) {
+      const xx = ox + (i / 8) * PW;
+      ctx.beginPath(); ctx.arc(xx, oy + 10, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,100,120,0.5)'; ctx.fill();
+    }
+
+    if (pts.length < 2) {
+      // Waiting: draw plane parked at origin
+      drawPlane(ctx, ox + 10, oy, 0, false);
+      return;
+    }
+
+    const maxM = axisMaxM;
     const cx = (i) => ox + (i / Math.max(pts.length - 1, 1)) * PW;
     const cy = (m) => oy - Math.min((m - 1) / (maxM - 1), 1) * PH;
 
@@ -151,52 +239,17 @@ export default function AviatorGame({ user }) {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // ── Y-axis labels & dots ──
-    const ySteps = 5;
-    for (let i = 1; i <= ySteps; i++) {
-      const m = 1 + (i / ySteps) * (maxM - 1);
-      const yy = cy(m);
-      // Dashed guide line
-      ctx.setLineDash([3, 6]);
-      ctx.beginPath();
-      ctx.moveTo(PL, yy);
-      ctx.lineTo(W - PR, yy);
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // Dot
-      ctx.beginPath();
-      ctx.arc(PL - 6, yy, 2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(100,100,120,0.6)';
-      ctx.fill();
-      // Label
-      ctx.fillStyle = 'rgba(150,150,170,0.6)';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${m.toFixed(1)}x`, PL - 10, yy + 3);
-    }
-
-    // ── X-axis dots ──
-    for (let i = 0; i <= 8; i++) {
-      const xx = ox + (i / 8) * PW;
-      ctx.beginPath();
-      ctx.arc(xx, oy + 10, 2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(100,100,120,0.5)';
-      ctx.fill();
-    }
-
     // ── Airplane at tip ──
     const lx = cx(pts.length - 1);
     const ly = cy(pts[pts.length - 1]);
 
-    if (!crashed && pts.length > 3) {
+    if (!crashed) {
       const refIdx = Math.max(0, pts.length - 6);
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const angle = Math.atan2(ly - prevY, lx - prevX);
       drawPlane(ctx, lx, ly, angle, false);
-    } else if (crashed) {
+    } else {
       drawPlane(ctx, lx, ly, Math.PI * 0.3, true);
     }
   }, []);
@@ -237,6 +290,16 @@ export default function AviatorGame({ user }) {
         setPhase('crashed');
         setCrashPt(cp);
         setMult(cp);
+        // If page loaded in crashed state with no trajectory, generate one
+        if (ptsRef.current.length < 5) {
+          const n = 70;
+          ptsRef.current = Array.from({ length: n }, (_, i) => {
+            const t = i / (n - 1);
+            return 1.0 + (cp - 1.0) * Math.pow(t, 0.7);
+          });
+        } else {
+          ptsRef.current = [...ptsRef.current, cp];
+        }
         if (d.history) setHistory(d.history.slice(0, 12));
         if (betRef.current) {
           setErr(`✈ ${Number(cp).toFixed(2)}x da uchib ketdi`);
