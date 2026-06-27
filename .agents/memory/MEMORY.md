@@ -1,0 +1,1 @@
+- [PostgreSQL asyncpg pool setup](pg-asyncpg-pool.md) — sslmode URL dan ajratib connect_args ssl= ga o'tkazish kerak; database.py da pool pattern

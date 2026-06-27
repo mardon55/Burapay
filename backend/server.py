@@ -3,8 +3,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import text as sq
 import os
 import logging
 from pathlib import Path
@@ -26,51 +24,11 @@ from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# ── PostgreSQL connection ─────────────────────────────────────────────────────
-import ssl as _ssl_module
-from urllib.parse import urlparse as _urlparse, parse_qs as _parse_qs, urlencode as _urlencode, urlunparse as _urlunparse
-
-_raw_db_url = os.environ.get('DATABASE_URL', '')
-if _raw_db_url.startswith('postgres://'):
-    _raw_db_url = 'postgresql+asyncpg://' + _raw_db_url[len('postgres://'):]
-elif _raw_db_url.startswith('postgresql://'):
-    _raw_db_url = 'postgresql+asyncpg://' + _raw_db_url[len('postgresql://'):]
-
-# Strip sslmode from URL — asyncpg uses connect_args ssl instead
-_parsed_url = _urlparse(_raw_db_url)
-_qparams = _parse_qs(_parsed_url.query, keep_blank_values=True)
-_sslmode = _qparams.pop('sslmode', ['disable'])[0]
-_new_query = _urlencode({k: v[0] for k, v in _qparams.items()})
-_clean_url = _urlunparse(_parsed_url._replace(query=_new_query))
-
-_connect_args = {}
-if _sslmode not in ('disable', ''):
-    _ssl_ctx = _ssl_module.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
-    _connect_args['ssl'] = _ssl_ctx
-
-engine = create_async_engine(_clean_url, pool_size=10, max_overflow=20, echo=False, connect_args=_connect_args)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-# Convenience: run a query and return rows as list-of-dicts
-async def fetchall(query: str, params: dict = None) -> list:
-    async with engine.connect() as conn:
-        result = await conn.execute(sq(query), params or {})
-        rows = result.fetchall()
-        if not rows:
-            return []
-        keys = result.keys()
-        return [dict(zip(keys, row)) for row in rows]
-
-async def fetchone(query: str, params: dict = None) -> Optional[dict]:
-    rows = await fetchall(query, params)
-    return rows[0] if rows else None
-
-async def execute(query: str, params: dict = None):
-    async with engine.begin() as conn:
-        result = await conn.execute(sq(query), params or {})
-        return result
+# ── Database moduli (asyncpg pool + retry + exception handling) ───────────────
+from database import (
+    init_pool, close_pool, health_check as db_health_check,
+    fetchall, fetchone, execute
+)
 
 # ── Bot Setup ─────────────────────────────────────────────────────────────────
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
@@ -1177,7 +1135,8 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "webapp_url": WEBAPP_URL}
+    db_status = await db_health_check()
+    return {"status": "ok", "webapp_url": WEBAPP_URL, **db_status}
 
 def find_frontend_build() -> Path:
     candidates = [
@@ -1201,7 +1160,20 @@ if FRONTEND_BUILD.exists() and (FRONTEND_BUILD / "static").exists():
 
 @app.on_event("startup")
 async def startup():
-    logging.info("PostgreSQL backend started — schema assumed to be up to date.")
+    # 1. DB pool ni ishga tushirish (retry bilan)
+    await init_pool()
+
+    # 2. Health check — pool ishlayotganini tasdiqlash
+    status = await db_health_check()
+    if status.get("db") == "ok":
+        logging.info(
+            f"✅ DB tayyor | pool_size={status['pool_size']} "
+            f"idle={status['pool_idle']} max={status['pool_max']}"
+        )
+    else:
+        logging.error(f"❌ DB health check muvaffaqiyatsiz: {status}")
+
+    # 3. Telegram bot webhook
     if bot:
         public_url = detect_public_url()
         logging.info(f"Detected public URL: {public_url or 'none (will use polling)'}")
@@ -1229,7 +1201,8 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    await engine.dispose()
+    # DB pool ni xavfsiz yopish
+    await close_pool()
     if bot:
         await bot.delete_webhook()
         await bot.session.close()
