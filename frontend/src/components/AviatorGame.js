@@ -35,11 +35,11 @@ _planeImg.onerror = () => { _planeImg.src = '/plane.png'; };
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
 
-  const iw = _planeImg.width;
-  const ih = _planeImg.height;
+  const iw = 60;
+  const ih = 40;
 
-  const xOff = -(28 / 291) * iw;
-  const yOff = -(190 / 197) * ih;
+  const xOff = -5;
+  const yOff = -38;
 
   ctx.save();
   ctx.translate(x, y);
