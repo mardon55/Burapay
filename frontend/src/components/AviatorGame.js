@@ -21,124 +21,136 @@ function drawSunburst(ctx, W, H) {
   }
 }
 
-// Neon tube stroke helper — draws the same path multiple times for glow layering
-function neonStroke(ctx, color, outerBlur, outerWidth, innerBlur, innerWidth, coreColor) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = outerWidth;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = outerBlur;
-  ctx.stroke();
+// Pre-render the plane silhouette once to an offscreen canvas.
+// Returns {canvas, w, h} — reused every frame via ctx.drawImage().
+let _planeCache = null;
+function getPlaneCache() {
+  if (_planeCache) return _planeCache;
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = innerWidth;
-  ctx.shadowBlur = innerBlur;
-  ctx.stroke();
+  // Logical size of the master silhouette (in px at 1× scale)
+  const W = 520, H = 240;
+  const oc = document.createElement('canvas');
+  oc.width = W; oc.height = H;
+  const g = oc.getContext('2d');
 
-  ctx.strokeStyle = coreColor;
-  ctx.lineWidth = Math.max(1, innerWidth * 0.4);
-  ctx.shadowBlur = 4;
-  ctx.stroke();
+  const RED   = '#cc1122';
+  const DARK  = '#aa0011';
 
-  ctx.shadowBlur = 0;
+  g.fillStyle = RED;
+
+  // ── Fuselage ───────────────────────────────────────────────────────────
+  g.beginPath();
+  g.moveTo(490, 120);                   // nose tip
+  g.bezierCurveTo(470, 102, 380, 96, 260, 102);
+  g.lineTo(40, 116);                    // belly line forward
+  g.bezierCurveTo(20, 118, 8, 122, 6, 126);
+  g.bezierCurveTo(8, 130, 20, 132, 40, 132);
+  g.lineTo(260, 138);
+  g.bezierCurveTo(380, 144, 470, 138, 490, 120);
+  g.closePath();
+  g.fill();
+
+  // ── Engine cowling (rounded nose) ─────────────────────────────────────
+  g.beginPath();
+  g.ellipse(490, 120, 28, 28, 0, 0, Math.PI * 2);
+  g.fillStyle = DARK;
+  g.fill();
+
+  // ── Propeller disc ────────────────────────────────────────────────────
+  g.beginPath();
+  g.ellipse(510, 120, 10, 100, 0, 0, Math.PI * 2);
+  g.fillStyle = RED;
+  g.globalAlpha = 0.35;
+  g.fill();
+  g.globalAlpha = 1;
+
+  // ── Cockpit canopy ────────────────────────────────────────────────────
+  g.beginPath();
+  g.moveTo(310, 102);
+  g.bezierCurveTo(320, 72, 360, 64, 400, 68);
+  g.bezierCurveTo(430, 72, 440, 90, 438, 102);
+  g.closePath();
+  g.fillStyle = DARK;
+  g.fill();
+
+  // ── Main wing ─────────────────────────────────────────────────────────
+  g.beginPath();
+  g.moveTo(310, 126);
+  g.lineTo(270, 226);
+  g.lineTo(100, 210);
+  g.lineTo(140, 132);
+  g.closePath();
+  g.fillStyle = RED;
+  g.fill();
+
+  // Wing shading
+  g.beginPath();
+  g.moveTo(310, 126);
+  g.lineTo(270, 226);
+  g.lineTo(200, 216);
+  g.lineTo(230, 128);
+  g.closePath();
+  g.fillStyle = DARK;
+  g.fill();
+
+  // ── Horizontal stabilizer ─────────────────────────────────────────────
+  g.beginPath();
+  g.moveTo(90, 122);
+  g.lineTo(58, 174);
+  g.lineTo(16, 166);
+  g.lineTo(38, 130);
+  g.closePath();
+  g.fillStyle = RED;
+  g.fill();
+
+  // ── Vertical tail fin ─────────────────────────────────────────────────
+  g.beginPath();
+  g.moveTo(50, 116);
+  g.lineTo(34, 62);
+  g.lineTo(70, 70);
+  g.lineTo(78, 116);
+  g.closePath();
+  g.fillStyle = RED;
+  g.fill();
+
+  // ── Landing gear ──────────────────────────────────────────────────────
+  g.fillStyle = DARK;
+  g.fillRect(232, 178, 18, 30);
+  g.beginPath();
+  g.ellipse(241, 212, 20, 12, 0, 0, Math.PI * 2);
+  g.fillStyle = '#880010';
+  g.fill();
+
+  _planeCache = { canvas: oc, w: W, h: H };
+  return _planeCache;
 }
 
 function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
+  const cache = getPlaneCache();
+
   ctx.save();
 
-  // Pull back from curve tip so full plane stays on screen
-  const offset = Math.max(70, canvasW * 0.09) * scale;
+  // canvasW is device-pixels (includes DPR). Use it directly for sizing.
+  // scale = planeScale * dpr — use only for the minimum fallback.
+  const iw = Math.max(80 * scale, canvasW * 0.15);
+  const ih = iw * (cache.h / cache.w);
+
+  // Pull centre back so the nose (rightmost part) clears the canvas edge
+  const pull = iw * 0.62;
   ctx.translate(
-    x - offset * Math.cos(angle),
-    y - offset * Math.sin(angle)
+    x - pull * Math.cos(angle),
+    y - pull * Math.sin(angle)
   );
   ctx.rotate(angle);
 
-  const s = scale;
-  const neon = crashed ? '#ff0011' : '#ff1133';
-  const core = crashed ? '#ff8899' : '#ff99aa';
+  // Subtle glow
+  ctx.shadowColor = crashed ? '#ff0000' : '#ff2244';
+  ctx.shadowBlur  = 12 * scale;
 
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  // Draw the cached silhouette
+  ctx.drawImage(cache.canvas, -iw * 0.5, -ih * 0.5, iw, ih);
 
-  // ── Fuselage ─────────────────────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.moveTo(75 * s, 0);                        // nose
-  ctx.bezierCurveTo(55 * s, -10 * s, 15 * s, -12 * s, -10 * s, -9 * s);
-  ctx.lineTo(-58 * s, -5 * s);                  // tail top
-  ctx.lineTo(-68 * s, 0);                       // tail end
-  ctx.lineTo(-58 * s, 5 * s);                   // tail bottom
-  ctx.bezierCurveTo(-10 * s, 9 * s, 15 * s, 12 * s, 55 * s, 10 * s);
-  ctx.closePath();
-  neonStroke(ctx, neon, 22 * s, 5 * s, 10 * s, 3 * s, core);
-
-  // ── Main wing (upper) ────────────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.moveTo(20 * s, -9 * s);
-  ctx.lineTo(5 * s, -52 * s);
-  ctx.lineTo(-22 * s, -45 * s);
-  ctx.lineTo(-10 * s, -9 * s);
-  ctx.closePath();
-  neonStroke(ctx, neon, 20 * s, 4 * s, 8 * s, 2.5 * s, core);
-
-  // ── Main wing (lower) ────────────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.moveTo(20 * s, 9 * s);
-  ctx.lineTo(5 * s, 52 * s);
-  ctx.lineTo(-22 * s, 45 * s);
-  ctx.lineTo(-10 * s, 9 * s);
-  ctx.closePath();
-  neonStroke(ctx, neon, 20 * s, 4 * s, 8 * s, 2.5 * s, core);
-
-  // ── Horizontal stabilizers ───────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.moveTo(-40 * s, -5 * s);
-  ctx.lineTo(-48 * s, -26 * s);
-  ctx.lineTo(-62 * s, -21 * s);
-  ctx.lineTo(-56 * s, -5 * s);
-  ctx.closePath();
-  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
-
-  ctx.beginPath();
-  ctx.moveTo(-40 * s, 5 * s);
-  ctx.lineTo(-48 * s, 26 * s);
-  ctx.lineTo(-62 * s, 21 * s);
-  ctx.lineTo(-56 * s, 5 * s);
-  ctx.closePath();
-  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
-
-  // ── Vertical fin ─────────────────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.moveTo(-40 * s, 0);
-  ctx.lineTo(-50 * s, -28 * s);
-  ctx.lineTo(-65 * s, -18 * s);
-  ctx.lineTo(-58 * s, 0);
-  ctx.closePath();
-  neonStroke(ctx, neon, 16 * s, 3 * s, 7 * s, 2 * s, core);
-
-  // ── Propeller circle ─────────────────────────────────────────────────────
-  ctx.beginPath();
-  ctx.arc(75 * s, 0, 8 * s, 0, Math.PI * 2);
-  neonStroke(ctx, neon, 18 * s, 3 * s, 8 * s, 2 * s, core);
-
-  // Spinning blades
-  ctx.save();
-  ctx.translate(75 * s, 0);
-  const spin = (Date.now() / 60) % (Math.PI * 2);
-  for (let i = 0; i < 3; i++) {
-    ctx.save();
-    ctx.rotate(spin + (i / 3) * Math.PI * 2);
-    ctx.beginPath();
-    ctx.ellipse(0, -18 * s, 3.5 * s, 14 * s, 0.1, 0, Math.PI * 2);
-    ctx.strokeStyle = neon;
-    ctx.lineWidth = 2 * s;
-    ctx.shadowColor = neon;
-    ctx.shadowBlur = 12 * s;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
-  ctx.restore();
-
+  ctx.shadowBlur = 0;
   ctx.restore();
 }
 

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 240" fill="#cc1122">
+  <!-- Propeller disc (spinning blur circle) -->
+  <ellipse cx="490" cy="120" rx="28" ry="108" fill="#cc1122" opacity="0.35"/>
+  <!-- Engine cowling / nose -->
+  <ellipse cx="462" cy="120" rx="32" ry="32" fill="#cc1122"/>
+  <!-- Fuselage -->
+  <path d="M460 108 Q380 98 260 104 Q160 108 60 122 Q30 126 10 132 Q28 134 60 132 Q160 128 260 122 Q380 118 460 132 Z" fill="#cc1122"/>
+  <!-- Cockpit canopy -->
+  <path d="M310 104 Q340 76 380 78 Q410 80 420 104 Z" fill="#aa0011"/>
+  <!-- Main wing (lower, angled back) -->
+  <path d="M280 120 L220 210 L120 200 L160 126 Z" fill="#cc1122"/>
+  <!-- Wing shading -->
+  <path d="M280 120 L220 210 L180 204 L210 120 Z" fill="#aa0011"/>
+  <!-- Horizontal stabilizer left -->
+  <path d="M80 128 L50 168 L20 162 L42 130 Z" fill="#cc1122"/>
+  <!-- Vertical tail fin -->
+  <path d="M55 122 L42 72 L68 78 L72 122 Z" fill="#cc1122"/>
+  <!-- Landing gear strut -->
+  <path d="M230 168 L222 198 L242 198 L238 168 Z" fill="#aa0011"/>
+  <!-- Landing gear wheel -->
+  <ellipse cx="232" cy="202" rx="16" ry="10" fill="#880010"/>
+  <!-- Engine intake line detail -->
+  <path d="M430 92 Q450 88 460 96 Q462 104 460 112 Q450 104 430 100 Z" fill="#aa0011"/>
+</svg>
