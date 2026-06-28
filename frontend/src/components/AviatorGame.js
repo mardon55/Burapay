@@ -760,32 +760,6 @@ export default function AviatorGame({ user }) {
           </div>
         </div>
 
-        {/* ── 40% : X Tarixi ── */}
-        <div className="av-xlist">
-          <div className="av-xlist-header">
-            <span className="av-xlist-title">Raundlar tarixi</span>
-            <div className="av-xlist-back" onClick={() => navigate('/casino')}>←</div>
-          </div>
-          <div className="av-xlist-grid">
-            {history.length === 0 && (
-              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, gridColumn: 'span 4' }}>
-                Hali raundlar yo'q...
-              </span>
-            )}
-            {history.map((cp, i) => {
-              let col, bg;
-              if (cp < 2)       { col = 'rgba(255,255,255,0.8)'; bg = 'rgba(255,255,255,0.07)'; }
-              else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
-              else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
-              return (
-                <div key={i} className="av-xlist-badge" style={{ color: col, background: bg }}>
-                  {fmt(cp)}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {/* ── 20% : Bet Panel ── */}
         <div className="av-panel">
           <div className="av-bet-row">
@@ -855,6 +829,32 @@ export default function AviatorGame({ user }) {
                 )}
               </button>
             )}
+          </div>
+        </div>
+
+        {/* ── 40% : X Tarixi ── */}
+        <div className="av-xlist">
+          <div className="av-xlist-header">
+            <span className="av-xlist-title">Raundlar tarixi</span>
+            <div className="av-xlist-back" onClick={() => navigate('/casino')}>←</div>
+          </div>
+          <div className="av-xlist-grid">
+            {history.length === 0 && (
+              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, gridColumn: 'span 4' }}>
+                Hali raundlar yo'q...
+              </span>
+            )}
+            {history.map((cp, i) => {
+              let col, bg;
+              if (cp < 2)       { col = 'rgba(255,255,255,0.8)'; bg = 'rgba(255,255,255,0.07)'; }
+              else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
+              else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
+              return (
+                <div key={i} className="av-xlist-badge" style={{ color: col, background: bg }}>
+                  {fmt(cp)}
+                </div>
+              );
+            })}
           </div>
         </div>
 
