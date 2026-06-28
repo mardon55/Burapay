@@ -600,11 +600,14 @@ export default function AviatorGame({ user }) {
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 7px;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.09);
           border-radius: 12px;
-          padding: 10px 10px 8px;
+          padding: 12px 14px;
+          min-height: 80px;
         }
 
         /* Amount row */
@@ -633,23 +636,25 @@ export default function AviatorGame({ user }) {
         }
         .av-circle-btn:disabled { opacity: 0.3; }
         .av-amount-input {
-          flex: 1;
+          width: 100%;
           text-align: center;
-          font-size: clamp(15px, 4.5vw, 20px);
+          font-size: clamp(18px, 5vw, 22px);
           font-weight: 900;
           color: #fff;
           letter-spacing: -0.5px;
           background: transparent;
           border: none;
           outline: none;
-          width: 0;
-          min-width: 0;
           -webkit-appearance: none;
           appearance: none;
+          padding: 0;
+          margin: 0;
+          box-sizing: border-box;
         }
-        .av-amount-input::placeholder { color: rgba(255,255,255,0.3); }
+        .av-amount-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 500; font-size: clamp(13px,3.5vw,15px); }
         .av-amount-input::-webkit-outer-spin-button,
         .av-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .av-amount-input[type=number] { -moz-appearance: textfield; }
 
         /* Quick amounts */
         .av-quick-grid {
@@ -774,42 +779,26 @@ export default function AviatorGame({ user }) {
           {/* Two-column: Left = amount input, Right = bet button */}
           <div className="av-bet-row">
 
-            {/* Left block: amount + quick presets */}
+            {/* Left block: amount input only */}
             <div className="av-left-block">
-              <div className="av-amount-row">
-                <button className="av-circle-btn" disabled={inputDisabled}
-                  onClick={() => adjustAmt(-1000)}>−</button>
-                <input
-                  className="av-amount-input"
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  disabled={inputDisabled}
-                  value={betAmt}
-                  placeholder="1000"
-                  onChange={e => setBetAmt(e.target.value)}
-                  onBlur={() => {
-                    const v = parseFloat(betAmt);
-                    if (!v || v < 1000) setBetAmt('1000');
-                    else if (v > 1000000) setBetAmt('1000000');
-                    else setBetAmt(String(Math.round(v)));
-                  }}
-                />
-                <button className="av-circle-btn" disabled={inputDisabled}
-                  onClick={() => adjustAmt(1000)}>+</button>
-              </div>
-              <div className="av-quick-grid">
-                {[1000, 5000, 10000, 50000].map(v => {
-                  const sel = parseFloat(betAmt) === v;
-                  return (
-                    <button key={v}
-                      disabled={inputDisabled}
-                      onClick={() => setBetAmt(String(v))}
-                      className={`av-quick-btn${sel ? ' sel' : ''}`}>
-                      {v >= 1000 ? `${v/1000}K` : v}
-                    </button>
-                  );
-                })}
+              <input
+                className="av-amount-input"
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                disabled={inputDisabled}
+                value={betAmt}
+                placeholder="Summa kiriting..."
+                onChange={e => setBetAmt(e.target.value)}
+                onBlur={() => {
+                  const v = parseFloat(betAmt);
+                  if (!v || v < 1000) setBetAmt('1000');
+                  else if (v > 1000000) setBetAmt('1000000');
+                  else setBetAmt(String(Math.round(v)));
+                }}
+              />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+                1 000 – 1 000 000 UZS
               </div>
             </div>
 
