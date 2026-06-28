@@ -165,7 +165,8 @@ export default function AviatorGame({ user }) {
     }
 
     const maxM = axisMaxM;
-    const cx = (i) => ox + (i / Math.max(pts.length - 1, 1)) * PW;
+    // 120 ticks (~12 seconds) = full width. Plane starts near left and moves right gradually.
+    const cx = (i) => ox + (i / Math.max(pts.length - 1, 120)) * PW;
     const cy = (m) => oy - Math.min((m - 1) / (maxM - 1), 1) * PH;
 
     const lx = cx(pts.length - 1);
