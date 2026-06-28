@@ -1,36 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
-const MINE = '💣';
-const GEM  = '💎';
+const CELL_IDLE    = 'idle';
+const CELL_GEM     = 'gem';
+const CELL_MINE    = 'mine';
+const CELL_REVEAL  = 'reveal'; // mine revealed after cashout/loss
 
 export default function MinesGame({ user }) {
   const navigate = useNavigate();
 
-  const [balance, setBalance]       = useState(user?.balance_uzs || 0);
-  const [betAmt, setBetAmt]         = useState('1000');
-  const [minesCount, setMinesCount] = useState(3);
-  const [game, setGame]             = useState(null);
-  const [cells, setCells]           = useState(Array(25).fill(null)); // null | 'gem' | 'mine'
-  const [loading, setLoading]       = useState(false);
-  const [err, setErr]               = useState('');
-  const [msg, setMsg]               = useState('');
-  const [revealedMines, setRevealedMines] = useState([]);
+  const [balance, setBalance]           = useState(user?.balance_uzs || 0);
+  const [betAmt, setBetAmt]             = useState('1000');
+  const [minesCount, setMinesCount]     = useState(3);
+  const [gameId, setGameId]             = useState(null);
+  const [gameStatus, setGameStatus]     = useState(null); // null | 'active' | 'won' | 'lost'
+  const [betAmount, setBetAmount]       = useState(0);
+  const [openedCount, setOpenedCount]   = useState(0);
+  const [currentMult, setCurrentMult]   = useState(1);
+  const [cells, setCells]               = useState(Array(25).fill(CELL_IDLE));
+  const [loading, setLoading]           = useState(false);
+  const [clickingCell, setClickingCell] = useState(null);
+  const [err, setErr]                   = useState('');
+  const [msg, setMsg]                   = useState('');
+  const errTimer = useRef(null);
+  const msgTimer = useRef(null);
 
   const fmt  = n => Math.round(n).toLocaleString('uz-UZ').replace(/,/g, ' ');
   const fmtM = m => `${Number(m).toFixed(2)}x`;
 
-  const showErr = (txt, ms = 2500) => {
-    setErr(txt);
-    setTimeout(() => setErr(''), ms);
+  const showErr = (txt, ms = 2800) => {
+    clearTimeout(errTimer.current);
+    setErr(txt); setMsg('');
+    errTimer.current = setTimeout(() => setErr(''), ms);
   };
-
-  const showMsg = (txt, ms = 2500) => {
-    setMsg(txt);
-    setTimeout(() => setMsg(''), ms);
+  const showMsg = (txt, ms = 3000) => {
+    clearTimeout(msgTimer.current);
+    setMsg(txt); setErr('');
+    msgTimer.current = setTimeout(() => setMsg(''), ms);
   };
 
   // Resume active game on mount
@@ -40,39 +49,50 @@ export default function MinesGame({ user }) {
       .then(res => {
         const g = res.data.game;
         if (!g) return;
-        setGame(g);
-        const opened = g.opened_cells || [];
-        const newCells = Array(25).fill(null);
-        opened.forEach(i => { newCells[i] = 'gem'; });
+        setGameId(g.id);
+        setGameStatus('active');
+        setBetAmount(parseFloat(g.bet_amount));
+        setOpenedCount((g.opened_cells || []).length);
+        setCurrentMult(parseFloat(g.current_multiplier || 1));
+        const newCells = Array(25).fill(CELL_IDLE);
+        (g.opened_cells || []).forEach(i => { newCells[i] = CELL_GEM; });
         setCells(newCells);
       })
       .catch(() => {});
   }, [user?.telegram_id]);
 
   const startGame = async () => {
+    if (loading) return;
     const amt = parseFloat(betAmt);
-    if (!amt || amt < 1000) { showErr('Minimal stavka: 1 000 UZS'); return; }
-    if (amt > balance)      { showErr("Balans yetarli emas"); return; }
-    setLoading(true); setErr(''); setMsg('');
+    if (!amt || amt < 1000)  { showErr('Minimal stavka: 1 000 UZS'); return; }
+    if (amt > 10_000_000)    { showErr('Maksimal: 10 000 000 UZS'); return; }
+    if (amt > balance)       { showErr('Balansingiz yetarli emas'); return; }
+    setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/mines/start`, {
         telegram_id: user.telegram_id,
         bet_amount: amt,
         mines_count: minesCount,
       });
-      setGame(res.data);
-      setCells(Array(25).fill(null));
-      setRevealedMines([]);
+      setGameId(res.data.game_id);
+      setGameStatus('active');
+      setBetAmount(amt);
+      setOpenedCount(0);
+      setCurrentMult(parseFloat(res.data.current_multiplier || 1));
+      setCells(Array(25).fill(CELL_IDLE));
       setBalance(b => b - amt);
+      setErr(''); setMsg('');
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik yuz berdi');
     } finally { setLoading(false); }
   };
 
   const clickCell = useCallback(async (idx) => {
-    if (!game || game.status !== 'active') return;
-    if (cells[idx] !== null) return;
-    if (loading) return;
+    if (gameStatus !== 'active') return;
+    if (cells[idx] !== CELL_IDLE) return;
+    if (loading || clickingCell !== null) return;
+
+    setClickingCell(idx);
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/mines/click`, {
@@ -80,43 +100,81 @@ export default function MinesGame({ user }) {
         cell_index: idx,
       });
       const d = res.data;
+
       if (d.result === 'lost') {
-        const newCells = [...cells];
-        newCells[idx] = 'mine';
-        setCells(newCells);
-        setRevealedMines(d.mine_positions || []);
-        setGame(prev => ({ ...prev, status: 'lost' }));
-        showErr(`💣 Mina! O'yin tugadi. -${fmt(game.bet_amount)} UZS`, 4000);
+        // Show mine on clicked cell
+        setCells(prev => {
+          const n = [...prev];
+          n[idx] = CELL_MINE;
+          return n;
+        });
+        // After short delay, reveal all mines
+        setTimeout(() => {
+          setCells(prev => {
+            const n = [...prev];
+            (d.mine_positions || []).forEach(mi => {
+              if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
+            });
+            return n;
+          });
+        }, 350);
+        setGameStatus('lost');
+        setOpenedCount(0);
+        showErr(`💣 Mina! O'yin tugadi. -${fmt(betAmount)} UZS`, 4000);
+
       } else if (d.result === 'won') {
-        const newCells = [...cells];
-        newCells[idx] = 'gem';
-        setCells(newCells);
-        setRevealedMines(d.mine_positions || []);
-        setGame(prev => ({ ...prev, status: 'won', current_multiplier: d.current_multiplier }));
+        setCells(prev => {
+          const n = [...prev];
+          n[idx] = CELL_GEM;
+          (d.mine_positions || []).forEach(mi => {
+            if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
+          });
+          return n;
+        });
+        const opened = (d.opened_cells || []).length;
+        setOpenedCount(opened);
+        setCurrentMult(parseFloat(d.current_multiplier));
+        setGameStatus('won');
         setBalance(b => b + d.winnings);
-        showMsg(`🏆 Barcha xavfsiz kataklar! +${fmt(d.winnings)} UZS`, 4000);
+        showMsg(`🏆 Barcha xavfsiz kataklar topildi! +${fmt(d.winnings)} UZS`, 4000);
+
       } else {
-        const newCells = [...cells];
-        newCells[idx] = 'gem';
-        setCells(newCells);
-        setGame(prev => ({ ...prev, opened_cells: d.opened_cells, current_multiplier: d.current_multiplier }));
+        // safe
+        setCells(prev => {
+          const n = [...prev];
+          n[idx] = CELL_GEM;
+          return n;
+        });
+        const opened = (d.opened_cells || []).length;
+        setOpenedCount(opened);
+        setCurrentMult(parseFloat(d.current_multiplier));
       }
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik');
-    } finally { setLoading(false); }
-  }, [game, cells, loading, user]);
+    } finally {
+      setLoading(false);
+      setClickingCell(null);
+    }
+  }, [gameStatus, cells, loading, clickingCell, user, betAmount]);
 
   const cashOut = async () => {
-    if (!game || game.status !== 'active') return;
-    if ((game.opened_cells || []).length === 0) { showErr('Kamida bitta katak oching'); return; }
+    if (gameStatus !== 'active' || loading) return;
+    if (openedCount === 0) { showErr('Kamida bitta katak oching'); return; }
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/mines/cashout`, {
         telegram_id: user.telegram_id,
       });
-      setRevealedMines(res.data.mine_positions || []);
-      setGame(prev => ({ ...prev, status: 'won' }));
+      setCells(prev => {
+        const n = [...prev];
+        (res.data.mine_positions || []).forEach(mi => {
+          if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
+        });
+        return n;
+      });
+      setGameStatus('won');
       setBalance(b => b + res.data.winnings);
+      setCurrentMult(parseFloat(res.data.multiplier));
       showMsg(`✅ Yechdingiz! +${fmt(res.data.winnings)} UZS (${fmtM(res.data.multiplier)})`, 4000);
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik');
@@ -124,348 +182,302 @@ export default function MinesGame({ user }) {
   };
 
   const resetGame = () => {
-    setGame(null);
-    setCells(Array(25).fill(null));
-    setRevealedMines([]);
+    setGameId(null);
+    setGameStatus(null);
+    setCells(Array(25).fill(CELL_IDLE));
+    setOpenedCount(0);
+    setCurrentMult(1);
     setErr(''); setMsg('');
   };
 
-  const isActive    = game?.status === 'active';
-  const isFinished  = game && game.status !== 'active';
-  const openedCount = (game?.opened_cells || []).length;
-  const currentMult = game ? parseFloat(game.current_multiplier || 1) : 1;
-  const potentialWin = game ? Math.round(parseFloat(game.bet_amount) * currentMult) : 0;
+  const isActive    = gameStatus === 'active';
+  const isFinished  = gameStatus === 'won' || gameStatus === 'lost';
+  const potentialWin = Math.round(betAmount * currentMult);
+
+  const cellStyle = (idx, state) => {
+    const isClicking = clickingCell === idx;
+    const base = {
+      position: 'relative',
+      borderRadius: 10,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 'clamp(20px, 5.5vw, 28px)',
+      cursor: isActive && state === CELL_IDLE ? 'pointer' : 'default',
+      border: '1.5px solid',
+      transition: 'transform 0.12s, background 0.18s, border-color 0.18s, box-shadow 0.18s',
+      transform: isClicking ? 'scale(0.88)' : 'scale(1)',
+      userSelect: 'none',
+      WebkitTapHighlightColor: 'transparent',
+      touchAction: 'manipulation',
+      aspectRatio: '1',
+      overflow: 'hidden',
+    };
+    if (state === CELL_GEM) return {
+      ...base,
+      background: 'linear-gradient(135deg, rgba(16,185,129,0.25), rgba(5,150,105,0.15))',
+      borderColor: 'rgba(16,185,129,0.55)',
+      boxShadow: '0 0 12px rgba(16,185,129,0.25)',
+    };
+    if (state === CELL_MINE) return {
+      ...base,
+      background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(185,28,28,0.2))',
+      borderColor: 'rgba(239,68,68,0.7)',
+      boxShadow: '0 0 18px rgba(239,68,68,0.45)',
+    };
+    if (state === CELL_REVEAL) return {
+      ...base,
+      background: 'rgba(239,68,68,0.08)',
+      borderColor: 'rgba(239,68,68,0.25)',
+      opacity: 0.65,
+    };
+    // IDLE
+    if (isActive) return {
+      ...base,
+      background: 'rgba(139,92,246,0.1)',
+      borderColor: 'rgba(139,92,246,0.3)',
+      boxShadow: '0 0 6px rgba(139,92,246,0.1)',
+    };
+    return {
+      ...base,
+      background: 'rgba(255,255,255,0.04)',
+      borderColor: 'rgba(255,255,255,0.07)',
+    };
+  };
 
   return (
-    <>
-      <style>{`
-        .mg-root {
-          display: flex;
-          flex-direction: column;
-          min-height: 100dvh;
-          background: #0a0f1e;
-          color: #fff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          padding-bottom: 80px;
-        }
-        .mg-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 16px;
-          padding-top: max(48px, calc(env(safe-area-inset-top) + 12px));
-          background: rgba(255,255,255,0.03);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .mg-back {
-          width: 36px; height: 36px;
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.12);
-          background: rgba(255,255,255,0.06);
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; font-size: 16px;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .mg-title { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
-        .mg-balance {
-          font-size: 13px; font-weight: 700;
-          color: #fbbf24;
-          background: rgba(251,191,36,0.1);
-          border: 1px solid rgba(251,191,36,0.2);
-          border-radius: 20px;
-          padding: 4px 12px;
-        }
+    <div style={{
+      display: 'flex', flexDirection: 'column', minHeight: '100dvh',
+      background: 'linear-gradient(180deg, #0a0f1e 0%, #0d1225 100%)',
+      color: '#fff',
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      paddingBottom: 80,
+    }}>
+      {/* ── Header ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 16px',
+        paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 12px))',
+        background: 'rgba(255,255,255,0.03)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <button onClick={() => navigate('/casino')} style={{
+          width: 36, height: 36, borderRadius: '50%',
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(255,255,255,0.06)',
+          color: '#fff', fontSize: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+        }}>←</button>
+        <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: 1.5 }}>💣 MINES</div>
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: '#fbbf24',
+          background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)',
+          borderRadius: 20, padding: '4px 12px',
+        }}>{fmt(balance)} UZS</div>
+      </div>
 
-        /* Controls */
-        .mg-controls {
-          padding: 14px 16px;
-          background: rgba(255,255,255,0.02);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .mg-row { display: flex; gap: 10px; align-items: center; }
-        .mg-label { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px; }
-        .mg-input-wrap { flex: 1; }
-        .mg-input {
-          width: 100%; box-sizing: border-box;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 10px;
-          color: #fff;
-          font-size: 16px; font-weight: 800;
-          padding: 10px 12px;
-          outline: none;
-          -webkit-appearance: none;
-        }
-        .mg-input::-webkit-outer-spin-button,
-        .mg-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-        .mg-input[type=number] { -moz-appearance: textfield; }
-        .mg-select {
-          width: 100%; box-sizing: border-box;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 10px;
-          color: #fff;
-          font-size: 15px; font-weight: 700;
-          padding: 10px 12px;
-          outline: none;
-          -webkit-appearance: none;
-          appearance: none;
-        }
-        .mg-select option { background: #1a1a2e; }
-        .mg-quick { display: flex; gap: 6px; }
-        .mg-quick-btn {
-          flex: 1;
-          padding: 6px 0;
-          border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.6);
-          font-size: 11px; font-weight: 700;
-          cursor: pointer;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .mg-start-btn {
-          width: 100%; padding: 14px;
-          border-radius: 12px; border: none;
-          font-size: 15px; font-weight: 900;
-          cursor: pointer; letter-spacing: 0.5px;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-          transition: opacity 0.15s;
-        }
-        .mg-cashout-btn {
-          width: 100%; padding: 14px;
-          border-radius: 12px; border: none;
-          font-size: 15px; font-weight: 900;
-          cursor: pointer;
-          -webkit-tap-highlight-color: transparent;
-          background: linear-gradient(135deg, #22c55e, #16a34a);
-          color: #000;
-          box-shadow: 0 0 20px rgba(34,197,94,0.35);
-          transition: opacity 0.15s;
-        }
-
-        /* Stats bar */
-        .mg-stats {
-          display: flex;
-          gap: 0;
-          padding: 10px 16px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .mg-stat {
-          flex: 1;
-          text-align: center;
-        }
-        .mg-stat-label { font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 600; }
-        .mg-stat-value { font-size: 14px; font-weight: 800; color: #fff; margin-top: 2px; }
-
-        /* Grid */
-        .mg-grid-wrap { padding: 14px 16px; flex: 1; }
-        .mg-grid {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 8px;
-          max-width: 400px;
-          margin: 0 auto;
-        }
-        .mg-cell {
-          aspect-ratio: 1;
-          border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: clamp(18px, 5vw, 24px);
-          cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.05);
-          transition: transform 0.12s, background 0.15s;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-          user-select: none;
-          position: relative;
-          overflow: hidden;
-        }
-        .mg-cell:active { transform: scale(0.92); }
-        .mg-cell.active-cell:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
-        .mg-cell.gem {
-          background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.12));
-          border-color: rgba(16,185,129,0.4);
-          animation: popIn 0.2s ease;
-        }
-        .mg-cell.mine {
-          background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(185,28,28,0.15));
-          border-color: rgba(239,68,68,0.5);
-          animation: popIn 0.2s ease;
-        }
-        .mg-cell.revealed-mine {
-          background: rgba(239,68,68,0.1);
-          border-color: rgba(239,68,68,0.25);
-          opacity: 0.7;
-        }
-        .mg-cell.disabled { cursor: default; }
-        @keyframes popIn {
-          0%   { transform: scale(0.7); opacity: 0.5; }
-          60%  { transform: scale(1.1); }
-          100% { transform: scale(1);   opacity: 1; }
-        }
-
-        /* Feedback */
-        .mg-feedback {
-          margin: 0 16px 12px;
-          padding: 10px 14px;
-          border-radius: 10px;
-          font-size: 13px; font-weight: 700;
-          text-align: center;
-        }
-        .mg-feedback.err  { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-        .mg-feedback.succ { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
-      `}</style>
-
-      <div className="mg-root">
-        {/* Header */}
-        <div className="mg-header">
-          <div className="mg-back" onClick={() => navigate('/casino')}>←</div>
-          <div className="mg-title">💣 MINES</div>
-          <div className="mg-balance">{fmt(balance)} UZS</div>
-        </div>
-
-        {/* Controls */}
-        <div className="mg-controls">
-          <div className="mg-row">
-            <div className="mg-input-wrap">
-              <div className="mg-label">STAVKA (UZS)</div>
-              <input
-                className="mg-input"
-                type="number"
-                inputMode="numeric"
-                disabled={isActive}
-                value={betAmt}
-                onChange={e => setBetAmt(e.target.value)}
-                onBlur={() => {
-                  const v = parseFloat(betAmt);
-                  if (!v || v < 1000) setBetAmt('1000');
-                  else if (v > 10000000) setBetAmt('10000000');
-                  else setBetAmt(String(Math.round(v)));
-                }}
-              />
-            </div>
-            <div className="mg-input-wrap">
-              <div className="mg-label">MINALAR SONI</div>
-              <select
-                className="mg-select"
-                disabled={isActive}
-                value={minesCount}
-                onChange={e => setMinesCount(Number(e.target.value))}
-              >
-                {Array.from({ length: 24 }, (_, i) => i + 1).map(n => (
-                  <option key={n} value={n}>{n} mina</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {!isActive && (
-            <div className="mg-quick">
-              {[1000, 5000, 10000, 50000].map(v => (
-                <button key={v} className="mg-quick-btn" onClick={() => setBetAmt(String(v))}>
-                  {v >= 1000 ? `${v/1000}K` : v}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {!game || isFinished ? (
-            <button
-              className="mg-start-btn"
-              disabled={loading}
-              onClick={isFinished ? resetGame : startGame}
+      {/* ── Controls ── */}
+      <div style={{
+        padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10,
+        background: 'rgba(255,255,255,0.015)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {/* Bet amount */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.5 }}>STAVKA (UZS)</div>
+            <input
+              type="number" inputMode="numeric"
+              disabled={isActive || loading}
+              value={betAmt}
+              onChange={e => setBetAmt(e.target.value)}
+              onBlur={() => {
+                const v = parseFloat(betAmt);
+                if (!v || v < 1000) setBetAmt('1000');
+                else if (v > 10000000) setBetAmt('10000000');
+                else setBetAmt(String(Math.round(v)));
+              }}
               style={{
-                background: isFinished
-                  ? 'linear-gradient(135deg,#6366f1,#4f46e5)'
-                  : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
-                color: '#fff',
-                opacity: loading ? 0.5 : 1,
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.07)',
+                border: '1.5px solid rgba(255,255,255,0.12)',
+                borderRadius: 10, color: '#fff',
+                fontSize: 17, fontWeight: 800, padding: '10px 12px',
+                outline: 'none', WebkitAppearance: 'none',
+                opacity: isActive ? 0.5 : 1,
+              }}
+            />
+          </div>
+          {/* Mines count */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.5 }}>MINALAR SONI</div>
+            <select
+              disabled={isActive || loading}
+              value={minesCount}
+              onChange={e => setMinesCount(Number(e.target.value))}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.07)',
+                border: '1.5px solid rgba(255,255,255,0.12)',
+                borderRadius: 10, color: '#fff',
+                fontSize: 15, fontWeight: 700, padding: '10px 12px',
+                outline: 'none', WebkitAppearance: 'none', appearance: 'none',
+                opacity: isActive ? 0.5 : 1,
               }}
             >
-              {loading ? '...' : isFinished ? '🔄 Yangi o\'yin' : '🚀 O\'yinni boshlash'}
-            </button>
-          ) : (
-            <button
-              className="mg-cashout-btn"
-              disabled={loading || openedCount === 0}
-              onClick={cashOut}
-              style={{ opacity: (loading || openedCount === 0) ? 0.45 : 1 }}
-            >
-              {loading ? '...' : `💰 YECHISH — ${fmt(potentialWin)} UZS (${fmtM(currentMult)})`}
-            </button>
-          )}
+              {Array.from({ length: 24 }, (_, i) => i + 1).map(n => (
+                <option key={n} value={n} style={{ background: '#1a1a2e' }}>{n} mina</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Stats */}
-        {game && (
-          <div className="mg-stats">
-            <div className="mg-stat">
-              <div className="mg-stat-label">STAVKA</div>
-              <div className="mg-stat-value">{fmt(game.bet_amount)}</div>
-            </div>
-            <div className="mg-stat">
-              <div className="mg-stat-label">OCHILGAN</div>
-              <div className="mg-stat-value" style={{ color: '#4ade80' }}>{openedCount}</div>
-            </div>
-            <div className="mg-stat">
-              <div className="mg-stat-label">KOEFFITSIYENT</div>
-              <div className="mg-stat-value" style={{ color: '#fbbf24' }}>{fmtM(currentMult)}</div>
-            </div>
-            <div className="mg-stat">
-              <div className="mg-stat-label">POTENTSIAL</div>
-              <div className="mg-stat-value" style={{ color: '#a78bfa' }}>{fmt(potentialWin)}</div>
-            </div>
+        {/* Quick amounts — only when not active */}
+        {!isActive && !isFinished && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[1000, 5000, 10000, 50000].map(v => (
+              <button key={v} onClick={() => setBetAmt(String(v))} style={{
+                flex: 1, padding: '7px 0', borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.05)',
+                color: 'rgba(255,255,255,0.6)',
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              }}>{v >= 1000 ? `${v/1000}K` : v}</button>
+            ))}
           </div>
         )}
 
-        {/* Feedback */}
-        {err && <div className="mg-feedback err">{err}</div>}
-        {msg && !err && <div className="mg-feedback succ">{msg}</div>}
+        {/* Action button */}
+        {!gameStatus || isFinished ? (
+          <button
+            disabled={loading}
+            onClick={isFinished ? resetGame : startGame}
+            style={{
+              width: '100%', padding: '14px 0', borderRadius: 12, border: 'none',
+              fontSize: 15, fontWeight: 900, cursor: loading ? 'not-allowed' : 'pointer',
+              letterSpacing: 0.5, color: '#fff', opacity: loading ? 0.5 : 1,
+              background: isFinished
+                ? 'linear-gradient(135deg,#6366f1,#4f46e5)'
+                : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
+              boxShadow: isFinished
+                ? '0 0 20px rgba(99,102,241,0.3)'
+                : '0 0 20px rgba(124,58,237,0.35)',
+            }}
+          >
+            {loading ? '⏳ Yuklanmoqda...' : isFinished ? "🔄 Yangi o'yin" : "🚀 O'yinni boshlash"}
+          </button>
+        ) : (
+          <button
+            disabled={loading || openedCount === 0}
+            onClick={cashOut}
+            style={{
+              width: '100%', padding: '14px 0', borderRadius: 12, border: 'none',
+              fontSize: 15, fontWeight: 900,
+              cursor: (loading || openedCount === 0) ? 'not-allowed' : 'pointer',
+              color: '#000', opacity: (loading || openedCount === 0) ? 0.4 : 1,
+              background: 'linear-gradient(135deg,#22c55e,#16a34a)',
+              boxShadow: '0 0 22px rgba(34,197,94,0.35)',
+            }}
+          >
+            {loading
+              ? '⏳ ...'
+              : `💰 YECHISH — ${fmt(potentialWin)} UZS (${fmtM(currentMult)})`}
+          </button>
+        )}
+      </div>
 
-        {/* Grid */}
-        <div className="mg-grid-wrap">
-          <div className="mg-grid">
-            {cells.map((state, idx) => {
-              const isMineRevealed = revealedMines.includes(idx) && state !== 'mine';
-              let cellClass = 'mg-cell';
-              let content = null;
+      {/* ── Stats (only when game active or finished) ── */}
+      {gameStatus && (
+        <div style={{
+          display: 'flex', padding: '10px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          {[
+            { label: 'STAVKA', value: fmt(betAmount), color: '#fff' },
+            { label: 'OCHILGAN', value: openedCount, color: '#4ade80' },
+            { label: 'KOEF.', value: fmtM(currentMult), color: '#fbbf24' },
+            { label: 'POTENTSIAL', value: fmt(potentialWin), color: '#a78bfa' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: 0.3 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color, marginTop: 2 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-              if (state === 'gem') {
-                cellClass += ' gem disabled';
-                content = GEM;
-              } else if (state === 'mine') {
-                cellClass += ' mine disabled';
-                content = MINE;
-              } else if (isMineRevealed) {
-                cellClass += ' revealed-mine disabled';
-                content = MINE;
-              } else if (isActive && !loading) {
-                cellClass += ' active-cell';
-                content = null;
-              } else {
-                cellClass += ' disabled';
-                content = null;
-              }
+      {/* ── Feedback ── */}
+      {(err || msg) && (
+        <div style={{
+          margin: '10px 16px 0',
+          padding: '10px 14px', borderRadius: 10,
+          fontSize: 13, fontWeight: 700, textAlign: 'center',
+          background: err ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+          color: err ? '#f87171' : '#4ade80',
+          border: `1px solid ${err ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`,
+        }}>
+          {err || msg}
+        </div>
+      )}
 
-              return (
-                <div
-                  key={idx}
-                  className={cellClass}
-                  onClick={() => isActive && state === null && !isMineRevealed && clickCell(idx)}
-                >
-                  {content}
-                </div>
-              );
-            })}
+      {/* ── Grid ── */}
+      <div style={{ padding: '16px', flex: 1 }}>
+        {/* Hint when no game */}
+        {!gameStatus && (
+          <div style={{
+            textAlign: 'center', marginBottom: 14,
+            fontSize: 13, color: 'rgba(255,255,255,0.25)',
+            fontWeight: 600,
+          }}>
+            Stavka kiriting va "O'yinni boshlash" ni bosing
           </div>
+        )}
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: 8,
+          maxWidth: 380,
+          margin: '0 auto',
+        }}>
+          {cells.map((state, idx) => (
+            <div
+              key={idx}
+              onClick={() => {
+                if (isActive && state === CELL_IDLE && !loading && clickingCell === null) {
+                  clickCell(idx);
+                }
+              }}
+              style={{
+                ...cellStyle(idx, state),
+                animation: (state === CELL_GEM || state === CELL_MINE) ? 'popIn 0.22s ease' : 'none',
+              }}
+            >
+              {state === CELL_GEM    && <span style={{ filter: 'drop-shadow(0 0 6px rgba(16,185,129,0.8))' }}>💎</span>}
+              {state === CELL_MINE   && <span style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.9))' }}>💣</span>}
+              {state === CELL_REVEAL && <span style={{ opacity: 0.6 }}>💣</span>}
+              {state === CELL_IDLE && isActive && (
+                <div style={{
+                  width: '45%', height: '45%', borderRadius: '50%',
+                  background: 'rgba(139,92,246,0.25)',
+                  border: '1px solid rgba(139,92,246,0.4)',
+                }} />
+              )}
+            </div>
+          ))}
         </div>
       </div>
-    </>
+
+      <style>{`
+        @keyframes popIn {
+          0%   { transform: scale(0.6); opacity: 0.4; }
+          65%  { transform: scale(1.15); }
+          100% { transform: scale(1);   opacity: 1; }
+        }
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        select option { background: #1a1a2e; }
+      `}</style>
+    </div>
   );
 }
