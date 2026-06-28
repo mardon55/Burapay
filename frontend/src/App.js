@@ -1544,11 +1544,6 @@ const Casino = ({ user, lang }) => {
             </div>
             <div className="flex-1">
               <div className="font-black text-xl text-white tracking-wide">AVIATOR</div>
-              <div className="text-sm text-slate-400 mt-0.5">Crash o'yini — real vaqt</div>
-              <div className="flex gap-2 mt-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black" style={{ background: '#ff6935', color: '#fff' }}>🔥 HOT</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: '#aaa' }}>Provably Fair</span>
-              </div>
             </div>
             <div className="text-slate-600 text-2xl flex-shrink-0">›</div>
           </div>
