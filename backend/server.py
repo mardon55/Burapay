@@ -1435,6 +1435,26 @@ async def aviator_history_api():
     return rows
 
 
+@api_router.get("/aviator/mybets/{telegram_id}")
+async def aviator_my_bets(telegram_id: int):
+    """Foydalanuvchi qatnashgan raundlar tarixi (faqat uning tikishlari)."""
+    rows = await fetchall(
+        """SELECT ab.amount, ab.result, ab.cashout_multiplier, ab.profit,
+                  ag.crash_point, ab.created_at
+           FROM aviator_bets ab
+           JOIN aviator_games ag ON ab.game_id = ag.id
+           WHERE ab.user_telegram_id = :tid
+             AND ab.result IN ('won', 'lost')
+           ORDER BY ab.created_at DESC
+           LIMIT 50""",
+        {"tid": telegram_id}
+    )
+    for r in rows:
+        if isinstance(r.get("created_at"), datetime):
+            r["created_at"] = r["created_at"].isoformat()
+    return rows
+
+
 app.include_router(api_router)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

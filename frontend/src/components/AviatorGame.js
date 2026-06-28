@@ -86,6 +86,7 @@ export default function AviatorGame({ user }) {
   const [mult, setMult] = useState(1.0);
   const [countdown, setCountdown] = useState(7);
   const [history, setHistory] = useState([]);
+  const [myHistory, setMyHistory] = useState([]);
   const [crashPt, setCrashPt] = useState(null);
   const [betAmt, setBetAmt] = useState('1000');
   const [activeBet, setActiveBet] = useState(null);
@@ -364,8 +365,15 @@ export default function AviatorGame({ user }) {
         } else {
           ptsRef.current = [...ptsRef.current, cp];
         }
-        if (d.history) setHistory(d.history.slice(0, 12));
         if (betRef.current) {
+          const lostBet = betRef.current;
+          setMyHistory(prev => [{
+            crash_point: cp,
+            result: 'lost',
+            cashout_multiplier: null,
+            amount: lostBet.amount,
+            profit: -lostBet.amount,
+          }, ...prev].slice(0, 50));
           setErr(`✈ ${Number(cp).toFixed(2)}x da uchib ketdi`);
           setActiveBet(null); betRef.current = null;
         }
@@ -387,6 +395,23 @@ export default function AviatorGame({ user }) {
       }
     };
   }, [connect]);
+
+  useEffect(() => {
+    if (!user?.telegram_id) return;
+    axios.get(`${API_URL}/aviator/mybets/${user.telegram_id}`)
+      .then(res => {
+        const rows = res.data || [];
+        const mapped = rows.map(r => ({
+          crash_point: r.crash_point,
+          result: r.result,
+          cashout_multiplier: r.cashout_multiplier,
+          amount: r.amount,
+          profit: r.profit,
+        }));
+        setMyHistory(mapped);
+      })
+      .catch(() => {});
+  }, [user?.telegram_id]); // eslint-disable-line
 
   const placeBet = async () => {
     const amt = parseFloat(betAmt);
@@ -448,10 +473,18 @@ export default function AviatorGame({ user }) {
 
   const cashOut = async () => {
     if (!betRef.current || cashedOut || phaseRef.current !== 'flying') return;
+    const betSnapshot = betRef.current;
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/aviator/cashout`, { telegram_id: user.telegram_id });
       setCashedOut({ mult: res.data.multiplier, win: res.data.winnings });
+      setMyHistory(prev => [{
+        crash_point: null,
+        result: 'won',
+        cashout_multiplier: res.data.multiplier,
+        amount: betSnapshot.amount,
+        profit: res.data.profit,
+      }, ...prev].slice(0, 50));
       setActiveBet(null); betRef.current = null;
       setBalance(b => b + res.data.winnings);
     } catch (ex) {
@@ -832,29 +865,48 @@ export default function AviatorGame({ user }) {
           </div>
         </div>
 
-        {/* ── 40% : X Tarixi ── */}
+        {/* ── 40% : Mening raundlarim tarixi ── */}
         <div className="av-xlist">
           <div className="av-xlist-header">
-            <span className="av-xlist-title">Raundlar tarixi</span>
+            <span className="av-xlist-title">Mening raundlarim</span>
           </div>
-          <div className="av-xlist-grid">
-            {history.length === 0 && (
-              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, gridColumn: 'span 4' }}>
-                Hali raundlar yo'q...
-              </span>
-            )}
-            {history.map((cp, i) => {
-              let col, bg;
-              if (cp < 2)       { col = 'rgba(255,255,255,0.8)'; bg = 'rgba(255,255,255,0.07)'; }
-              else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
-              else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
-              return (
-                <div key={i} className="av-xlist-badge" style={{ color: col, background: bg }}>
-                  {fmt(cp)}
-                </div>
-              );
-            })}
-          </div>
+          {myHistory.length === 0 ? (
+            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, textAlign: 'center', paddingTop: 20 }}>
+              Hali qatnashgan raundlar yo'q...
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {myHistory.map((r, i) => {
+                const isWon = r.result === 'won';
+                const multiplier = isWon ? r.cashout_multiplier : r.crash_point;
+                const profitAbs = Math.abs(r.profit || 0);
+                return (
+                  <div key={i} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    background: isWon ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                    border: `1px solid ${isWon ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                  }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', minWidth: 40 }}>
+                      {isWon ? '✅' : '❌'}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isWon ? '#4ade80' : '#f87171', flex: 1 }}>
+                      {multiplier ? `${Number(multiplier).toFixed(2)}x` : '—'}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginRight: 8 }}>
+                      {Math.round(r.amount || 0).toLocaleString()} UZS
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isWon ? '#4ade80' : '#f87171' }}>
+                      {isWon ? '+' : '-'}{Math.round(profitAbs).toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
       </div>
