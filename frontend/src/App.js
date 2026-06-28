@@ -1524,7 +1524,7 @@ const Casino = ({ user, lang }) => {
   const navigate = useNavigate();
   return (
     <div className="pb-28 animate-in fade-in duration-300 min-h-screen" style={{ background: '#080d18' }}>
-      <div className="px-4 pt-6 pb-3">
+      <div className="px-4 pb-3" style={{ paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 16px))' }}>
 
         <h1 className="text-2xl font-black text-white">Kazino</h1>
       </div>
