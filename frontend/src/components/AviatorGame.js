@@ -789,11 +789,19 @@ export default function AviatorGame({ user }) {
                 disabled={inputDisabled}
                 value={betAmt}
                 placeholder="Summa kiriting..."
-                onChange={e => setBetAmt(e.target.value)}
+                onChange={e => {
+                  const v = parseFloat(e.target.value);
+                  if (v > 1000000) {
+                    setBetAmt('1000000');
+                    showErr('Maks: 1 000 000 UZS', 1000);
+                  } else {
+                    setBetAmt(e.target.value);
+                  }
+                }}
                 onBlur={() => {
                   const v = parseFloat(betAmt);
-                  if (!v || v < 1000) setBetAmt('1000');
-                  else if (v > 1000000) setBetAmt('1000000');
+                  if (!v || v < 1000) { setBetAmt('1000'); showErr('Min: 1 000 UZS', 1000); }
+                  else if (v > 1000000) { setBetAmt('1000000'); showErr('Maks: 1 000 000 UZS', 1000); }
                   else setBetAmt(String(Math.round(v)));
                 }}
               />
