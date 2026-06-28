@@ -632,14 +632,24 @@ export default function AviatorGame({ user }) {
           transition: all 0.15s;
         }
         .av-circle-btn:disabled { opacity: 0.3; }
-        .av-amount-display {
+        .av-amount-input {
           flex: 1;
           text-align: center;
           font-size: clamp(15px, 4.5vw, 20px);
           font-weight: 900;
           color: #fff;
           letter-spacing: -0.5px;
+          background: transparent;
+          border: none;
+          outline: none;
+          width: 0;
+          min-width: 0;
+          -webkit-appearance: none;
+          appearance: none;
         }
+        .av-amount-input::placeholder { color: rgba(255,255,255,0.3); }
+        .av-amount-input::-webkit-outer-spin-button,
+        .av-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
         /* Quick amounts */
         .av-quick-grid {
@@ -769,10 +779,22 @@ export default function AviatorGame({ user }) {
               <div className="av-amount-row">
                 <button className="av-circle-btn" disabled={inputDisabled}
                   onClick={() => adjustAmt(-1000)}>−</button>
-                <div className="av-amount-display">
-                  {fmtUzs(parseFloat(betAmt) || 1000)}
-                  <span style={{ fontSize: '0.5em', opacity: 0.55, marginLeft: 3 }}>UZS</span>
-                </div>
+                <input
+                  className="av-amount-input"
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  disabled={inputDisabled}
+                  value={betAmt}
+                  placeholder="1000"
+                  onChange={e => setBetAmt(e.target.value)}
+                  onBlur={() => {
+                    const v = parseFloat(betAmt);
+                    if (!v || v < 1000) setBetAmt('1000');
+                    else if (v > 1000000) setBetAmt('1000000');
+                    else setBetAmt(String(Math.round(v)));
+                  }}
+                />
                 <button className="av-circle-btn" disabled={inputDisabled}
                   onClick={() => adjustAmt(1000)}>+</button>
               </div>
