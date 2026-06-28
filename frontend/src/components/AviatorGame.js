@@ -88,11 +88,14 @@ export default function AviatorGame({ user }) {
   const [crashPt, setCrashPt] = useState(null);
   const [betAmt, setBetAmt] = useState('1000');
   const [activeBet, setActiveBet] = useState(null);
+  const [nextRoundBet, setNextRoundBet] = useState(null);
   const [cashedOut, setCashedOut] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [balance, setBalance] = useState(user?.balance_uzs || 0);
   const [betTab, setBetTab] = useState('bet');
+
+  const nextRoundBetRef = useRef(null);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { multRef.current = mult; }, [mult]);
@@ -377,9 +380,24 @@ export default function AviatorGame({ user }) {
     const amt = parseFloat(betAmt);
     if (!amt || amt < 1000) { showErr('Min: 1 000 UZS', 1000); return; }
     if (amt > 1000000) { showErr('Maks: 1 000 000 UZS', 1000); return; }
-    if (phaseRef.current !== 'waiting') { showErr('Faqat kutish vaqtida tikish mumkin', 1000); return; }
-    if (betRef.current) { showErr('Allaqachon tikdingiz', 1000); return; }
     if (amt > balance) { showErr("Mablag' yetarli emas", 1000); return; }
+
+    const currentPhase = phaseRef.current;
+
+    // Samolyot uchayotgan payt → keyingi raund uchun saqlash
+    if (currentPhase === 'flying') {
+      if (nextRoundBetRef.current) { showErr('Keyingi raund uchun allaqachon tikdingiz', 1500); return; }
+      nextRoundBetRef.current = { amount: amt };
+      setNextRoundBet({ amount: amt });
+      setErr('');
+      return;
+    }
+
+    // Crash payt → bloklash
+    if (currentPhase === 'crashed') { showErr('Yangi raundni kuting...', 1000); return; }
+
+    // Kutish vaqti → oddiy tikish
+    if (betRef.current) { showErr('Allaqachon tikdingiz', 1000); return; }
     setLoading(true); setErr('');
     try {
       await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'UZS' });
@@ -389,6 +407,32 @@ export default function AviatorGame({ user }) {
       showErr(ex.response?.data?.detail || 'Xatolik', 2000);
     } finally { setLoading(false); }
   };
+
+  const cancelNextRoundBet = () => {
+    nextRoundBetRef.current = null;
+    setNextRoundBet(null);
+  };
+
+  // Yangi raund boshlanganda (waiting) — keyingi raund tikishi avtomatik joylashtiriladi
+  useEffect(() => {
+    if (phase !== 'waiting') return;
+    const nrb = nextRoundBetRef.current;
+    if (!nrb) return;
+    nextRoundBetRef.current = null;
+    setNextRoundBet(null);
+
+    const autoPlace = async () => {
+      setLoading(true); setErr('');
+      try {
+        await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: nrb.amount, currency: 'UZS' });
+        setActiveBet({ amount: nrb.amount }); betRef.current = { amount: nrb.amount };
+        setBalance(b => b - nrb.amount);
+      } catch (ex) {
+        showErr(ex.response?.data?.detail || "Keyingi raund tikishi amalga oshmadi", 2500);
+      } finally { setLoading(false); }
+    };
+    autoPlace();
+  }, [phase]); // eslint-disable-line
 
   const cashOut = async () => {
     if (!betRef.current || cashedOut || phaseRef.current !== 'flying') return;
@@ -414,7 +458,8 @@ export default function AviatorGame({ user }) {
   const isCashoutActive = activeBet && phase === 'flying' && !cashedOut;
   const liveCash = ((activeBet?.amount || 0) * mult).toFixed(2);
   const canBet = !activeBet && phase === 'waiting';
-  const inputDisabled = !!activeBet || phase === 'flying';
+  // Uchayotganda input ochiq — keyingi raund summasini kiritish uchun (agar hali saqlanmagan bo'lsa)
+  const inputDisabled = !!activeBet || !!nextRoundBet || phase === 'crashed';
 
   const fmtUzs = (n) => Math.round(n).toLocaleString('uz-UZ').replace(/,/g, ' ');
 
@@ -752,7 +797,14 @@ export default function AviatorGame({ user }) {
               </div>
             )}
             {phase === 'flying' && (
-              <div style={{ ...multStyle }} className="av-mult-text">{fmt(mult)}</div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ ...multStyle }} className="av-mult-text">{fmt(mult)}</div>
+                {nextRoundBet && (
+                  <div className="av-bet-placed-badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.3)', marginTop: 10 }}>
+                    ⏳ Keyingi raund: {fmtUzs(nextRoundBet.amount)} UZS
+                  </div>
+                )}
+              </div>
             )}
             {phase === 'crashed' && (
               <div style={{ textAlign: 'center' }}>
@@ -810,12 +862,26 @@ export default function AviatorGame({ user }) {
               </div>
             </div>
 
-            {/* Right block: BET / CASHOUT button */}
+            {/* Right block: CASHOUT / KEYINGI RAUND / BEKOR / TIKISH tugmasi */}
             {isCashoutActive ? (
               <button onClick={cashOut} disabled={loading} className="av-bet-btn"
                 style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
                 <span>YECHISH</span>
                 <span className="av-bet-btn-sub">{fmtUzs(parseFloat(liveCash))} UZS</span>
+              </button>
+            ) : nextRoundBet ? (
+              /* Keyingi raund tikilgan — bekor qilish tugmasi */
+              <button onClick={cancelNextRoundBet} disabled={loading} className="av-bet-btn"
+                style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 16px rgba(220,38,38,0.35)' }}>
+                <span>BEKOR</span>
+                <span className="av-bet-btn-sub">{fmtUzs(nextRoundBet.amount)} UZS</span>
+              </button>
+            ) : phase === 'flying' && !activeBet ? (
+              /* Uchayotgan payt, faol tikish yo'q — keyingi raund tugmasi */
+              <button onClick={placeBet} disabled={loading} className="av-bet-btn"
+                style={{ background: '#f59e0b', color: '#000', boxShadow: '0 0 16px rgba(245,158,11,0.35)' }}>
+                <span>KEYINGI</span>
+                <span className="av-bet-btn-sub">RAUND ▸</span>
               </button>
             ) : (
               <button onClick={placeBet}
@@ -824,7 +890,7 @@ export default function AviatorGame({ user }) {
                 style={{
                   background: activeBet ? '#14532d' : '#22c55e',
                   color: activeBet ? '#4ade80' : '#000',
-                  opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.45 : 1,
+                  opacity: (loading || (phase === 'crashed')) ? 0.45 : 1,
                   boxShadow: (!activeBet && phase === 'waiting') ? '0 0 20px rgba(34,197,94,0.35)' : 'none',
                 }}>
                 {loading ? '...' : activeBet ? (
