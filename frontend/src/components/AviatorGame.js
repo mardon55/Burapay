@@ -836,7 +836,6 @@ export default function AviatorGame({ user }) {
         <div className="av-xlist">
           <div className="av-xlist-header">
             <span className="av-xlist-title">Raundlar tarixi</span>
-            <div className="av-xlist-back" onClick={() => navigate('/casino')}>←</div>
           </div>
           <div className="av-xlist-grid">
             {history.length === 0 && (
