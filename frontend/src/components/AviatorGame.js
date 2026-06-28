@@ -329,7 +329,7 @@ export default function AviatorGame({ user }) {
         setCrashPt(null);
         ptsRef.current = [1.0];
         crashAnimRef.current = null;
-        if (d.history) setHistory(d.history.slice(0, 12));
+        if (d.history) setHistory(d.history.slice(0, 50));
         setActiveBet(null); betRef.current = null;
         setCashedOut(null); setErr('');
       } else if (d.type === 'flying') {
@@ -503,47 +503,13 @@ export default function AviatorGame({ user }) {
           overflow: hidden;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
-        .av-history {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 7px 10px;
-          overflow-x: auto;
-          flex-shrink: 0;
-          background: #1a1a2e;
-          scrollbar-width: none;
-          -webkit-overflow-scrolling: touch;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .av-history::-webkit-scrollbar { display: none; }
-        .av-history-badge {
-          flex-shrink: 0;
-          padding: 3px 9px;
-          border-radius: 5px;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.2px;
-        }
-        .av-hist-icon {
-          margin-left: auto;
-          flex-shrink: 0;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.15);
-          background: rgba(255,255,255,0.05);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          font-size: 13px;
-          -webkit-tap-highlight-color: transparent;
-        }
+
+        /* ── Canvas: 40% ── */
         .av-canvas-wrap {
           position: relative;
-          flex: 1;
+          flex: 0 0 40dvh;
+          height: 40dvh;
           overflow: hidden;
-          min-height: 0;
         }
         .av-canvas {
           width: 100%;
@@ -559,57 +525,60 @@ export default function AviatorGame({ user }) {
           pointer-events: none;
         }
         .av-mult-text {
-          font-size: clamp(42px, 14vw, 80px);
+          font-size: clamp(32px, 10vw, 58px);
           color: #fff;
           text-shadow: 0 2px 32px rgba(0,0,0,0.95);
           font-weight: 900;
           letter-spacing: -2px;
         }
-        .av-countdown-wrap {
-          text-align: center;
-        }
+        .av-countdown-wrap { text-align: center; }
         .av-countdown-label {
-          font-size: clamp(10px, 3vw, 13px);
+          font-size: clamp(9px, 2.5vw, 12px);
           color: rgba(255,255,255,0.45);
-          margin-bottom: 4px;
+          margin-bottom: 2px;
           font-weight: 600;
           letter-spacing: 0.5px;
         }
         .av-countdown-text {
-          font-size: clamp(42px, 14vw, 72px);
+          font-size: clamp(32px, 10vw, 56px);
           color: #fff;
           font-weight: 900;
           letter-spacing: -1px;
         }
         .av-crashed-label {
-          font-size: clamp(11px, 3.5vw, 14px);
+          font-size: clamp(10px, 3vw, 13px);
           font-weight: 800;
           color: #ff2244;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
           text-shadow: 0 0 20px #ff0030;
           letter-spacing: 1px;
         }
         .av-crashed-mult {
-          font-size: clamp(42px, 13vw, 72px);
+          font-size: clamp(32px, 10vw, 58px);
           color: #ff2244;
           text-shadow: 0 0 30px #ff0030;
           font-weight: 900;
           letter-spacing: -2px;
         }
         .av-bet-placed-badge {
-          margin-top: 10px;
-          padding: 5px 16px;
+          margin-top: 6px;
+          padding: 3px 12px;
           border-radius: 20px;
-          font-size: clamp(10px, 2.8vw, 12px);
+          font-size: clamp(9px, 2.5vw, 11px);
           font-weight: 700;
           color: #44ff88;
           background: rgba(0,180,80,0.15);
           border: 1px solid rgba(0,200,80,0.3);
         }
+        /* Feedback overlay — absolute bottom of canvas */
+        .av-feedback-wrap {
+          position: absolute;
+          bottom: 0; left: 0; right: 0;
+          pointer-events: none;
+          padding: 0 10px 6px;
+        }
         .av-feedback {
-          flex-shrink: 0;
-          margin: 0 10px 5px;
-          padding: 6px 12px;
+          padding: 5px 12px;
           border-radius: 8px;
           text-align: center;
           font-size: clamp(10px, 3vw, 12px);
@@ -618,48 +587,74 @@ export default function AviatorGame({ user }) {
         .av-cashout-success { background: #006622; color: #aaffcc; }
         .av-err { color: #ff6677; background: rgba(180,0,30,0.25); border: 1px solid rgba(180,0,30,0.3); }
 
-        /* ── Bottom Panel ── */
+        /* ── X Tarixi: 40% ── */
+        .av-xlist {
+          flex: 0 0 40dvh;
+          height: 40dvh;
+          overflow-y: auto;
+          background: #12122a;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          padding: 10px 12px;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .av-xlist::-webkit-scrollbar { display: none; }
+        .av-xlist-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        .av-xlist-title {
+          font-size: 12px;
+          font-weight: 700;
+          color: rgba(255,255,255,0.4);
+          letter-spacing: 1px;
+          text-transform: uppercase;
+        }
+        .av-xlist-back {
+          width: 26px; height: 26px;
+          border-radius: 50%;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.05);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; font-size: 12px;
+          -webkit-tap-highlight-color: transparent;
+          color: rgba(255,255,255,0.5);
+        }
+        .av-xlist-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 6px;
+        }
+        .av-xlist-badge {
+          padding: 5px 4px;
+          border-radius: 7px;
+          font-size: 12px;
+          font-weight: 800;
+          text-align: center;
+          letter-spacing: 0.2px;
+        }
+
+        /* ── Bottom Panel: 20% ── */
         .av-panel {
-          flex-shrink: 0;
+          flex: 0 0 20dvh;
+          height: 20dvh;
           background: #1e1e2e;
-          border-top: 1px solid rgba(255,255,255,0.08);
-          padding: 10px 12px 14px;
+          padding: 8px 12px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
         @supports (padding-bottom: env(safe-area-inset-bottom)) {
-          .av-panel { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+          .av-panel { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
         }
-
-        /* Bet / Auto tabs */
-        .av-tabs {
-          display: flex;
-          background: rgba(255,255,255,0.06);
-          border-radius: 10px;
-          padding: 3px;
-          margin-bottom: 10px;
-          width: fit-content;
-        }
-        .av-tab {
-          padding: 5px 20px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          border: none;
-          background: transparent;
-          color: rgba(255,255,255,0.4);
-          -webkit-tap-highlight-color: transparent;
-          transition: all 0.15s;
-        }
-        .av-tab.active {
-          background: rgba(255,255,255,0.12);
-          color: #fff;
-        }
-
-        /* Two-column bet row */
         .av-bet-row {
           display: flex;
           gap: 10px;
           align-items: stretch;
+          height: 100%;
         }
         .av-left-block {
           flex: 1;
@@ -667,43 +662,16 @@ export default function AviatorGame({ user }) {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 6px;
+          gap: 4px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.09);
           border-radius: 12px;
-          padding: 12px 14px;
-          min-height: 80px;
+          padding: 8px 12px;
         }
-
-        /* Amount row */
-        .av-amount-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .av-circle-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          border: 1.5px solid rgba(255,255,255,0.2);
-          background: transparent;
-          color: rgba(255,255,255,0.7);
-          font-size: 18px;
-          line-height: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          flex-shrink: 0;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-          transition: all 0.15s;
-        }
-        .av-circle-btn:disabled { opacity: 0.3; }
         .av-amount-input {
           width: 100%;
           text-align: center;
-          font-size: clamp(18px, 5vw, 22px);
+          font-size: clamp(16px, 5vw, 20px);
           font-weight: 900;
           color: #fff;
           letter-spacing: -0.5px;
@@ -712,51 +680,22 @@ export default function AviatorGame({ user }) {
           outline: none;
           -webkit-appearance: none;
           appearance: none;
-          padding: 0;
-          margin: 0;
+          padding: 0; margin: 0;
           box-sizing: border-box;
         }
-        .av-amount-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 500; font-size: clamp(13px,3.5vw,15px); }
+        .av-amount-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 500; font-size: clamp(12px,3.5vw,14px); }
         .av-amount-input::-webkit-outer-spin-button,
         .av-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .av-amount-input[type=number] { -moz-appearance: textfield; }
-
-        /* Quick amounts */
-        .av-quick-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 5px;
-        }
-        .av-quick-btn {
-          padding: 5px 0;
-          border-radius: 7px;
-          font-size: 11px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.15s;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.04);
-          color: rgba(255,255,255,0.5);
-        }
-        .av-quick-btn.sel {
-          background: rgba(255,255,255,0.13);
-          color: #fff;
-          border-color: rgba(255,255,255,0.22);
-        }
-        .av-quick-btn:disabled { opacity: 0.3; }
-
-        /* BET / CASHOUT button */
         .av-bet-btn {
           width: 110px;
           flex-shrink: 0;
-          padding: 0 10px;
+          padding: 0 8px;
           border-radius: 12px;
           border: none;
           cursor: pointer;
           font-weight: 900;
-          font-size: clamp(13px, 4vw, 16px);
+          font-size: clamp(12px, 4vw, 15px);
           transition: all 0.15s;
           display: flex;
           flex-direction: column;
@@ -766,36 +705,19 @@ export default function AviatorGame({ user }) {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
           letter-spacing: 0.5px;
-          min-height: 80px;
+          height: 100%;
         }
         .av-bet-btn-sub {
-          font-size: clamp(9px, 2.8vw, 11px);
+          font-size: clamp(8px, 2.5vw, 10px);
           font-weight: 700;
           opacity: 0.85;
-          margin-top: 3px;
+          margin-top: 2px;
         }
       `}</style>
 
       <div className="av-root">
 
-        {/* History bar */}
-        <div className="av-history">
-          {history.length === 0 && <span style={{ fontSize: '11px', color: '#444' }}>—</span>}
-          {history.map((cp, i) => {
-            let col, bg;
-            if (cp < 2)       { col = 'rgba(255,255,255,0.75)'; bg = 'rgba(255,255,255,0.08)'; }
-            else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
-            else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
-            return (
-              <span key={i} className="av-history-badge" style={{ color: col, background: bg }}>
-                {fmt(cp)}
-              </span>
-            );
-          })}
-          <div className="av-hist-icon" onClick={() => navigate('/casino')}>🕐</div>
-        </div>
-
-        {/* Canvas */}
+        {/* ── 40% : Canvas ── */}
         <div className="av-canvas-wrap" ref={containerRef}>
           <canvas ref={canvasRef} className="av-canvas" />
           <div className="av-overlay">
@@ -812,8 +734,8 @@ export default function AviatorGame({ user }) {
               <div style={{ textAlign: 'center' }}>
                 <div style={{ ...multStyle }} className="av-mult-text">{fmt(mult)}</div>
                 {nextRoundBet && (
-                  <div className="av-bet-placed-badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.3)', marginTop: 10 }}>
-                    ⏳ Keyingi raund: {fmtUzs(nextRoundBet.amount)} UZS
+                  <div className="av-bet-placed-badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.3)' }}>
+                    ⏳ Keyingi: {fmtUzs(nextRoundBet.amount)} UZS
                   </div>
                 )}
               </div>
@@ -825,25 +747,49 @@ export default function AviatorGame({ user }) {
               </div>
             )}
           </div>
+          {/* Feedback — canvas pastiga overlay */}
+          <div className="av-feedback-wrap">
+            {cashedOut && (
+              <div className="av-feedback av-cashout-success">
+                ✅ {fmt(cashedOut.mult)} da yechdingiz! +{fmtUzs(cashedOut.win)} UZS
+              </div>
+            )}
+            {err && !cashedOut && (
+              <div className="av-feedback av-err">{err}</div>
+            )}
+          </div>
         </div>
 
-        {/* Feedback */}
-        {cashedOut && (
-          <div className="av-feedback av-cashout-success">
-            ✅ {fmt(cashedOut.mult)} da yechdingiz! +{fmtUzs(cashedOut.win)} UZS
+        {/* ── 40% : X Tarixi ── */}
+        <div className="av-xlist">
+          <div className="av-xlist-header">
+            <span className="av-xlist-title">Raundlar tarixi</span>
+            <div className="av-xlist-back" onClick={() => navigate('/casino')}>←</div>
           </div>
-        )}
-        {err && !cashedOut && (
-          <div className="av-feedback av-err">{err}</div>
-        )}
+          <div className="av-xlist-grid">
+            {history.length === 0 && (
+              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, gridColumn: 'span 4' }}>
+                Hali raundlar yo'q...
+              </span>
+            )}
+            {history.map((cp, i) => {
+              let col, bg;
+              if (cp < 2)       { col = 'rgba(255,255,255,0.8)'; bg = 'rgba(255,255,255,0.07)'; }
+              else if (cp < 10) { col = '#c084fc'; bg = 'rgba(160,80,220,0.18)'; }
+              else              { col = '#fb923c'; bg = 'rgba(220,100,30,0.18)'; }
+              return (
+                <div key={i} className="av-xlist-badge" style={{ color: col, background: bg }}>
+                  {fmt(cp)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* Bet Panel */}
+        {/* ── 20% : Bet Panel ── */}
         <div className="av-panel">
-
-          {/* Two-column: Left = amount input, Right = bet button */}
           <div className="av-bet-row">
-
-            {/* Left block: amount input only */}
+            {/* Left: summa input */}
             <div className="av-left-block">
               <input
                 className="av-amount-input"
@@ -852,15 +798,11 @@ export default function AviatorGame({ user }) {
                 pattern="[0-9]*"
                 disabled={inputDisabled}
                 value={betAmt}
-                placeholder="Summa kiriting..."
+                placeholder="Summa..."
                 onChange={e => {
                   const v = parseFloat(e.target.value);
-                  if (v > 1000000) {
-                    setBetAmt('1000000');
-                    showErr('Maks: 1 000 000 UZS', 1000);
-                  } else {
-                    setBetAmt(e.target.value);
-                  }
+                  if (v > 1000000) { setBetAmt('1000000'); showErr('Maks: 1 000 000 UZS', 1000); }
+                  else setBetAmt(e.target.value);
                 }}
                 onBlur={() => {
                   const v = parseFloat(betAmt);
@@ -869,29 +811,27 @@ export default function AviatorGame({ user }) {
                   else setBetAmt(String(Math.round(v)));
                 }}
               />
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', textAlign: 'center' }}>
                 1 000 – 1 000 000 UZS
               </div>
             </div>
 
-            {/* Right block: CASHOUT / KEYINGI RAUND / BEKOR / TIKISH tugmasi */}
+            {/* Right: CASHOUT / KEYINGI / BEKOR / TIKISH */}
             {isCashoutActive ? (
               <button onClick={cashOut} disabled={loading} className="av-bet-btn"
-                style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
+                style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 20px rgba(34,197,94,0.4)' }}>
                 <span>YECHISH</span>
                 <span className="av-bet-btn-sub">{fmtUzs(parseFloat(liveCash))} UZS</span>
               </button>
             ) : nextRoundBet ? (
-              /* Keyingi raund tikilgan — bekor qilish tugmasi */
               <button onClick={cancelNextRoundBet} disabled={loading} className="av-bet-btn"
-                style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 16px rgba(220,38,38,0.35)' }}>
+                style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 14px rgba(220,38,38,0.35)' }}>
                 <span>BEKOR</span>
                 <span className="av-bet-btn-sub">{fmtUzs(nextRoundBet.amount)} UZS</span>
               </button>
             ) : phase === 'flying' && !activeBet ? (
-              /* Uchayotgan payt, faol tikish yo'q — keyingi raund tugmasi */
               <button onClick={placeBet} disabled={loading} className="av-bet-btn"
-                style={{ background: '#f59e0b', color: '#000', boxShadow: '0 0 16px rgba(245,158,11,0.35)' }}>
+                style={{ background: '#f59e0b', color: '#000', boxShadow: '0 0 14px rgba(245,158,11,0.35)' }}>
                 <span>KEYINGI</span>
                 <span className="av-bet-btn-sub">RAUND ▸</span>
               </button>
@@ -902,8 +842,8 @@ export default function AviatorGame({ user }) {
                 style={{
                   background: activeBet ? '#14532d' : '#22c55e',
                   color: activeBet ? '#4ade80' : '#000',
-                  opacity: (loading || (phase === 'crashed')) ? 0.45 : 1,
-                  boxShadow: (!activeBet && phase === 'waiting') ? '0 0 20px rgba(34,197,94,0.35)' : 'none',
+                  opacity: (loading || phase === 'crashed') ? 0.45 : 1,
+                  boxShadow: (!activeBet && phase === 'waiting') ? '0 0 18px rgba(34,197,94,0.35)' : 'none',
                 }}>
                 {loading ? '...' : activeBet ? (
                   <><span>✓</span><span className="av-bet-btn-sub">TIKILDI</span></>
@@ -917,6 +857,7 @@ export default function AviatorGame({ user }) {
             )}
           </div>
         </div>
+
       </div>
     </>
   );
