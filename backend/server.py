@@ -1435,6 +1435,222 @@ async def aviator_history_api():
     return rows
 
 
+# ── Mines O'yini ──────────────────────────────────────────────────────────────
+
+def calc_mines_multiplier(mines_count: int, opened_count: int) -> float:
+    """Standard mines multiplier: 0.97 * C(25,n) / C(25-m,n)"""
+    if opened_count == 0:
+        return 1.0
+    total = 25
+    safe = total - mines_count
+    if opened_count > safe:
+        return 0.0
+    num = 1.0
+    den = 1.0
+    for i in range(opened_count):
+        num *= (total - i)
+        den *= (safe - i)
+    return round((num / den) * 0.97, 4)
+
+
+@api_router.get("/mines/current/{telegram_id}")
+async def mines_get_current(telegram_id: int):
+    game = await fetchone(
+        "SELECT * FROM mines_games WHERE user_telegram_id = :tid AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+        {"tid": telegram_id}
+    )
+    if not game:
+        return {"game": None}
+    result = dict(game)
+    result.pop("mine_positions", None)  # Yashirin
+    if isinstance(result.get("opened_cells"), str):
+        result["opened_cells"] = json.loads(result["opened_cells"])
+    if isinstance(result.get("created_at"), datetime):
+        result["created_at"] = result["created_at"].isoformat()
+    return {"game": result}
+
+
+@api_router.post("/mines/start")
+@limiter.limit("10/minute")
+async def mines_start(request: Request, data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    bet_amount = float(data.get("bet_amount", 0))
+    mines_count = int(data.get("mines_count", 3))
+
+    if not telegram_id:
+        raise HTTPException(status_code=400, detail="telegram_id kerak")
+    if bet_amount < 1000:
+        raise HTTPException(status_code=400, detail="Minimal stavka: 1 000 UZS")
+    if bet_amount > 10_000_000:
+        raise HTTPException(status_code=400, detail="Maksimal stavka: 10 000 000 UZS")
+    if mines_count < 1 or mines_count > 24:
+        raise HTTPException(status_code=400, detail="Minalar soni: 1-24")
+
+    # Faol o'yin borligini tekshirish
+    existing = await fetchone(
+        "SELECT id FROM mines_games WHERE user_telegram_id = :tid AND status = 'active'",
+        {"tid": telegram_id}
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="Sizda faol o'yin mavjud. Avval uni yakunlang.")
+
+    # Balansni tekshirish va yechib olish
+    user = await fetchone("SELECT balance_uzs FROM users WHERE telegram_id = :tid", {"tid": telegram_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    if float(user["balance_uzs"]) < bet_amount:
+        raise HTTPException(status_code=400, detail="Balansingiz yetarli emas")
+
+    # Minalar joylashuvi (backendda yashirin)
+    mine_positions = random.sample(range(25), mines_count)
+
+    game_id = str(uuid.uuid4())
+    initial_mult = calc_mines_multiplier(mines_count, 0)
+
+    await execute(
+        "UPDATE users SET balance_uzs = balance_uzs - :amt WHERE telegram_id = :tid",
+        {"amt": bet_amount, "tid": telegram_id}
+    )
+    await execute(
+        """INSERT INTO mines_games (id, user_telegram_id, bet_amount, mines_count, mine_positions, opened_cells, status, current_multiplier)
+           VALUES (:id, :tid, :amt, :mc, :mp, '[]'::jsonb, 'active', :mult)""",
+        {"id": game_id, "tid": telegram_id, "amt": bet_amount,
+         "mc": mines_count, "mp": json.dumps(mine_positions), "mult": initial_mult}
+    )
+
+    return {
+        "game_id": game_id,
+        "bet_amount": bet_amount,
+        "mines_count": mines_count,
+        "opened_cells": [],
+        "current_multiplier": initial_mult,
+        "status": "active"
+    }
+
+
+@api_router.post("/mines/click")
+@limiter.limit("60/minute")
+async def mines_click(request: Request, data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    cell_index = data.get("cell_index")
+
+    if telegram_id is None or cell_index is None:
+        raise HTTPException(status_code=400, detail="telegram_id va cell_index kerak")
+    if cell_index < 0 or cell_index > 24:
+        raise HTTPException(status_code=400, detail="Noto'g'ri katak raqami")
+
+    game = await fetchone(
+        "SELECT * FROM mines_games WHERE user_telegram_id = :tid AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+        {"tid": telegram_id}
+    )
+    if not game:
+        raise HTTPException(status_code=400, detail="Faol o'yin topilmadi")
+
+    mine_positions = game["mine_positions"] if isinstance(game["mine_positions"], list) else json.loads(game["mine_positions"])
+    opened_cells = game["opened_cells"] if isinstance(game["opened_cells"], list) else json.loads(game["opened_cells"])
+
+    if cell_index in opened_cells:
+        raise HTTPException(status_code=400, detail="Bu katak allaqachon ochilgan")
+
+    # Minaga tegdimi?
+    if cell_index in mine_positions:
+        # Yutqazdi — o'yin tugaydi, pul qaytmaydi
+        await execute(
+            "UPDATE mines_games SET status = 'lost', opened_cells = :oc WHERE id = :id",
+            {"oc": json.dumps(opened_cells + [cell_index]), "id": game["id"]}
+        )
+        return {
+            "result": "lost",
+            "cell": cell_index,
+            "is_mine": True,
+            "mine_positions": mine_positions,
+            "opened_cells": opened_cells + [cell_index],
+            "current_multiplier": float(game["current_multiplier"]),
+            "status": "lost"
+        }
+
+    # Xavfsiz katak
+    new_opened = opened_cells + [cell_index]
+    new_mult = calc_mines_multiplier(int(game["mines_count"]), len(new_opened))
+
+    # Barcha xavfsiz kataklar ochildi — avtomatik yutdi
+    safe_total = 25 - int(game["mines_count"])
+    auto_won = len(new_opened) >= safe_total
+
+    if auto_won:
+        winnings = round(float(game["bet_amount"]) * new_mult, 2)
+        await execute(
+            "UPDATE mines_games SET status = 'won', opened_cells = :oc, current_multiplier = :mult WHERE id = :id",
+            {"oc": json.dumps(new_opened), "mult": new_mult, "id": game["id"]}
+        )
+        await execute(
+            "UPDATE users SET balance_uzs = balance_uzs + :w WHERE telegram_id = :tid",
+            {"w": winnings, "tid": telegram_id}
+        )
+        return {
+            "result": "won",
+            "cell": cell_index,
+            "is_mine": False,
+            "mine_positions": mine_positions,
+            "opened_cells": new_opened,
+            "current_multiplier": new_mult,
+            "winnings": winnings,
+            "status": "won"
+        }
+
+    await execute(
+        "UPDATE mines_games SET opened_cells = :oc, current_multiplier = :mult WHERE id = :id",
+        {"oc": json.dumps(new_opened), "mult": new_mult, "id": game["id"]}
+    )
+    return {
+        "result": "safe",
+        "cell": cell_index,
+        "is_mine": False,
+        "opened_cells": new_opened,
+        "current_multiplier": new_mult,
+        "status": "active"
+    }
+
+
+@api_router.post("/mines/cashout")
+async def mines_cashout(data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    if not telegram_id:
+        raise HTTPException(status_code=400, detail="telegram_id kerak")
+
+    game = await fetchone(
+        "SELECT * FROM mines_games WHERE user_telegram_id = :tid AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+        {"tid": telegram_id}
+    )
+    if not game:
+        raise HTTPException(status_code=400, detail="Faol o'yin topilmadi")
+
+    opened_cells = game["opened_cells"] if isinstance(game["opened_cells"], list) else json.loads(game["opened_cells"])
+    if len(opened_cells) == 0:
+        raise HTTPException(status_code=400, detail="Kamida bitta katak oching")
+
+    mult = float(game["current_multiplier"])
+    winnings = round(float(game["bet_amount"]) * mult, 2)
+
+    await execute(
+        "UPDATE mines_games SET status = 'won' WHERE id = :id",
+        {"id": game["id"]}
+    )
+    await execute(
+        "UPDATE users SET balance_uzs = balance_uzs + :w WHERE telegram_id = :tid",
+        {"w": winnings, "tid": telegram_id}
+    )
+
+    mine_positions = game["mine_positions"] if isinstance(game["mine_positions"], list) else json.loads(game["mine_positions"])
+    return {
+        "status": "won",
+        "winnings": winnings,
+        "multiplier": mult,
+        "mine_positions": mine_positions,
+        "opened_cells": opened_cells
+    }
+
+
 @api_router.get("/aviator/mybets/{telegram_id}")
 async def aviator_my_bets(telegram_id: int):
     """Foydalanuvchi qatnashgan raundlar tarixi (faqat uning tikishlari)."""
@@ -1589,6 +1805,18 @@ async def create_tables():
                 cashout_multiplier NUMERIC(10,2),
                 result VARCHAR(20) DEFAULT 'pending',
                 profit NUMERIC(18,2),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS mines_games (
+                id VARCHAR(100) PRIMARY KEY,
+                user_telegram_id BIGINT NOT NULL,
+                bet_amount NUMERIC(18,2) NOT NULL,
+                mines_count INT NOT NULL,
+                mine_positions JSONB NOT NULL,
+                opened_cells JSONB DEFAULT '[]'::jsonb,
+                status VARCHAR(20) DEFAULT 'active',
+                current_multiplier NUMERIC(10,4) DEFAULT 1.0,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
         """)

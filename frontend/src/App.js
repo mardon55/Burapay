@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import casinoImg from "./casino.png";
 import AviatorGame from "./components/AviatorGame";
+import MinesGame from "./components/MinesGame";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { 
@@ -1548,16 +1549,22 @@ const Casino = ({ user, lang }) => {
           <div style={{ height: '3px', background: 'linear-gradient(90deg, transparent, #ff6935, transparent)' }} />
         </button>
 
-        {/* Coming soon placeholder */}
-        <div className="rounded-2xl p-5 flex items-center gap-4 opacity-40"
-          style={{ border: '1px dashed rgba(255,255,255,0.15)' }}>
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl"
-            style={{ background: 'rgba(255,255,255,0.05)' }}>🎰</div>
-          <div>
-            <div className="font-bold text-white">Ko'proq o'yinlar</div>
-            <div className="text-sm text-slate-600 mt-0.5">Tez orada…</div>
+        {/* Mines */}
+        <button onClick={() => navigate('/mines')}
+          className="w-full rounded-2xl overflow-hidden transition-all active:scale-95 text-left"
+          style={{ background: 'linear-gradient(135deg,#0d1a25 0%,#1a0d3d 60%,#0a1520 100%)', border: '1px solid rgba(139,92,246,0.35)' }}>
+          <div className="p-5 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center text-4xl"
+              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)' }}>
+              💣
+            </div>
+            <div className="flex-1">
+              <div className="font-black text-xl text-white tracking-wide">MINES</div>
+            </div>
+            <div className="text-slate-600 text-2xl flex-shrink-0">›</div>
           </div>
-        </div>
+          <div style={{ height: '3px', background: 'linear-gradient(90deg, transparent, #7c3aed, transparent)' }} />
+        </button>
       </div>
     </div>
   );
@@ -2292,6 +2299,7 @@ function App() {
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/casino" element={<Casino user={user} lang={lang} />} />
           <Route path="/aviator" element={<AviatorGame user={user} />} />
+          <Route path="/mines" element={<MinesGame user={user} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin || isSuperAdmin(user?.telegram_id)} lang={lang} />
       </BrowserRouter>

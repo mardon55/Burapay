@@ -1,0 +1,48 @@
+Sizning vazifangiz: Mavjud loyihaga "Mines" (Minalar) o'yinini qo'shish. Loyiha React (frontend), FastAPI (backend) va PostgreSQL (DB) arxitekturasida ishlaydi. 
+
+DIQQAT: Vazifalarni parallel bajarmang! Har bir bosqich tugagandan keyingina keyingisiga o'ting. Hozir faqat 1-Bosqichni bajaring.
+
+### 1-BOSQICH: PostgreSQL ma'lumotlar bazasi (Database) strukturasi
+1. Foydalanuvchilar balansini boshqarish va o'yin seanslarini saqlash uchun yangi "mines_games" jadvalini (yoki mavjud strukturaga mos modelni) yarating.
+2. Jadvalda quyidagilar bo'lishi shart:
+   - game_id (UUID yoki Serial)
+   - user_id (Foydalanuvchi ID)
+   - bet_amount (Tikilgan pul miqdori)
+   - mines_count (Minalar soni: 1-24)
+   - mine_positions (Minalar joylashgan kataklar ro'yxati/massivi, backendda yashirin qoladi)
+   - opened_cells (Ochilgan xavfsiz kataklar ro'yxati)
+   - status (active, won, lost)
+   - current_multiplier (Joriy koeffitsiyent)
+   - created_at (Sana)
+3. Ushbu DB modelini yarating va migratsiyani (alembic yoki db script) muvaffaqiyatli ishga tushiring. 
+Tugagach, menga hisobot bering va 2-bosqichga o'tish uchun ruxsat so'rang.
+
+---
+
+### 2-BOSQICH: FastAPI Backend Logikasi va API Endpoints
+(Faqat 1-bosqich to'liq tugagach boshlang!)
+1. `/api/mines/start` (POST): Yangi o'yin boshlash. Foydalanuvchi balandini tekshirish, pulni yechish, 25 ta katak ichidan tasodifiy minalarni generatsiya qilish (backendda saqlash) va o'yin holatini qaytarish (minalar joyini yashirgan holda).
+2. `/api/mines/click` (POST): Katakni ochish. Agar foydalanuvchi minaga bussa -> status="lost", balans nolga teng. Agar yulduzcha topsa -> koeffitsiyentni oshirish va yangilangan holatni qaytarish.
+3. `/api/mines/cashout` (POST): O'yinni to'xtatib yutuqni olish. Balansni `bet_amount * current_multiplier` ga ko'paytirish va status="won" qilish.
+Barcha xavfsizlik va validation qoidalarini yozing. Tugagach, menga xabar bering.
+
+---
+
+### 3-BOSQICH: React Frontend - "Kazino" sahifasiga tugma qo'shish
+(Faqat 2-bosqich tugagach boshlang!)
+1. `casino` sahifasini oching. "AVIATOR" tugmasining pastki qismidagi "Ko'proq o'yinlar, Tez orada..." yozuvini o'chiring.
+2. Uning o'rniga "AVIATOR" tugmasi bilan bir xil dizayn, o'lcham va stilga ega bo'lgan (binafsharang/to'q gradientli) yangi "MINES" o'yini tugmasini joylashtiring. Tugmaga minalar yoki yulduzcha emojisi/ikonkasini qo'shing.
+3. Tugma bosilganda yangi Mines o'yini komponentiga (yoki sahifasiga) o'tadigan route yoki stateni sozlang.
+
+---
+
+### 4-BOSQICH: React Frontend - Mines O'yin Interfeysi (UI) va Integratsiya
+(Faqat 3-bosqich tugagach boshlang!)
+1. Mines o'yini uchun alohida chiroyli va zamonaviy UI yarating:
+   - Tepada: Foydalanuvchi balansi va ortga qaytish tugmasi.
+   - Chap/Tepa qismda: Stavka miqdori (Input) va minalar sonini tanlash (1 dan 24 gacha select). "O'yinni boshlash" va "Cash Out" tugmalari.
+   - Markazda: 5x5 o'lchamdagi chiroyli 25 ta katakcha (Grid).
+2. Backend API bilan bog'lang:
+   - Katak bosilganda chiroyli animatsiya bilan yulduzcha yoki mina portlashi ko'rinsin.
+   - O'yin tugaganda (yutqazganda yoki Cash out qilganda) barcha minalar joylashgan joylar ochilib ko'rinsin.
+3. O'yinni to'liq test qiling, xatolar yo'qligiga ishonch hosil qiling va yakuniy natijani ko'rsating.
