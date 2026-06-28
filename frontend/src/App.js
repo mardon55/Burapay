@@ -1525,9 +1525,7 @@ const Casino = ({ user, lang }) => {
   return (
     <div className="pb-28 animate-in fade-in duration-300 min-h-screen" style={{ background: '#080d18' }}>
       <div className="px-4 pt-6 pb-3">
-        <button onClick={() => navigate(-1)} className="text-slate-500 text-sm mb-4 flex items-center gap-1">
-          ← Orqaga
-        </button>
+
         <h1 className="text-2xl font-black text-white">Kazino</h1>
       </div>
 
