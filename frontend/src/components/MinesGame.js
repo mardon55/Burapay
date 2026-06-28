@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
-const CELL_IDLE    = 'idle';
-const CELL_GEM     = 'gem';
-const CELL_MINE    = 'mine';
-const CELL_REVEAL  = 'reveal'; // mine revealed after cashout/loss
+const CELL_IDLE   = 'idle';
+const CELL_GEM    = 'gem';
+const CELL_MINE   = 'mine';
+const CELL_REVEAL = 'reveal';
 
 export default function MinesGame({ user }) {
   const navigate = useNavigate();
@@ -15,8 +15,7 @@ export default function MinesGame({ user }) {
   const [balance, setBalance]           = useState(user?.balance_uzs || 0);
   const [betAmt, setBetAmt]             = useState('1000');
   const [minesCount, setMinesCount]     = useState(3);
-  const [gameId, setGameId]             = useState(null);
-  const [gameStatus, setGameStatus]     = useState(null); // null | 'active' | 'won' | 'lost'
+  const [gameStatus, setGameStatus]     = useState(null);
   const [betAmount, setBetAmount]       = useState(0);
   const [openedCount, setOpenedCount]   = useState(0);
   const [currentMult, setCurrentMult]   = useState(1);
@@ -42,21 +41,19 @@ export default function MinesGame({ user }) {
     msgTimer.current = setTimeout(() => setMsg(''), ms);
   };
 
-  // Resume active game on mount
   useEffect(() => {
     if (!user?.telegram_id) return;
     axios.get(`${API_URL}/mines/current/${user.telegram_id}`)
       .then(res => {
         const g = res.data.game;
         if (!g) return;
-        setGameId(g.id);
         setGameStatus('active');
         setBetAmount(parseFloat(g.bet_amount));
         setOpenedCount((g.opened_cells || []).length);
         setCurrentMult(parseFloat(g.current_multiplier || 1));
-        const newCells = Array(25).fill(CELL_IDLE);
-        (g.opened_cells || []).forEach(i => { newCells[i] = CELL_GEM; });
-        setCells(newCells);
+        const c = Array(25).fill(CELL_IDLE);
+        (g.opened_cells || []).forEach(i => { c[i] = CELL_GEM; });
+        setCells(c);
       })
       .catch(() => {});
   }, [user?.telegram_id]);
@@ -74,7 +71,6 @@ export default function MinesGame({ user }) {
         bet_amount: amt,
         mines_count: minesCount,
       });
-      setGameId(res.data.game_id);
       setGameStatus('active');
       setBetAmount(amt);
       setOpenedCount(0);
@@ -91,7 +87,6 @@ export default function MinesGame({ user }) {
     if (gameStatus !== 'active') return;
     if (cells[idx] !== CELL_IDLE) return;
     if (loading || clickingCell !== null) return;
-
     setClickingCell(idx);
     setLoading(true);
     try {
@@ -100,61 +95,36 @@ export default function MinesGame({ user }) {
         cell_index: idx,
       });
       const d = res.data;
-
       if (d.result === 'lost') {
-        // Show mine on clicked cell
-        setCells(prev => {
-          const n = [...prev];
-          n[idx] = CELL_MINE;
-          return n;
-        });
-        // After short delay, reveal all mines
+        setCells(prev => { const n=[...prev]; n[idx]=CELL_MINE; return n; });
         setTimeout(() => {
           setCells(prev => {
-            const n = [...prev];
-            (d.mine_positions || []).forEach(mi => {
-              if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
-            });
+            const n=[...prev];
+            (d.mine_positions||[]).forEach(mi => { if(n[mi]===CELL_IDLE) n[mi]=CELL_REVEAL; });
             return n;
           });
         }, 350);
         setGameStatus('lost');
-        setOpenedCount(0);
         showErr(`💣 Mina! O'yin tugadi. -${fmt(betAmount)} UZS`, 4000);
-
       } else if (d.result === 'won') {
         setCells(prev => {
-          const n = [...prev];
-          n[idx] = CELL_GEM;
-          (d.mine_positions || []).forEach(mi => {
-            if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
-          });
+          const n=[...prev]; n[idx]=CELL_GEM;
+          (d.mine_positions||[]).forEach(mi => { if(n[mi]===CELL_IDLE) n[mi]=CELL_REVEAL; });
           return n;
         });
-        const opened = (d.opened_cells || []).length;
-        setOpenedCount(opened);
+        setOpenedCount((d.opened_cells||[]).length);
         setCurrentMult(parseFloat(d.current_multiplier));
         setGameStatus('won');
         setBalance(b => b + d.winnings);
-        showMsg(`🏆 Barcha xavfsiz kataklar topildi! +${fmt(d.winnings)} UZS`, 4000);
-
+        showMsg(`🏆 Barcha xavfsiz kataklar! +${fmt(d.winnings)} UZS`, 4000);
       } else {
-        // safe
-        setCells(prev => {
-          const n = [...prev];
-          n[idx] = CELL_GEM;
-          return n;
-        });
-        const opened = (d.opened_cells || []).length;
-        setOpenedCount(opened);
+        setCells(prev => { const n=[...prev]; n[idx]=CELL_GEM; return n; });
+        setOpenedCount((d.opened_cells||[]).length);
         setCurrentMult(parseFloat(d.current_multiplier));
       }
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik');
-    } finally {
-      setLoading(false);
-      setClickingCell(null);
-    }
+    } finally { setLoading(false); setClickingCell(null); }
   }, [gameStatus, cells, loading, clickingCell, user, betAmount]);
 
   const cashOut = async () => {
@@ -162,14 +132,10 @@ export default function MinesGame({ user }) {
     if (openedCount === 0) { showErr('Kamida bitta katak oching'); return; }
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/mines/cashout`, {
-        telegram_id: user.telegram_id,
-      });
+      const res = await axios.post(`${API_URL}/mines/cashout`, { telegram_id: user.telegram_id });
       setCells(prev => {
-        const n = [...prev];
-        (res.data.mine_positions || []).forEach(mi => {
-          if (n[mi] === CELL_IDLE) n[mi] = CELL_REVEAL;
-        });
+        const n=[...prev];
+        (res.data.mine_positions||[]).forEach(mi => { if(n[mi]===CELL_IDLE) n[mi]=CELL_REVEAL; });
         return n;
       });
       setGameStatus('won');
@@ -182,7 +148,6 @@ export default function MinesGame({ user }) {
   };
 
   const resetGame = () => {
-    setGameId(null);
     setGameStatus(null);
     setCells(Array(25).fill(CELL_IDLE));
     setOpenedCount(0);
@@ -190,74 +155,47 @@ export default function MinesGame({ user }) {
     setErr(''); setMsg('');
   };
 
-  const isActive    = gameStatus === 'active';
-  const isFinished  = gameStatus === 'won' || gameStatus === 'lost';
+  const isActive   = gameStatus === 'active';
+  const isFinished = gameStatus === 'won' || gameStatus === 'lost';
   const potentialWin = Math.round(betAmount * currentMult);
 
-  const cellStyle = (idx, state) => {
-    const isClicking = clickingCell === idx;
+  const getCellStyle = (idx, state) => {
     const base = {
-      position: 'relative',
       borderRadius: 10,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 'clamp(20px, 5.5vw, 28px)',
+      fontSize: 'clamp(18px, 5vw, 26px)',
       cursor: isActive && state === CELL_IDLE ? 'pointer' : 'default',
       border: '1.5px solid',
-      transition: 'transform 0.12s, background 0.18s, border-color 0.18s, box-shadow 0.18s',
-      transform: isClicking ? 'scale(0.88)' : 'scale(1)',
+      transition: 'transform 0.1s, background 0.15s, border-color 0.15s, box-shadow 0.15s',
+      transform: clickingCell === idx ? 'scale(0.86)' : 'scale(1)',
       userSelect: 'none',
       WebkitTapHighlightColor: 'transparent',
       touchAction: 'manipulation',
       aspectRatio: '1',
-      overflow: 'hidden',
     };
-    if (state === CELL_GEM) return {
-      ...base,
-      background: 'linear-gradient(135deg, rgba(16,185,129,0.25), rgba(5,150,105,0.15))',
-      borderColor: 'rgba(16,185,129,0.55)',
-      boxShadow: '0 0 12px rgba(16,185,129,0.25)',
-    };
-    if (state === CELL_MINE) return {
-      ...base,
-      background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(185,28,28,0.2))',
-      borderColor: 'rgba(239,68,68,0.7)',
-      boxShadow: '0 0 18px rgba(239,68,68,0.45)',
-    };
-    if (state === CELL_REVEAL) return {
-      ...base,
-      background: 'rgba(239,68,68,0.08)',
-      borderColor: 'rgba(239,68,68,0.25)',
-      opacity: 0.65,
-    };
-    // IDLE
-    if (isActive) return {
-      ...base,
-      background: 'rgba(139,92,246,0.1)',
-      borderColor: 'rgba(139,92,246,0.3)',
-      boxShadow: '0 0 6px rgba(139,92,246,0.1)',
-    };
-    return {
-      ...base,
-      background: 'rgba(255,255,255,0.04)',
-      borderColor: 'rgba(255,255,255,0.07)',
-    };
+    if (state === CELL_GEM)    return { ...base, background: 'linear-gradient(135deg,rgba(16,185,129,0.28),rgba(5,150,105,0.16))', borderColor: 'rgba(16,185,129,0.6)', boxShadow: '0 0 12px rgba(16,185,129,0.28)' };
+    if (state === CELL_MINE)   return { ...base, background: 'linear-gradient(135deg,rgba(239,68,68,0.38),rgba(185,28,28,0.22))', borderColor: 'rgba(239,68,68,0.75)', boxShadow: '0 0 18px rgba(239,68,68,0.5)' };
+    if (state === CELL_REVEAL) return { ...base, background: 'rgba(239,68,68,0.07)', borderColor: 'rgba(239,68,68,0.22)', opacity: 0.6 };
+    if (isActive)              return { ...base, background: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.35)', boxShadow: '0 0 6px rgba(139,92,246,0.12)' };
+    return { ...base, background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)' };
   };
 
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', minHeight: '100dvh',
-      background: 'linear-gradient(180deg, #0a0f1e 0%, #0d1225 100%)',
+      background: 'linear-gradient(180deg,#0a0f1e 0%,#0d1225 100%)',
       color: '#fff',
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      paddingBottom: 80,
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
     }}>
-      {/* ── Header ── */}
+
+      {/* ══ 1. SARLAVHA & BALANS ══ */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px',
         paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 12px))',
         background: 'rgba(255,255,255,0.03)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
+        flexShrink: 0,
       }}>
         <button onClick={() => navigate('/casino')} style={{
           width: 36, height: 36, borderRadius: '50%',
@@ -275,16 +213,108 @@ export default function MinesGame({ user }) {
         }}>{fmt(balance)} UZS</div>
       </div>
 
-      {/* ── Controls ── */}
+      {/* ══ 2. STATS BAR (faqat o'yin faol/tugagan paytda) ══ */}
+      {gameStatus && (
+        <div style={{
+          display: 'flex', padding: '8px 12px',
+          background: 'rgba(0,0,0,0.2)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          flexShrink: 0,
+        }}>
+          {[
+            { label: 'STAVKA',     value: fmt(betAmount),    color: '#fff' },
+            { label: 'OCHILGAN',   value: openedCount,       color: '#4ade80' },
+            { label: 'KOEF.',      value: fmtM(currentMult), color: '#fbbf24' },
+            { label: 'YUTUQ',      value: fmt(potentialWin), color: '#a78bfa' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', fontWeight: 700, letterSpacing: 0.3 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color, marginTop: 1 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ══ 3. MINES GRIDI — TEPA ══ */}
       <div style={{
-        padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10,
-        background: 'rgba(255,255,255,0.015)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        flex: 1,
+        padding: '14px 14px 10px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {/* Bet amount */}
+        {!gameStatus && (
+          <div style={{
+            fontSize: 12, color: 'rgba(255,255,255,0.22)', fontWeight: 600,
+            marginBottom: 10, textAlign: 'center',
+          }}>
+            Pastdagi boshqaruv panelidan stavka kiriting va o'yinni boshlang
+          </div>
+        )}
+
+        {/* Feedback */}
+        {(err || msg) && (
+          <div style={{
+            marginBottom: 10,
+            padding: '9px 14px', borderRadius: 10,
+            fontSize: 13, fontWeight: 700, textAlign: 'center',
+            background: err ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+            color: err ? '#f87171' : '#4ade80',
+            border: `1px solid ${err ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`,
+            width: '100%', maxWidth: 360, boxSizing: 'border-box',
+          }}>{err || msg}</div>
+        )}
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: 7,
+          width: '100%',
+          maxWidth: 370,
+        }}>
+          {cells.map((state, idx) => (
+            <div
+              key={idx}
+              onClick={() => {
+                if (isActive && state === CELL_IDLE && !loading && clickingCell === null)
+                  clickCell(idx);
+              }}
+              style={{
+                ...getCellStyle(idx, state),
+                animation: (state === CELL_GEM || state === CELL_MINE) ? 'popIn 0.22s ease' : 'none',
+              }}
+            >
+              {state === CELL_GEM    && <span style={{ filter: 'drop-shadow(0 0 6px rgba(16,185,129,0.8))' }}>💎</span>}
+              {state === CELL_MINE   && <span style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.9))' }}>💣</span>}
+              {state === CELL_REVEAL && <span style={{ opacity: 0.55 }}>💣</span>}
+              {state === CELL_IDLE && isActive && (
+                <div style={{
+                  width: '42%', height: '42%', borderRadius: '50%',
+                  background: 'rgba(139,92,246,0.3)',
+                  border: '1px solid rgba(139,92,246,0.5)',
+                }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══ 4. BOSHQARUV PANELI — PAST ══ */}
+      <div style={{
+        flexShrink: 0,
+        padding: '12px 14px',
+        paddingBottom: 'max(20px, calc(env(safe-area-inset-bottom) + 12px))',
+        background: 'rgba(255,255,255,0.03)',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 9,
+      }}>
+        {/* Stavka + Mina soni */}
+        <div style={{ display: 'flex', gap: 9 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.5 }}>STAVKA (UZS)</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.32)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.4 }}>STAVKA (UZS)</div>
             <input
               type="number" inputMode="numeric"
               disabled={isActive || loading}
@@ -301,15 +331,14 @@ export default function MinesGame({ user }) {
                 background: 'rgba(255,255,255,0.07)',
                 border: '1.5px solid rgba(255,255,255,0.12)',
                 borderRadius: 10, color: '#fff',
-                fontSize: 17, fontWeight: 800, padding: '10px 12px',
+                fontSize: 16, fontWeight: 800, padding: '10px 11px',
                 outline: 'none', WebkitAppearance: 'none',
-                opacity: isActive ? 0.5 : 1,
+                opacity: isActive ? 0.45 : 1,
               }}
             />
           </div>
-          {/* Mines count */}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.5 }}>MINALAR SONI</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.32)', fontWeight: 700, marginBottom: 5, letterSpacing: 0.4 }}>MINALAR SONI</div>
             <select
               disabled={isActive || loading}
               value={minesCount}
@@ -319,9 +348,9 @@ export default function MinesGame({ user }) {
                 background: 'rgba(255,255,255,0.07)',
                 border: '1.5px solid rgba(255,255,255,0.12)',
                 borderRadius: 10, color: '#fff',
-                fontSize: 15, fontWeight: 700, padding: '10px 12px',
+                fontSize: 14, fontWeight: 700, padding: '10px 11px',
                 outline: 'none', WebkitAppearance: 'none', appearance: 'none',
-                opacity: isActive ? 0.5 : 1,
+                opacity: isActive ? 0.45 : 1,
               }}
             >
               {Array.from({ length: 24 }, (_, i) => i + 1).map(n => (
@@ -331,7 +360,7 @@ export default function MinesGame({ user }) {
           </div>
         </div>
 
-        {/* Quick amounts — only when not active */}
+        {/* Tezkor tugmalar — faqat o'yin boshlanmagan paytda */}
         {!isActive && !isFinished && (
           <div style={{ display: 'flex', gap: 6 }}>
             {[1000, 5000, 10000, 50000].map(v => (
@@ -339,14 +368,14 @@ export default function MinesGame({ user }) {
                 flex: 1, padding: '7px 0', borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.05)',
-                color: 'rgba(255,255,255,0.6)',
+                color: 'rgba(255,255,255,0.55)',
                 fontSize: 11, fontWeight: 700, cursor: 'pointer',
               }}>{v >= 1000 ? `${v/1000}K` : v}</button>
             ))}
           </div>
         )}
 
-        {/* Action button */}
+        {/* Asosiy tugma */}
         {!gameStatus || isFinished ? (
           <button
             disabled={loading}
@@ -354,13 +383,11 @@ export default function MinesGame({ user }) {
             style={{
               width: '100%', padding: '14px 0', borderRadius: 12, border: 'none',
               fontSize: 15, fontWeight: 900, cursor: loading ? 'not-allowed' : 'pointer',
-              letterSpacing: 0.5, color: '#fff', opacity: loading ? 0.5 : 1,
+              color: '#fff', opacity: loading ? 0.5 : 1,
               background: isFinished
                 ? 'linear-gradient(135deg,#6366f1,#4f46e5)'
                 : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
-              boxShadow: isFinished
-                ? '0 0 20px rgba(99,102,241,0.3)'
-                : '0 0 20px rgba(124,58,237,0.35)',
+              boxShadow: '0 0 20px rgba(124,58,237,0.3)',
             }}
           >
             {loading ? '⏳ Yuklanmoqda...' : isFinished ? "🔄 Yangi o'yin" : "🚀 O'yinni boshlash"}
@@ -378,93 +405,9 @@ export default function MinesGame({ user }) {
               boxShadow: '0 0 22px rgba(34,197,94,0.35)',
             }}
           >
-            {loading
-              ? '⏳ ...'
-              : `💰 YECHISH — ${fmt(potentialWin)} UZS (${fmtM(currentMult)})`}
+            {loading ? '⏳ ...' : `💰 YECHISH — ${fmt(potentialWin)} UZS (${fmtM(currentMult)})`}
           </button>
         )}
-      </div>
-
-      {/* ── Stats (only when game active or finished) ── */}
-      {gameStatus && (
-        <div style={{
-          display: 'flex', padding: '10px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-        }}>
-          {[
-            { label: 'STAVKA', value: fmt(betAmount), color: '#fff' },
-            { label: 'OCHILGAN', value: openedCount, color: '#4ade80' },
-            { label: 'KOEF.', value: fmtM(currentMult), color: '#fbbf24' },
-            { label: 'POTENTSIAL', value: fmt(potentialWin), color: '#a78bfa' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: 0.3 }}>{label}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color, marginTop: 2 }}>{value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Feedback ── */}
-      {(err || msg) && (
-        <div style={{
-          margin: '10px 16px 0',
-          padding: '10px 14px', borderRadius: 10,
-          fontSize: 13, fontWeight: 700, textAlign: 'center',
-          background: err ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-          color: err ? '#f87171' : '#4ade80',
-          border: `1px solid ${err ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`,
-        }}>
-          {err || msg}
-        </div>
-      )}
-
-      {/* ── Grid ── */}
-      <div style={{ padding: '16px', flex: 1 }}>
-        {/* Hint when no game */}
-        {!gameStatus && (
-          <div style={{
-            textAlign: 'center', marginBottom: 14,
-            fontSize: 13, color: 'rgba(255,255,255,0.25)',
-            fontWeight: 600,
-          }}>
-            Stavka kiriting va "O'yinni boshlash" ni bosing
-          </div>
-        )}
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: 8,
-          maxWidth: 380,
-          margin: '0 auto',
-        }}>
-          {cells.map((state, idx) => (
-            <div
-              key={idx}
-              onClick={() => {
-                if (isActive && state === CELL_IDLE && !loading && clickingCell === null) {
-                  clickCell(idx);
-                }
-              }}
-              style={{
-                ...cellStyle(idx, state),
-                animation: (state === CELL_GEM || state === CELL_MINE) ? 'popIn 0.22s ease' : 'none',
-              }}
-            >
-              {state === CELL_GEM    && <span style={{ filter: 'drop-shadow(0 0 6px rgba(16,185,129,0.8))' }}>💎</span>}
-              {state === CELL_MINE   && <span style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.9))' }}>💣</span>}
-              {state === CELL_REVEAL && <span style={{ opacity: 0.6 }}>💣</span>}
-              {state === CELL_IDLE && isActive && (
-                <div style={{
-                  width: '45%', height: '45%', borderRadius: '50%',
-                  background: 'rgba(139,92,246,0.25)',
-                  border: '1px solid rgba(139,92,246,0.4)',
-                }} />
-              )}
-            </div>
-          ))}
-        </div>
       </div>
 
       <style>{`
