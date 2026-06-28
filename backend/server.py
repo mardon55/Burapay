@@ -1240,11 +1240,14 @@ def _gen_crash() -> float:
 async def _avi_broadcast(msg: dict):
     dead = set()
     text = json.dumps(msg)
-    for ws in list(_aviator_sockets):
+
+    async def _send_one(ws):
         try:
             await ws.send_text(text)
         except Exception:
             dead.add(ws)
+
+    await asyncio.gather(*(_send_one(ws) for ws in list(_aviator_sockets)))
     _aviator_sockets.difference_update(dead)
 
 
@@ -1272,13 +1275,23 @@ async def _aviator_round():
         "crash_point": crash_point, "game_id": game_id, "bets": {}
     })
 
-    for sec in range(7, 0, -1):
+    WAITING_SECS = 7
+    loop = asyncio.get_event_loop()
+    wait_start = loop.time()
+
+    for i in range(WAITING_SECS):
+        sec = WAITING_SECS - i          # 7, 6, 5, 4, 3, 2, 1
         _aviator["countdown"] = sec
         await _avi_broadcast({
             "type": "waiting", "countdown": sec,
             "game_id": game_id, "history": _aviator["history"]
         })
-        await asyncio.sleep(1)
+        # Deadline-based sleep: compensates for broadcast time so each
+        # message goes out at exactly wait_start + i seconds, not drifting.
+        deadline = wait_start + (i + 1)
+        sleep_for = deadline - loop.time()
+        if sleep_for > 0:
+            await asyncio.sleep(sleep_for)
 
     _aviator["phase"] = "flying"
     await execute(

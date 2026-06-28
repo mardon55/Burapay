@@ -70,6 +70,8 @@ export default function AviatorGame({ user }) {
   const frameRef = useRef(null);
   const canvasSizeRef = useRef({ w: 360, h: 240 });
   const planeImgRef = useRef(null);
+  const countdownTimerRef = useRef(null);
+  const countdownValRef = useRef(7);
 
   const [phase, setPhase] = useState('waiting');
   const [mult, setMult] = useState(1.0);
@@ -273,7 +275,33 @@ export default function AviatorGame({ user }) {
       if (d.type === 'waiting') {
         phaseRef.current = 'waiting';
         setPhase('waiting');
-        setCountdown(d.countdown || 7);
+
+        const serverCd = d.countdown != null ? d.countdown : 7;
+
+        // Only restart the local timer if this is a new/different countdown value
+        // (avoids redundant restarts when multiple 'waiting' messages arrive in sequence)
+        if (serverCd !== countdownValRef.current || !countdownTimerRef.current) {
+          countdownValRef.current = serverCd;
+          setCountdown(serverCd);
+
+          // Clear any existing local timer
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+          }
+
+          // Local timer: ticks every 1s independently of WebSocket,
+          // providing smooth display even if messages arrive with slight jitter.
+          countdownTimerRef.current = setInterval(() => {
+            countdownValRef.current = Math.max(0, countdownValRef.current - 1);
+            setCountdown(countdownValRef.current);
+            if (countdownValRef.current <= 0) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
+          }, 1000);
+        }
+
         setMult(1.0); multRef.current = 1.0;
         setCrashPt(null);
         ptsRef.current = [1.0];
@@ -281,11 +309,23 @@ export default function AviatorGame({ user }) {
         setActiveBet(null); betRef.current = null;
         setCashedOut(null); setErr('');
       } else if (d.type === 'flying') {
+        // Clear countdown timer — round has started
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+        countdownValRef.current = 0;
         phaseRef.current = 'flying';
         setPhase('flying');
         setMult(d.multiplier); multRef.current = d.multiplier;
         ptsRef.current = [...ptsRef.current, d.multiplier].slice(-500);
       } else if (d.type === 'crashed') {
+        // Clear countdown timer on crash too
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+        countdownValRef.current = 0;
         const cp = d.crash_point || d.multiplier || multRef.current || 1.0;
         phaseRef.current = 'crashed';
         setPhase('crashed');
@@ -314,7 +354,14 @@ export default function AviatorGame({ user }) {
 
   useEffect(() => {
     connect();
-    return () => { clearTimeout(reconnRef.current); wsRef.current?.close(); };
+    return () => {
+      clearTimeout(reconnRef.current);
+      wsRef.current?.close();
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
   }, [connect]);
 
   const placeBet = async () => {
