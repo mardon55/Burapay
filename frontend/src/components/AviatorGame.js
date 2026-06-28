@@ -32,7 +32,7 @@ const _planeImg = new Image();
 _planeImg.src = '/static/plane.png';
 _planeImg.onerror = () => { _planeImg.src = '/plane.png'; };
 
-function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
+function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720, skipClamp = false) {
   const loaded = _planeImg.complete && _planeImg.naturalWidth > 0;
 
   if (!loaded) return;
@@ -42,16 +42,17 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const xOff = -(66 / 291) * iw;
   const yOff = -(192 / 197) * ih;
 
-  // Samolyot canvas chegarasidan chiqmasin — tumshuq va qanotlar to'liq ko'rinsin
-  const W = ctx.canvas.width;
-  const pad = 6;
-  // O'ng chegara: tumshuq (x + iw + xOff) W dan oshmasin
-  const clampedX = Math.min(x, W - (iw + xOff) - pad);
-  // Yuqori chegara: samolyot yuqorisi (y + yOff) 0 dan kichik bo'lmasin
-  const clampedY = Math.max(y, (-yOff) + pad);
+  let finalX = x, finalY = y;
+  if (!skipClamp) {
+    // Samolyot canvas chegarasidan chiqmasin — tumshuq va qanotlar to'liq ko'rinsin
+    const W = ctx.canvas.width;
+    const pad = 6;
+    finalX = Math.min(x, W - (iw + xOff) - pad);
+    finalY = Math.max(y, (-yOff) + pad);
+  }
 
   ctx.save();
-  ctx.translate(clampedX, clampedY);
+  ctx.translate(finalX, finalY);
   ctx.rotate(0);
 
   if (crashed) ctx.globalAlpha = 0.6;
@@ -96,6 +97,7 @@ export default function AviatorGame({ user }) {
   const [betTab, setBetTab] = useState('bet');
 
   const nextRoundBetRef = useRef(null);
+  const crashAnimRef = useRef(null); // { startTime, startX, startY }
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { multRef.current = mult; }, [mult]);
@@ -251,22 +253,31 @@ export default function AviatorGame({ user }) {
     }
 
     if (!crashed) {
-      // Use a wider window for smoother angle, cap tilt to max ~28° upward
-      // Use a wide lookback window (40 pts) so the slope is the long-range trajectory,
-      // not a momentary spike. Then blend 60% toward horizontal so the plane always
-      // looks like it's gliding forward. Hard cap at 10° so it never looks like a rocket.
-      const MAX_ANGLE = Math.PI / 25; // ~7 degrees hard cap
+      const MAX_ANGLE = Math.PI / 25;
       const lookback = Math.min(60, pts.length - 1);
       const refIdx = Math.max(0, pts.length - 1 - lookback);
       const prevX = cx(refIdx);
       const prevY = cy(pts[refIdx]);
       const rawAngle = Math.atan2(ly - prevY, lx - prevX);
-      // Blend 80% toward horizontal — plane always looks like it's gliding, not rocketing
       const blended = rawAngle * 0.2;
       const angle = Math.max(-MAX_ANGLE, Math.min(0, blended));
       drawPlane(ctx, lx, ly, angle, false, planeScale * dpr, W);
     } else {
-      drawPlane(ctx, lx, ly, Math.PI * 0.22, true, planeScale * dpr, W);
+      // Crash exit animatsiyasi — samolyot yuqori-o'ngga tezda uchib chiqib ketadi
+      if (!crashAnimRef.current) {
+        crashAnimRef.current = { startTime: Date.now(), startX: lx, startY: ly };
+      }
+      const elapsed = (Date.now() - crashAnimRef.current.startTime) / 1000;
+      // Yuqori-o'ng tomonga ~55° burchak bilan tez chiqish
+      const EXIT_ANGLE = -Math.PI * 0.38; // ~68° yuqoriga
+      const speed = Math.sqrt(W * W + H * H) * 2.8; // 0.5s da butun ekrandan chiqadi
+      const exitX = crashAnimRef.current.startX + Math.cos(EXIT_ANGLE) * speed * elapsed;
+      const exitY = crashAnimRef.current.startY + Math.sin(EXIT_ANGLE) * speed * elapsed;
+      // Canvas tashqarisiga chiqmagan bo'lsa chizish
+      if (exitX < W + 400 && exitY > -400) {
+        drawPlane(ctx, exitX, exitY, EXIT_ANGLE, false, planeScale * dpr, W, true);
+      }
+      // Canvas tashqarisiga to'liq chiqsa — hech narsa chizilmaydi
     }
   }, []);
 
@@ -317,6 +328,7 @@ export default function AviatorGame({ user }) {
         setMult(1.0); multRef.current = 1.0;
         setCrashPt(null);
         ptsRef.current = [1.0];
+        crashAnimRef.current = null;
         if (d.history) setHistory(d.history.slice(0, 12));
         setActiveBet(null); betRef.current = null;
         setCashedOut(null); setErr('');
