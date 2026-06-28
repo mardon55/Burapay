@@ -1528,7 +1528,7 @@ const Casino = ({ user, lang }) => {
         <button onClick={() => navigate(-1)} className="text-slate-500 text-sm mb-4 flex items-center gap-1">
           ← Orqaga
         </button>
-        <h1 className="text-2xl font-black text-white">🎰 Kazino</h1>
+        <h1 className="text-2xl font-black text-white">Kazino</h1>
       </div>
 
       <div className="px-4 space-y-3 mt-2">
