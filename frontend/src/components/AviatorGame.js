@@ -367,16 +367,18 @@ export default function AviatorGame({ user }) {
 
   const placeBet = async () => {
     const amt = parseFloat(betAmt);
-    if (!amt || amt < 1000) { setErr('Min: 1 000 UZS'); return; }
-    if (phaseRef.current !== 'waiting') { setErr('Faqat kutish vaqtida tikish mumkin'); return; }
-    if (betRef.current) { setErr('Allaqachon tikdingiz'); return; }
+    if (!amt || amt < 1000) { showErr('Min: 1 000 UZS', 1000); return; }
+    if (amt > 1000000) { showErr('Maks: 1 000 000 UZS', 1000); return; }
+    if (phaseRef.current !== 'waiting') { showErr('Faqat kutish vaqtida tikish mumkin', 1000); return; }
+    if (betRef.current) { showErr('Allaqachon tikdingiz', 1000); return; }
+    if (amt > balance) { showErr("Mablag' yetarli emas", 1000); return; }
     setLoading(true); setErr('');
     try {
       await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'UZS' });
       setActiveBet({ amount: amt }); betRef.current = { amount: amt };
       setBalance(b => b - amt);
     } catch (ex) {
-      setErr(ex.response?.data?.detail || 'Xatolik');
+      showErr(ex.response?.data?.detail || 'Xatolik', 2000);
     } finally { setLoading(false); }
   };
 
@@ -410,8 +412,17 @@ export default function AviatorGame({ user }) {
 
   const adjustAmt = (delta) => {
     const cur = parseFloat(betAmt) || 1000;
-    const next = Math.max(1000, Math.round(cur + delta));
+    const next = Math.min(1000000, Math.max(1000, Math.round(cur + delta)));
     setBetAmt(String(next));
+  };
+
+  const errTimerRef = useRef(null);
+  const showErr = (msg, duration = null) => {
+    setErr(msg);
+    if (errTimerRef.current) clearTimeout(errTimerRef.current);
+    if (duration) {
+      errTimerRef.current = setTimeout(() => setErr(''), duration);
+    }
   };
 
   return (
@@ -579,21 +590,37 @@ export default function AviatorGame({ user }) {
           color: #fff;
         }
 
+        /* Two-column bet row */
+        .av-bet-row {
+          display: flex;
+          gap: 10px;
+          align-items: stretch;
+        }
+        .av-left-block {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 12px;
+          padding: 10px 10px 8px;
+        }
+
         /* Amount row */
         .av-amount-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 10px;
+          gap: 6px;
         }
         .av-circle-btn {
-          width: 36px;
-          height: 36px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.2);
+          border: 1.5px solid rgba(255,255,255,0.2);
           background: transparent;
           color: rgba(255,255,255,0.7);
-          font-size: 20px;
+          font-size: 18px;
           line-height: 1;
           display: flex;
           align-items: center;
@@ -608,7 +635,7 @@ export default function AviatorGame({ user }) {
         .av-amount-display {
           flex: 1;
           text-align: center;
-          font-size: clamp(18px, 5.5vw, 24px);
+          font-size: clamp(15px, 4.5vw, 20px);
           font-weight: 900;
           color: #fff;
           letter-spacing: -0.5px;
@@ -618,13 +645,12 @@ export default function AviatorGame({ user }) {
         .av-quick-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 6px;
-          margin-bottom: 10px;
+          gap: 5px;
         }
         .av-quick-btn {
-          padding: 6px 0;
+          padding: 5px 0;
           border-radius: 7px;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.15s;
@@ -643,13 +669,14 @@ export default function AviatorGame({ user }) {
 
         /* BET / CASHOUT button */
         .av-bet-btn {
-          width: 100%;
-          padding: 14px;
+          width: 110px;
+          flex-shrink: 0;
+          padding: 0 10px;
           border-radius: 12px;
           border: none;
           cursor: pointer;
           font-weight: 900;
-          font-size: clamp(15px, 4.5vw, 18px);
+          font-size: clamp(13px, 4vw, 16px);
           transition: all 0.15s;
           display: flex;
           flex-direction: column;
@@ -659,12 +686,13 @@ export default function AviatorGame({ user }) {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
           letter-spacing: 0.5px;
+          min-height: 80px;
         }
         .av-bet-btn-sub {
-          font-size: clamp(10px, 3vw, 12px);
+          font-size: clamp(9px, 2.8vw, 11px);
           font-weight: 700;
           opacity: 0.85;
-          margin-top: 2px;
+          margin-top: 3px;
         }
       `}</style>
 
@@ -733,57 +761,64 @@ export default function AviatorGame({ user }) {
               onClick={() => setBetTab('auto')}>Auto</button>
           </div>
 
-          {/* Amount row: ⊖  1 000  ⊕ */}
-          <div className="av-amount-row">
-            <button className="av-circle-btn" disabled={inputDisabled}
-              onClick={() => adjustAmt(-1000)}>−</button>
-            <div className="av-amount-display">{fmtUzs(parseFloat(betAmt) || 1000)} <span style={{fontSize:'0.55em',opacity:0.6}}>UZS</span></div>
-            <button className="av-circle-btn" disabled={inputDisabled}
-              onClick={() => adjustAmt(1000)}>+</button>
-          </div>
+          {/* Two-column: Left = amount input, Right = bet button */}
+          <div className="av-bet-row">
 
-          {/* Quick amounts */}
-          <div className="av-quick-grid">
-            {[1000, 2000, 5000, 10000].map(v => {
-              const sel = parseFloat(betAmt) === v;
-              return (
-                <button key={v}
-                  disabled={inputDisabled}
-                  onClick={() => setBetAmt(String(v))}
-                  className={`av-quick-btn${sel ? ' sel' : ''}`}>
-                  {fmtUzs(v)}
-                </button>
-              );
-            })}
-          </div>
+            {/* Left block: amount + quick presets */}
+            <div className="av-left-block">
+              <div className="av-amount-row">
+                <button className="av-circle-btn" disabled={inputDisabled}
+                  onClick={() => adjustAmt(-1000)}>−</button>
+                <div className="av-amount-display">
+                  {fmtUzs(parseFloat(betAmt) || 1000)}
+                  <span style={{ fontSize: '0.5em', opacity: 0.55, marginLeft: 3 }}>UZS</span>
+                </div>
+                <button className="av-circle-btn" disabled={inputDisabled}
+                  onClick={() => adjustAmt(1000)}>+</button>
+              </div>
+              <div className="av-quick-grid">
+                {[1000, 5000, 10000, 50000].map(v => {
+                  const sel = parseFloat(betAmt) === v;
+                  return (
+                    <button key={v}
+                      disabled={inputDisabled}
+                      onClick={() => setBetAmt(String(v))}
+                      className={`av-quick-btn${sel ? ' sel' : ''}`}>
+                      {v >= 1000 ? `${v/1000}K` : v}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          {/* BET / CASHOUT button */}
-          {isCashoutActive ? (
-            <button onClick={cashOut} disabled={loading} className="av-bet-btn"
-              style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
-              <span>CASH OUT</span>
-              <span className="av-bet-btn-sub">{fmtUzs(parseFloat(liveCash))} UZS</span>
-            </button>
-          ) : (
-            <button onClick={placeBet}
-              disabled={loading || !!activeBet || phase !== 'waiting'}
-              className="av-bet-btn"
-              style={{
-                background: activeBet ? '#14532d' : '#22c55e',
-                color: activeBet ? '#4ade80' : '#000',
-                opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.45 : 1,
-                boxShadow: (!activeBet && phase === 'waiting') ? '0 0 20px rgba(34,197,94,0.35)' : 'none',
-              }}>
-              {loading ? '...' : activeBet ? (
-                <>✓ TIKILDI</>
-              ) : (
-                <>
-                  <span>TIKISH</span>
-                  <span className="av-bet-btn-sub">{fmtUzs(parseFloat(betAmt) || 1000)} UZS</span>
-                </>
-              )}
-            </button>
-          )}
+            {/* Right block: BET / CASHOUT button */}
+            {isCashoutActive ? (
+              <button onClick={cashOut} disabled={loading} className="av-bet-btn"
+                style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 24px rgba(34,197,94,0.4)' }}>
+                <span>YECHISH</span>
+                <span className="av-bet-btn-sub">{fmtUzs(parseFloat(liveCash))} UZS</span>
+              </button>
+            ) : (
+              <button onClick={placeBet}
+                disabled={loading || !!activeBet || phase !== 'waiting'}
+                className="av-bet-btn"
+                style={{
+                  background: activeBet ? '#14532d' : '#22c55e',
+                  color: activeBet ? '#4ade80' : '#000',
+                  opacity: (loading || (phase !== 'waiting' && !activeBet)) ? 0.45 : 1,
+                  boxShadow: (!activeBet && phase === 'waiting') ? '0 0 20px rgba(34,197,94,0.35)' : 'none',
+                }}>
+                {loading ? '...' : activeBet ? (
+                  <><span>✓</span><span className="av-bet-btn-sub">TIKILDI</span></>
+                ) : (
+                  <>
+                    <span>TIKISH</span>
+                    <span className="av-bet-btn-sub">{fmtUzs(parseFloat(betAmt) || 1000)} UZS</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>
