@@ -55,6 +55,16 @@ export default function MinesGame({ user }) {
 
   useEffect(() => {
     if (!user?.telegram_id) return;
+
+    // Real balansni backenddan olish
+    axios.get(`${API_URL}/user/${user.telegram_id}`)
+      .then(res => {
+        const realBalance = parseFloat(res.data.balance_uzs || 0);
+        setBalance(realBalance);
+      })
+      .catch(() => {});
+
+    // Faol o'yinni tekshirish
     axios.get(`${API_URL}/mines/current/${user.telegram_id}`)
       .then(res => {
         const g = res.data.game;
