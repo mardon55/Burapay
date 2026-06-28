@@ -1514,7 +1514,7 @@ const Profil = ({ user, lang }) => {
                 <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
                 <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
                 <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
-                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="O'yinlar va bonuslar" accentColor="green" onClick={() => navigate('/casino')}/>
+                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="" accentColor="green" onClick={() => navigate('/casino')}/>
             </div>
         </div>
     );
@@ -1529,7 +1529,6 @@ const Casino = ({ user, lang }) => {
           ← Orqaga
         </button>
         <h1 className="text-2xl font-black text-white">🎰 Kazino</h1>
-        <p className="text-sm text-slate-500 mt-0.5">O'yinlar va bonuslar</p>
       </div>
 
       <div className="px-4 space-y-3 mt-2">
