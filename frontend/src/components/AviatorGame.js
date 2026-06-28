@@ -39,8 +39,8 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const iw = _planeImg.width;
   const ih = _planeImg.height;
 
-  const xOff = -(28 / 291) * iw;
-  const yOff = -(172 / 197) * ih;
+  const xOff = -(66 / 291) * iw;
+  const yOff = -(192 / 197) * ih;
 
   ctx.save();
   ctx.translate(x, y);
@@ -169,12 +169,6 @@ export default function AviatorGame({ user }) {
     const lx = cx(pts.length - 1);
     const ly = cy(pts[pts.length - 1]);
 
-    // Tail bottom anchor: offset from plane anchor to bottom of tail fin (image analysis: row 192, col 66 vs anchor 28,172)
-    const TAIL_DX = 38;
-    const TAIL_DY = 20;
-    const tailX = lx + TAIL_DX;
-    const tailY = ly + TAIL_DY;
-
     // ── Filled area under the curve (solid, like reference) ──
     ctx.beginPath();
     ctx.moveTo(ox, oy);
@@ -195,7 +189,6 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    if (!crashed) ctx.lineTo(tailX, tailY);
     ctx.strokeStyle = crashed ? 'rgba(255,0,34,0.55)' : 'rgba(255,0,54,0.55)';
     ctx.lineWidth = 12 * dpr;
     ctx.shadowColor = crashed ? '#ff0022' : '#ff0036';
@@ -209,7 +202,6 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    if (!crashed) ctx.lineTo(tailX, tailY);
     ctx.strokeStyle = crashed ? 'rgba(255,60,80,0.75)' : 'rgba(255,40,80,0.75)';
     ctx.lineWidth = 5 * dpr;
     ctx.shadowBlur = 16;
@@ -221,7 +213,6 @@ export default function AviatorGame({ user }) {
       if (i === 0) ctx.moveTo(cx(i), cy(m));
       else ctx.lineTo(cx(i), cy(m));
     });
-    if (!crashed) ctx.lineTo(tailX, tailY);
     ctx.strokeStyle = crashed ? '#ff8888' : '#ffaaaa';
     ctx.lineWidth = 2 * dpr;
     ctx.shadowBlur = 8;
