@@ -42,8 +42,16 @@ function drawPlane(ctx, x, y, angle, crashed, scale = 1, canvasW = 720) {
   const xOff = -(66 / 291) * iw;
   const yOff = -(192 / 197) * ih;
 
+  // Samolyot canvas chegarasidan chiqmasin — tumshuq va qanotlar to'liq ko'rinsin
+  const W = ctx.canvas.width;
+  const pad = 6;
+  // O'ng chegara: tumshuq (x + iw + xOff) W dan oshmasin
+  const clampedX = Math.min(x, W - (iw + xOff) - pad);
+  // Yuqori chegara: samolyot yuqorisi (y + yOff) 0 dan kichik bo'lmasin
+  const clampedY = Math.max(y, (-yOff) + pad);
+
   ctx.save();
-  ctx.translate(x, y);
+  ctx.translate(clampedX, clampedY);
   ctx.rotate(0);
 
   if (crashed) ctx.globalAlpha = 0.6;
