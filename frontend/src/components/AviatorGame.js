@@ -166,6 +166,15 @@ export default function AviatorGame({ user }) {
     const cx = (i) => ox + (i / Math.max(pts.length - 1, 1)) * PW;
     const cy = (m) => oy - Math.min((m - 1) / (maxM - 1), 1) * PH;
 
+    const lx = cx(pts.length - 1);
+    const ly = cy(pts[pts.length - 1]);
+
+    // Tail bottom anchor: offset from plane anchor to bottom of tail fin (image analysis: row 192, col 66 vs anchor 28,172)
+    const TAIL_DX = 38;
+    const TAIL_DY = 20;
+    const tailX = lx + TAIL_DX;
+    const tailY = ly + TAIL_DY;
+
     // ── Filled area under the curve (solid, like reference) ──
     ctx.beginPath();
     ctx.moveTo(ox, oy);
@@ -235,15 +244,6 @@ export default function AviatorGame({ user }) {
       }
       ctx.shadowBlur = 0;
     }
-
-    const lx = cx(pts.length - 1);
-    const ly = cy(pts[pts.length - 1]);
-
-    // Tail bottom anchor: offset from plane anchor to bottom of tail fin (image analysis: row 192, col 66 vs anchor 28,172)
-    const TAIL_DX = 38;
-    const TAIL_DY = 20;
-    const tailX = lx + TAIL_DX;
-    const tailY = ly + TAIL_DY;
 
     if (!crashed) {
       // Use a wider window for smoother angle, cap tilt to max ~28° upward
