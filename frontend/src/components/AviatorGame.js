@@ -768,14 +768,6 @@ export default function AviatorGame({ user }) {
         {/* Bet Panel */}
         <div className="av-panel">
 
-          {/* Bet / Auto tabs */}
-          <div className="av-tabs">
-            <button className={`av-tab${betTab === 'bet' ? ' active' : ''}`}
-              onClick={() => setBetTab('bet')}>Bet</button>
-            <button className={`av-tab${betTab === 'auto' ? ' active' : ''}`}
-              onClick={() => setBetTab('auto')}>Auto</button>
-          </div>
-
           {/* Two-column: Left = amount input, Right = bet button */}
           <div className="av-bet-row">
 
