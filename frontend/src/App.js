@@ -1009,8 +1009,12 @@ const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, savi
         <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/>
             <div
-                className="relative w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4 animate-in slide-in-from-bottom duration-300"
-                style={{ background: 'linear-gradient(180deg,#1a1f2e 0%,#0f1420 100%)', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="relative w-full max-w-lg rounded-t-2xl p-5 space-y-4 animate-in slide-in-from-bottom duration-300"
+                style={{
+                    background: 'linear-gradient(180deg,#1a1f2e 0%,#0f1420 100%)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 2rem)',
+                }}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-1">
