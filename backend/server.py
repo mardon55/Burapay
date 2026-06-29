@@ -824,9 +824,6 @@ async def create_transaction(request: Request, tx: TransactionCreate):
         raise HTTPException(status_code=404, detail="User not found")
 
     user_wallets = user.get('wallets', [])
-    has_card = any(w['type'] in ['uzcard', 'humo'] for w in user_wallets)
-    if not has_card:
-        raise HTTPException(status_code=400, detail="Avval Uzcard yoki Humo karta qo'shing")
 
     balance_field = 'balance_uzs' if tx.currency == 'UZS' else 'balance_usd'
     current_balance = user.get(balance_field, 0)
