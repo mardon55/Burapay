@@ -701,7 +701,22 @@ async def add_wallet(request: Request, data: dict = Body(...)):
     try:
         new_wallet = WalletIn(**wallet_data)
     except PydanticValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors())
+        # Pydantic v2 embeds the raw ValueError object inside ctx['error'].
+        # Passing e.errors() directly to HTTPException crashes JSON serialisation
+        # with "Object of type ValueError is not JSON serializable".
+        # We log the full traceback so the original message is never hidden,
+        # then produce a JSON-safe copy of the error list.
+        logging.exception("WalletIn validation failed")
+        safe_errors = []
+        for err in e.errors():
+            safe_err = dict(err)
+            if "ctx" in safe_err and isinstance(safe_err["ctx"], dict):
+                safe_err["ctx"] = {
+                    k: str(v) if isinstance(v, Exception) else v
+                    for k, v in safe_err["ctx"].items()
+                }
+            safe_errors.append(safe_err)
+        raise HTTPException(status_code=422, detail=safe_errors)
     await execute(
         """INSERT INTO wallets (id, user_telegram_id, type, number, expiry, name)
            VALUES (:id, :uid, :type, :number, :expiry, :name)""",
