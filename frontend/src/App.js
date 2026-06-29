@@ -1798,6 +1798,8 @@ const Admin = ({ user }) => {
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
     const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', balance_channel_id: '', balance_withdraw_channel_id: '', exchange_rate: 12800 });
+    const [editingChannels, setEditingChannels] = useState({});
+    const [savingChannels, setSavingChannels] = useState({});
     const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
     const [requiredChannels, setRequiredChannels] = useState([]);
     const [newChannel, setNewChannel] = useState({ channel_id: '', channel_name: '', channel_link: '' });
@@ -1846,9 +1848,28 @@ const Admin = ({ user }) => {
 
     const handleSaveSettings = async () => {
         try {
-            await axios.post(`${API_URL}/admin/settings`, settings);
-            toast.success("Sozlamalar saqlandi");
+            await axios.post(`${API_URL}/admin/settings`, { exchange_rate: settings.exchange_rate });
+            toast.success("Kurs saqlandi");
         } catch(e) { toast.error("Xatolik"); }
+    };
+
+    const handleChannelSave = async (field, value) => {
+        if (!value || !value.trim()) return;
+        setSavingChannels(p => ({ ...p, [field]: true }));
+        try {
+            await axios.patch(`${API_URL}/admin/settings/channel`, { field, value: value.trim() });
+            setSettings(p => ({ ...p, [field]: value.trim() }));
+            setEditingChannels(p => ({ ...p, [field]: false }));
+            toast.success("Saqlandi ✅");
+        } catch(e) {
+            toast.error("Xatolik yuz berdi");
+        } finally {
+            setSavingChannels(p => ({ ...p, [field]: false }));
+        }
+    };
+
+    const handleChannelEdit = (field) => {
+        setEditingChannels(p => ({ ...p, [field]: true }));
     };
 
     const handleAddCard = async () => {
@@ -2187,22 +2208,49 @@ const Admin = ({ user }) => {
                             Kanal Sozlamalari
                         </h3>
                         <div className="space-y-4 mb-6">
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">📥 Mostbet/1xbet Depozit Kanali ID</label>
-                                <Input value={settings.deposit_channel_id || ''} onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})} placeholder="-100..." />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">📤 Pul Yechish Kanali ID</label>
-                                <Input value={settings.withdraw_channel_id || ''} onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})} placeholder="-100..." />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">💳 Balans To'ldirish Kanali ID</label>
-                                <Input value={settings.balance_channel_id || ''} onChange={e => setSettings({...settings, balance_channel_id: e.target.value})} placeholder="-100..." />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-400 mb-1 block">💸 Balansdan Yechish Kanali ID</label>
-                                <Input value={settings.balance_withdraw_channel_id || ''} onChange={e => setSettings({...settings, balance_withdraw_channel_id: e.target.value})} placeholder="-100..." />
-                            </div>
+                            {[
+                                { key: 'deposit_channel_id',          label: '📥 Mostbet/1xbet Depozit Kanali ID' },
+                                { key: 'withdraw_channel_id',         label: '📤 Pul Yechish Kanali ID' },
+                                { key: 'balance_channel_id',          label: '💳 Balans To\'ldirish Kanali ID' },
+                                { key: 'balance_withdraw_channel_id', label: '💸 Balansdan Yechish Kanali ID' },
+                            ].map(({ key, label }) => {
+                                const isEditing = !!editingChannels[key];
+                                const isSaving  = !!savingChannels[key];
+                                const locked    = !!settings[key] && !isEditing;
+                                return (
+                                    <div key={key}>
+                                        <label className="text-xs text-slate-400 mb-1 block">{label}</label>
+                                        <div className="flex gap-2 items-center">
+                                            <Input
+                                                value={settings[key] || ''}
+                                                disabled={locked || isSaving}
+                                                onChange={e => setSettings(p => ({ ...p, [key]: e.target.value }))}
+                                                onBlur={e => { if (isEditing) handleChannelSave(key, e.target.value); }}
+                                                placeholder="-100..."
+                                                className={locked ? "opacity-60 cursor-not-allowed flex-1" : "flex-1"}
+                                            />
+                                            {isSaving ? (
+                                                <span className="shrink-0 text-xs text-slate-400 w-8 text-center">⏳</span>
+                                            ) : isEditing ? (
+                                                <button
+                                                    onMouseDown={e => { e.preventDefault(); handleChannelSave(key, settings[key]); }}
+                                                    className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 text-base active:scale-95 transition-all"
+                                                    title="Saqlash"
+                                                >✓</button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleChannelEdit(key)}
+                                                    className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg bg-slate-700/60 border border-slate-600/40 text-slate-300 text-sm active:scale-95 transition-all"
+                                                    title="O'zgartirish"
+                                                >✏️</button>
+                                            )}
+                                        </div>
+                                        {locked && (
+                                            <p className="text-xs text-green-500/70 mt-1">✓ Saqlangan — o'zgartirish uchun ✏️ tugmasini bosing</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">

@@ -1135,6 +1135,24 @@ async def update_settings(data: Settings):
                   update_data)
     return {"status": "updated"}
 
+@api_router.patch("/admin/settings/channel")
+async def update_channel_setting(data: dict = Body(...)):
+    """Single-field channel update — called automatically on input blur."""
+    allowed = {
+        "deposit_channel_id", "withdraw_channel_id",
+        "balance_channel_id", "balance_withdraw_channel_id",
+    }
+    field = str(data.get("field", "")).strip()
+    if field not in allowed:
+        raise HTTPException(status_code=400, detail=f"Noto'g'ri maydon: {field}")
+    value = str(data.get("value", "")).strip() or None
+    await execute(
+        f"UPDATE settings SET {field} = :{field} "
+        f"WHERE id = (SELECT id FROM settings ORDER BY id LIMIT 1)",
+        {field: value},
+    )
+    return {"status": "updated", "field": field, "value": value}
+
 @api_router.post("/admin/required_channels/add")
 async def add_required_channel(data: dict = Body(...)):
     channel_id = data.get("channel_id", "").strip()
