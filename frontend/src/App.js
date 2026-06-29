@@ -1554,9 +1554,9 @@ const Casino = ({ user, lang }) => {
           className="w-full rounded-2xl overflow-hidden transition-all active:scale-95 text-left"
           style={{ background: 'linear-gradient(135deg,#0d1a25 0%,#1a0d3d 60%,#0a1520 100%)', border: '1px solid rgba(139,92,246,0.35)' }}>
           <div className="p-5 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center text-4xl"
+            <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0"
               style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)' }}>
-              💣
+              <img src="/mine-icon.png" alt="Mines" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <div className="font-black text-xl text-white tracking-wide">MINES</div>
