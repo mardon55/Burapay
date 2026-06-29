@@ -223,14 +223,6 @@ export default function MinesGame({ user }) {
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         flexShrink: 0,
       }}>
-        <button onClick={() => navigate('/casino')} style={{
-          width: 34, height: 34, borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.12)',
-          background: 'rgba(255,255,255,0.06)',
-          color: '#fff', fontSize: 17,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-        }}>←</button>
         <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 1.5 }}>💣 MINES</div>
         <div style={{
           fontSize: 12, fontWeight: 700, color: '#fbbf24',
