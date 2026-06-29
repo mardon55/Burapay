@@ -74,19 +74,42 @@ body {
   width: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  /*
-   * iOS Safe Area fix for Telegram Mini App:
-   * --tg-content-safe-area-inset-top  = Telegram's close/menu button height
-   * --tg-safe-area-inset-top          = Telegram + device notch combined
-   * env(safe-area-inset-top)          = native iOS notch fallback
-   * We take the maximum of all three so nothing ever hides under Telegram's chrome.
-   */
-  --tg-content-top: var(--tg-content-safe-area-inset-top, 0px);
-  --tg-safe-top: var(--tg-safe-area-inset-top, 0px);
-  --native-safe-top: env(safe-area-inset-top, 0px);
-  padding-top: max(var(--tg-content-top), var(--tg-safe-top), var(--native-safe-top));
-  padding-bottom: max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
+
+  /*
+   * ── iOS Safe Area — portrait + landscape + Dynamic Island + Notch ──────────
+   *
+   * TOP: max() of all three sources so the tallest chrome always wins:
+   *   --tg-content-safe-area-inset-top = Telegram's close/menu button height
+   *   --tg-safe-area-inset-top         = Telegram header + device notch (combined)
+   *   env(safe-area-inset-top)         = native WebKit notch/Dynamic Island value
+   *     iPhone 13 notch    → 47px
+   *     iPhone 15/16 D.I.  → 59px
+   *     No-notch iPhones   →  0px  (no wasted space)
+   *
+   * LEFT / RIGHT: landscape notch guard (44px on notched iPhones rotated sideways)
+   *   Telegram Mini Apps run portrait-primary, but we defend anyway.
+   *   Telegram provides --tg-safe-area-inset-left/right for its own chrome.
+   *
+   * BOTTOM: home indicator bar on Face-ID iPhones (34px portrait, 21px landscape)
+   */
+  padding-top:    max(
+                    var(--tg-content-safe-area-inset-top, 0px),
+                    var(--tg-safe-area-inset-top, 0px),
+                    env(safe-area-inset-top, 0px)
+                  );
+  padding-bottom: max(
+                    var(--tg-safe-area-inset-bottom, 0px),
+                    env(safe-area-inset-bottom, 0px)
+                  );
+  padding-left:   max(
+                    var(--tg-safe-area-inset-left, 0px),
+                    env(safe-area-inset-left, 0px)
+                  );
+  padding-right:  max(
+                    var(--tg-safe-area-inset-right, 0px),
+                    env(safe-area-inset-right, 0px)
+                  );
 }
 
 /* ── Scrollable containers (Reports, Casino inner lists, sub-page forms) ── */
