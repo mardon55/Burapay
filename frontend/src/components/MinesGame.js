@@ -17,7 +17,7 @@ export default function MinesGame({ user }) {
 
   const [balance, setBalance]           = useState(user?.balance_uzs || 0);
   const [betAmt, setBetAmt]             = useState('1000');
-  const [minesCount, setMinesCount]     = useState(3);
+  const [minesCount]                    = useState(6);
   const [gameStatus, setGameStatus]     = useState(null);
   const [betAmount, setBetAmount]       = useState(0);
   const [openedCount, setOpenedCount]   = useState(0);
@@ -324,25 +324,6 @@ export default function MinesGame({ user }) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
 
-        {/* Mina soni — kichik, o'yin boshlanmagan paytda ko'rinadi */}
-        {!isActive && !isFinished && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-              MINALAR:
-            </div>
-            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-              {[1, 3, 5, 10, 24].map(n => (
-                <button key={n} onClick={() => setMinesCount(n)} style={{
-                  flex: 1, padding: '6px 0', borderRadius: 8, border: 'none',
-                  background: minesCount === n ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.06)',
-                  color: minesCount === n ? '#c4b5fd' : 'rgba(255,255,255,0.45)',
-                  fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                  outline: minesCount === n ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                }}>{n}</button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Stavka inputi + TIKISH tugmasi — rasm kabi */}
         {!isActive && !isFinished && (
