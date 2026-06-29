@@ -56,7 +56,7 @@
     --sa-top: max(
       var(--tg-content-safe-area-inset-top, 0px),
       var(--tg-safe-area-inset-top, 0px),
-      env(safe-area-inset-top, 0px)
+      env(safe-area-inset-top, 24px)
     );
     --sa-bottom: max(
       var(--tg-safe-area-inset-bottom, 0px),
@@ -118,7 +118,6 @@ body {
   box-sizing: border-box;
 
   /* All four sides use the same tokens defined above */
-  padding-top:    var(--sa-top);
   padding-bottom: var(--sa-bottom);
   padding-left:   var(--sa-left);
   padding-right:  var(--sa-right);

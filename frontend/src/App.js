@@ -206,7 +206,7 @@ const Home = ({ user, lang, setLang }) => {
     <div className="pb-28 space-y-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Top Header */}
-      <div className="flex justify-between items-center px-4 pt-4 pb-2">
+      <div className="flex justify-between items-center px-4 pb-2" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-lg shadow-lg">
             {user.first_name?.[0]?.toUpperCase()}
@@ -426,7 +426,7 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
         <h1 className="text-2xl font-bold">{platformLabel} — {t.deposit_title}</h1>
       </div>
       
@@ -629,7 +629,7 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
         <h1 className="text-2xl font-bold">{platformLabel} — {t.withdraw_title}</h1>
       </div>
       <div>
@@ -734,7 +734,7 @@ const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => 
 
 const PageHeader = ({ title }) => {
     return (
-        <div className="page-header-bar">
+        <div className="page-header-bar" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
             <h1>{title}</h1>
         </div>
     );
@@ -1581,7 +1581,7 @@ const Profil = ({ user, lang }) => {
     };
 
     return (
-        <div className="pb-28 animate-in fade-in duration-300">
+        <div className="pb-28 animate-in fade-in duration-300" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
             {/* Profile header */}
             <div className="p-4 pb-3">
                 <div className="flex items-center gap-3">
@@ -1635,7 +1635,7 @@ const Casino = ({ user, lang }) => {
   const navigate = useNavigate();
   const t = translations[lang];
   return (
-    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#080d18' }}>
+    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}>
       <div className="px-4 pt-4 pb-3 flex-shrink-0">
         <h1 className="text-2xl font-black text-white">{t.casino_title}</h1>
       </div>
@@ -1891,7 +1891,7 @@ const Admin = ({ user }) => {
             <div className="flex-1 flex flex-col min-w-0">
 
                 {/* Mobile top bar */}
-                <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#0d1225] sticky top-0 z-[9997]">
+                <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#0d1225] sticky top-0 z-[9997]" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
                     <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg bg-slate-800 text-white">
                         <Menu size={20} />
                     </button>
@@ -2337,7 +2337,7 @@ const Reports = ({ user, lang }) => {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#0a0e1a', paddingTop: 'calc(var(--sa-top) + 12px)' }}>
 
       {/* Header */}
       <div className="px-4 pt-5 pb-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
