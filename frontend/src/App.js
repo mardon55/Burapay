@@ -39,9 +39,13 @@ import {
   ChevronDown
 } from "lucide-react";
 import axios from "axios";
+import translations from "./translations";
 
 // ── Axios Global Config & Interceptors ────────────────────────────────────────
 axios.defaults.timeout = 30000;
+
+let _currentLang = 'uz';
+export const setAxiosLang = (l) => { _currentLang = l; };
 
 axios.interceptors.response.use(
   (res) => res,
@@ -49,18 +53,19 @@ axios.interceptors.response.use(
     const status = error?.response?.status;
     const detail = error?.response?.data?.detail;
     const msg = typeof detail === "string" ? detail : null;
+    const t = translations[_currentLang];
 
     if (status === 429) {
-      toast.error("Juda ko'p so'rov yuborildi. Biroz kuting ⏳");
+      toast.error(_currentLang === 'ru' ? "Слишком много запросов. Подождите ⏳" : "Juda ko'p so'rov yuborildi. Biroz kuting ⏳");
     } else if (status === 422) {
-      toast.error(msg || "Ma'lumot noto'g'ri formatda yuborildi");
+      toast.error(msg || (_currentLang === 'ru' ? "Данные отправлены в неверном формате" : "Ma'lumot noto'g'ri formatda yuborildi"));
     } else if (status >= 500) {
-      toast.error("Tizimda vaqtincha uzilish yuz berdi. Qayta urinib ko'ring 🔄");
+      toast.error(_currentLang === 'ru' ? "Временный сбой системы. Попробуйте снова 🔄" : "Tizimda vaqtincha uzilish yuz berdi. Qayta urinib ko'ring 🔄");
     } else if (!error.response) {
       if (error.code === "ECONNABORTED") {
-        toast.error("So'rov vaqti tugadi. Internet aloqani tekshiring 📡");
+        toast.error(_currentLang === 'ru' ? "Время запроса истекло. Проверьте интернет 📡" : "So'rov vaqti tugadi. Internet aloqani tekshiring 📡");
       } else if (error.message && error.message.includes("Network")) {
-        toast.error("Tarmoq xatosi. Serverga ulanib bo'lmadi 🔌");
+        toast.error(_currentLang === 'ru' ? "Ошибка сети. Нет подключения к серверу 🔌" : "Tarmoq xatosi. Serverga ulanib bo'lmadi 🔌");
       }
     }
     return Promise.reject(error);
@@ -77,121 +82,6 @@ const isSuperAdmin = (id) => Number(id) === SUPERADMIN_ID || String(id) === Stri
 // Telegram Utils
 const tg = window.Telegram?.WebApp;
 
-// Translations
-const translations = {
-  uz: {
-    home: "Asosiy",
-    otkazmalar: "O'tkazmalar",
-    deposit: "To'ldirish",
-    withdraw: "Yechish",
-    wallets: "Hamyonlar",
-    admin: "Admin",
-    welcome: "Xush kelibsiz",
-    total_balance: "Balansim",
-    recent_activity: "Oxirgi amallar",
-    view_all: "Barchasi",
-    no_tx: "Hozircha amallar yo'q",
-    deposit_title: "Hisobni to'ldirish",
-    enter_amount: "Kiritiladigan summa",
-    confirm_deposit: "To'lovni tasdiqlash",
-    secure_tx: "Xavfsiz to'lov. Sizning mablag'ingiz admin tasdiqlaganidan keyin tushadi.",
-    withdraw_title: "Mablag'ni yechib olish",
-    select_wallet: "Hamyonni tanlang",
-    manage_wallets: "Hamyonlarni boshqarish",
-    no_wallets: "Yechib olish uchun Mostbet hamyonlari yo'q. Iltimos, qo'shing.",
-    withdraw_amount: "Yechiladigan summa",
-    request_withdraw: "Pul yechishga so'rov",
-    my_wallets: "Mening hamyonlarim",
-    add_wallet: "Yangi hamyon qo'shish",
-    type: "Tur",
-    number_id: "Raqam / ID",
-    card_number: "Karta raqami",
-    expiry: "Amal qilish muddati",
-    cancel: "Bekor qilish",
-    save: "Saqlash",
-    copied: "Nusxalandi!",
-    error: "Xatolik",
-    success_deposit: "To'lov so'rovi yuborildi!",
-    success_withdraw: "Pul yechish so'rovi yuborildi!",
-    success_wallet: "Hamyon qo'shildi",
-    enter_valid_amount: "Summani kiriting",
-    enter_valid_number: "Raqamni kiriting",
-    approved: "Tasdiqlandi",
-    rejected: "Bekor qilindi",
-    pending: "Kutilmoqda",
-    deposit_in: "Kirim",
-    withdraw_out: "Chiqim",
-    lang_changed: "Til o'zgartirildi",
-    min_amount: "Eng kam summa 20,000 UZS",
-    transfer_to: "Quyidagi hisobga o'tkazing:",
-    copy_num: "Raqamdan nusxa olish",
-    i_paid: "To'lov qildim",
-    mostbet_id: "Mostbet ID raqami",
-    secret_code: "Tasdiqlash kodi",
-    code_placeholder: "Mostbet kodi (8 xonali)",
-    add_card_required: "Iltimos, avval Uzcard yoki Humo karta qo'shing!",
-    select_card_to_pay: "To'lov kartasini tanlang",
-    admin_cards: "Qabul qiluvchi hamyonlar",
-    choose_currency: "Valyutani tanlang",
-    exchange_rate: "Kurs"
-  },
-  ru: {
-    home: "Главная",
-    otkazmalar: "Переводы",
-    deposit: "Пополнить",
-    withdraw: "Вывести",
-    wallets: "Кошельки",
-    admin: "Админ",
-    welcome: "Добро пожаловать",
-    total_balance: "Общий баланс",
-    recent_activity: "Последние действия",
-    view_all: "Все",
-    no_tx: "Пока нет операций",
-    deposit_title: "Пополнение счета",
-    enter_amount: "Сумма пополнения",
-    confirm_deposit: "Подтвердить платеж",
-    secure_tx: "Безопасный платеж. Средства будут зачислены после подтверждения.",
-    withdraw_title: "Вывод средств",
-    select_wallet: "Выберите кошелек",
-    manage_wallets: "Управление кошельками",
-    no_wallets: "Нет Mostbet кошельков для вывода. Пожалуйста, добавьте.",
-    withdraw_amount: "Сумма вывода",
-    request_withdraw: "Запросить вывод",
-    my_wallets: "Мои кошельки",
-    add_wallet: "Добавить кошелек",
-    type: "Тип",
-    number_id: "Номер / ID",
-    card_number: "Номер карты",
-    expiry: "Срок действия",
-    cancel: "Отмена",
-    save: "Сохранить",
-    copied: "Скопировано!",
-    error: "Ошибка",
-    success_deposit: "Запрос отправлен!",
-    success_withdraw: "Запрос отправлен!",
-    success_wallet: "Кошелек добавлен",
-    enter_valid_amount: "Введите сумму",
-    enter_valid_number: "Введите номер",
-    approved: "Одобрено",
-    rejected: "Отклонено",
-    pending: "Ожидание",
-    deposit_in: "Ввод",
-    withdraw_out: "Вывод",
-    lang_changed: "Язык изменен",
-    min_amount: "Минимальная сумма 20,000 UZS",
-    transfer_to: "Переведите на этот счет:",
-    copy_num: "Копировать номер",
-    i_paid: "Я оплатил",
-    mostbet_id: "Номер Mostbet ID",
-    secret_code: "Код подтверждения",
-    code_placeholder: "Код Mostbet (8 знаков)",
-    add_card_required: "Пожалуйста, сначала добавьте карту Uzcard или Humo!",
-    select_card_to_pay: "Выберите карту для оплаты",
-    admin_cards: "Кошельки для приема",
-    choose_currency: "Выберите валюту",
-    exchange_rate: "Курс"
-  }
-};
 
 // Components
 const Button = ({ children, variant = "primary", className = "", ...props }) => {
@@ -245,8 +135,8 @@ const BottomNav = ({ isAdmin, lang }) => {
   const navItems = [
     { icon: <Wallet size={22} />, label: t.home, path: "/", match: ["/"] },
     { icon: <ArrowDownUp size={22} />, label: t.otkazmalar, path: "/transfers", match: ["/transfers", "/deposit"] },
-    { icon: <History size={22} />, label: "Hisobotlar", path: "/reports", match: ["/reports"] },
-    { icon: <CreditCard size={22} />, label: "Profil", path: "/profile", match: ["/profile", "/profil"] },
+    { icon: <History size={22} />, label: t.reports, path: "/reports", match: ["/reports"] },
+    { icon: <CreditCard size={22} />, label: t.profile, path: "/profile", match: ["/profile", "/profil"] },
   ];
 
   return (
@@ -320,7 +210,7 @@ const Home = ({ user, lang, setLang }) => {
             {user.first_name?.[0]?.toUpperCase()}
           </div>
           <div>
-            <p className="text-xs text-slate-400">{lang === 'uz' ? 'Salom,' : 'Привет,'}</p>
+            <p className="text-xs text-slate-400">{t.hello}</p>
             <h1 className="text-base font-bold leading-tight">{user.first_name}</h1>
           </div>
         </div>
@@ -352,7 +242,7 @@ const Home = ({ user, lang, setLang }) => {
             </div>
             {balanceUZS === 0 && (
               <p className="text-xs text-slate-500 mt-0.5">
-                {lang === 'uz' ? "Hisobingizda mablag' yo'q" : "На счёте нет средств"}
+                {t.no_balance}
               </p>
             )}
           </div>
@@ -501,7 +391,7 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
   const handleNext = () => {
       if(!amount) return toast.error(t.enter_valid_amount);
       if(currency === 'UZS' && Number(amount) < 20000) return toast.error(t.min_amount);
-      if(!userPlatformId) return toast.error("Avval " + platformLabel + " ID ni hamyonlarimga saqlang");
+      if(!userPlatformId) return toast.error(t.platform_id_hint.replace('{platform}', platformLabel));
       setStep(2);
   };
 
@@ -558,7 +448,7 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
 
             {/* User Platform ID display */}
             <Card>
-                <label className="text-sm text-slate-400 mb-3 block">{platformLabel} ID raqamingiz</label>
+                <label className="text-sm text-slate-400 mb-3 block">{t.platform_id_label.replace('{platform}', platformLabel)}</label>
                 {userPlatformId ? (
                     <div className="flex items-center justify-between">
                         <span className="text-xl font-mono font-bold text-white">{userPlatformId}</span>
@@ -568,8 +458,8 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
                     </div>
                 ) : (
                     <div className="flex items-center justify-between">
-                        <span className="text-slate-500 text-sm">ID kiritilmagan</span>
-                        <button onClick={() => navigate('/wallets')} className="text-primary text-sm font-bold">Qo'shish</button>
+                        <span className="text-slate-500 text-sm">{t.id_not_entered}</span>
+                        <button onClick={() => navigate('/wallets')} className="text-primary text-sm font-bold">{t.add_id}</button>
                     </div>
                 )}
             </Card>
@@ -595,14 +485,14 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
                             <span className="font-mono text-white">1 USD = {usdRate} UZS</span>
                         </div>
                         <div className="flex justify-between items-end">
-                            <span className="text-slate-400">Jami UZS:</span>
+                            <span className="text-slate-400">{t.total_uzs}</span>
                             <span className="text-xl font-bold text-primary">{calculatedUZS} UZS</span>
                         </div>
                     </div>
                 )}
             </Card>
 
-            <Button onClick={handleNext} className="w-full py-4 text-lg">Davom etish</Button>
+            <Button onClick={handleNext} className="w-full py-4 text-lg">{t.continue_btn}</Button>
           </div>
       ) : (
           <div className="space-y-4 animate-in slide-in-from-right">
@@ -617,14 +507,14 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
                       </div>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-700/50 pt-4">
-                      <span className="text-slate-400 text-sm">Summa</span>
+                      <span className="text-slate-400 text-sm">{t.amount_label}</span>
                       <span className="font-bold text-white text-lg">{Number(amount).toLocaleString()} {currency}</span>
                   </div>
                   {(() => {
                       const adminCard = getAdminCard();
                       return adminCard ? (
                           <div className="flex justify-between items-center border-t border-slate-700/50 pt-4">
-                              <span className="text-slate-400 text-sm">To'lov karta</span>
+                              <span className="text-slate-400 text-sm">{t.payment_card}</span>
                               <div className="flex items-center gap-2">
                                   <span className="font-mono text-slate-300 text-sm">{adminCard.number}</span>
                                   <button onClick={() => { navigator.clipboard.writeText(adminCard.number); toast.success(t.copied); }} className="p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 active:scale-95 transition-all">
@@ -634,7 +524,7 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
                           </div>
                       ) : (
                           <div className="border-t border-slate-700/50 pt-4 text-center text-slate-500 text-sm">
-                              Admin karta kiritilmagan
+                              {t.admin_card_missing}
                           </div>
                       );
                   })()}
@@ -642,11 +532,11 @@ const Deposit = ({ user, lang, platform = "mostbet" }) => {
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                 <CheckCircle2 className="inline-block mr-2 mb-1" size={16} />
-                Yuqoridagi kartaga pul o'tkazing, keyin "To'lov qildim" tugmasini bosing.
+                {t.pay_instruction}
               </div>
 
               <div className="flex gap-3">
-                  <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">Ortga</Button>
+                  <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">{t.back}</Button>
                   <Button onClick={handleDeposit} className="flex-[2]">{t.i_paid}</Button>
               </div>
           </div>
@@ -693,7 +583,7 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
 
   const handleWithdraw = async () => {
     if (!selectedWallet) return toast.error(t.select_wallet);
-    if (!code || code.length < 6) return toast.error("Kodni kiriting");
+    if (!code || code.length < 6) return toast.error(t.enter_code);
 
     let verifyData;
     try {
@@ -703,7 +593,7 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
         });
         verifyData = res.data;
     } catch (err) {
-        return toast.error(err.response?.data?.detail || "Noto'g'ri kod");
+        return toast.error(err.response?.data?.detail || t.invalid_code);
     }
 
     const currency = selectedWallet.type.includes('usd') ? 'USD' : 'UZS';
@@ -793,9 +683,9 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
                                     code: val,
                                     player_id: selectedWallet.number
                                 }).then(() => {
-                                    toast.success("Kod tasdiqlandi!");
+                                    toast.success(t.code_confirmed);
                                 }).catch((err) => {
-                                    toast.error(err.response?.data?.detail || "Xatolik");
+                                    toast.error(err.response?.data?.detail || t.error_occurred);
                                 });
                             }
                         }}
@@ -854,7 +744,8 @@ const maskCardFull = (num) => {
     return d.slice(0, 4) + ' **** **** ' + d.slice(-4);
 };
 
-const BalanceDepositPage = ({ user }) => {
+const BalanceDepositPage = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const navigate = useNavigate();
     const [amount, setAmount]       = useState('');
     const [adminCard, setAdminCard] = useState(null);
@@ -881,7 +772,7 @@ const BalanceDepositPage = ({ user }) => {
         if (!adminCard?.number) return;
         const num = adminCard.number.replace(/\s/g, '');
         if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(num).then(() => toast.success("Karta raqami nusxalandi!"));
+            navigator.clipboard.writeText(num).then(() => toast.success(t.card_copied));
         } else {
             const el = document.createElement('textarea');
             el.value = num;
@@ -889,14 +780,14 @@ const BalanceDepositPage = ({ user }) => {
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            toast.success("Karta raqami nusxalandi!");
+            toast.success(t.card_copied);
         }
     };
 
     const handleSubmit = async () => {
         const amt = parseFloat(amount.replace(/\s/g, '').replace(',', '.'));
-        if (!amt || amt < 1000) return toast.error("Minimal summa: 1 000 UZS");
-        if (!adminCard) return toast.error("Admin kartasi topilmadi");
+        if (!amt || amt < 1000) return toast.error(t.min_balance_amount);
+        if (!adminCard) return toast.error(t.admin_card_not_found);
         setSubmitting(true);
         try {
             await axios.post(`${API_URL}/balance/deposit`, {
@@ -905,7 +796,7 @@ const BalanceDepositPage = ({ user }) => {
             });
             setSubmitted(true);
         } catch (e) {
-            toast.error(e?.response?.data?.detail || "Xatolik yuz berdi");
+            toast.error(e?.response?.data?.detail || t.error_occurred);
         } finally {
             setSubmitting(false);
         }
@@ -916,18 +807,18 @@ const BalanceDepositPage = ({ user }) => {
             <div className="w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
                 <CheckCircle2 size={40} className="text-green-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">So'rov yuborildi!</h2>
-            <p className="text-slate-400 text-sm text-center mb-1">Admin tekshirib, tasdiqlaydi.</p>
-            <p className="text-slate-500 text-xs text-center mb-8">Tasdiqlanganidan so'ng balans avtomatik to'ldiriladi.</p>
+            <h2 className="text-xl font-bold text-white mb-2">{t.request_sent_title}</h2>
+            <p className="text-slate-400 text-sm text-center mb-1">{t.admin_checking}</p>
+            <p className="text-slate-500 text-xs text-center mb-8">{t.auto_credit}</p>
             <div className="w-full max-w-xs space-y-3">
                 <button onClick={() => navigate('/wallet')}
                     className="w-full py-3 rounded-xl font-bold text-black text-sm active:scale-95 transition-all"
                     style={{ background: 'linear-gradient(135deg,#facc15,#f59e0b)' }}>
-                    Hamyonga qaytish
+                    {t.back_to_wallet}
                 </button>
                 <button onClick={() => { setSubmitted(false); setAmount(''); }}
                     className="w-full py-3 rounded-xl font-bold text-slate-400 text-sm bg-white/5 active:scale-95 transition-all">
-                    Yangi so'rov
+                    {t.new_request}
                 </button>
             </div>
         </div>
@@ -935,7 +826,7 @@ const BalanceDepositPage = ({ user }) => {
 
     return (
         <div className="min-h-screen pb-28 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
-            <PageHeader title="Balans to'ldirish" />
+            <PageHeader title={t.balance_deposit_title} />
 
             <div className="px-4 pt-4 space-y-4">
                 {/* Bot ID — readonly */}
@@ -947,12 +838,12 @@ const BalanceDepositPage = ({ user }) => {
                             <div className="w-2 h-2 rounded-full bg-green-400"></div>
                         </div>
                     </div>
-                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">Bu ID avtomatik kiritiladi va o'zgartirilmaydi</p>
+                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">{t.bot_id_hint}</p>
                 </div>
 
                 {/* Amount input */}
                 <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Summa</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{t.amount_label}</p>
                     <div className="relative">
                         <input
                             type="number"
@@ -965,16 +856,16 @@ const BalanceDepositPage = ({ user }) => {
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">UZS</span>
                     </div>
-                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">Minimal: 1 000 UZS</p>
+                    <p className="text-[10px] text-slate-600 mt-1.5 px-1">{t.min_balance_short}</p>
                 </div>
 
                 {/* Admin card */}
                 <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">To'lov uchun karta</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">{t.payment_card_label}</p>
                     {loading ? (
                         <div className="flex items-center gap-3 py-2">
                             <div className="w-5 h-5 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
-                            <span className="text-sm text-slate-500">Yuklanmoqda...</span>
+                            <span className="text-sm text-slate-500">{t.loading}</span>
                         </div>
                     ) : adminCard ? (
                         <div className="flex items-center justify-between gap-3">
@@ -991,18 +882,18 @@ const BalanceDepositPage = ({ user }) => {
                                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95"
                                 style={{ background: 'rgba(250,204,21,0.08)', border: '1px solid rgba(250,204,21,0.15)' }}>
                                 <Copy size={13} className="text-yellow-400" />
-                                <span className="text-xs font-semibold text-yellow-400">Nusxa</span>
+                                <span className="text-xs font-semibold text-yellow-400">{t.copy_card}</span>
                             </button>
                         </div>
                     ) : (
-                        <p className="text-sm text-red-400">Admin kartasi kiritilmagan</p>
+                        <p className="text-sm text-red-400">{t.admin_card_red}</p>
                     )}
                 </div>
 
                 {/* Instruction */}
                 <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(250,204,21,0.04)', border: '1px solid rgba(250,204,21,0.1)' }}>
                     <p className="text-[11px] text-yellow-400/70 leading-relaxed">
-                        Yuqoridagi karta raqamiga to'lov qiling, so'ngra <b>"To'lov qildim"</b> tugmasini bosing. Admin tasdiqlashidan so'ng balans avtomatik qo'shiladi.
+                        {t.instruction_pay}
                     </p>
                 </div>
 
@@ -1019,25 +910,26 @@ const BalanceDepositPage = ({ user }) => {
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                             </svg>
-                            Yuborilmoqda...
+                            {t.submitting}
                         </span>
-                    ) : "To'lov qildim"}
+                    ) : t.i_paid}
                 </button>
             </div>
         </div>
     );
 };
 
-const WalletPage = ({ user }) => {
+const WalletPage = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const navigate = useNavigate();
     const balanceUZS = user?.balance_uzs ?? 0;
     const balanceUSD = user?.balance_usd ?? 0;
     return (
         <div className="min-h-screen animate-in fade-in duration-300">
-            <PageHeader title="Hamyonim"/>
+            <PageHeader title={t.wallet_title}/>
             <div className="p-4 space-y-4">
                 <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
-                    <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Mening hisobim</p>
+                    <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">{t.my_account}</p>
                     <div className="flex items-end gap-2 mb-2">
                         <span className="text-3xl font-bold text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
                         <span className="text-base font-semibold text-yellow-400 mb-0.5">UZS</span>
@@ -1049,10 +941,10 @@ const WalletPage = ({ user }) => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <button onClick={() => navigate('/balance-deposit')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold text-sm active:scale-95 transition-all duration-200">
-                        <ArrowDownToLine size={16}/> To'ldirish
+                        <ArrowDownToLine size={16}/> {t.deposit_btn}
                     </button>
                     <button onClick={() => navigate('/withdraw')} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold text-sm active:scale-95 transition-all duration-200">
-                        <ArrowUpFromLine size={16}/> Yechish
+                        <ArrowUpFromLine size={16}/> {t.withdraw_btn}
                     </button>
                 </div>
             </div>
@@ -1099,13 +991,14 @@ const formatCardInput = (val) => {
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
 };
 
-const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, saving }) => {
+const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, saving, lang = 'uz' }) => {
+    const t = translations[lang];
     const [idVal, setIdVal] = useState(existingId || '');
     const [cardVal, setCardVal] = useState(existingCard ? existingCard.replace(/(\d{4})(?=\d)/g, '$1 ') : '');
     const ac = platform.accentClasses;
 
     const handleSave = () => {
-        if (!idVal.trim()) return toast.error(platform.idLabel + " kiriting");
+        if (!idVal.trim()) return toast.error(platform.idLabel + " " + t.enter_valid_number);
         onSave(idVal.trim(), cardVal.replace(/\s/g, ''));
     };
 
@@ -1142,7 +1035,7 @@ const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, savi
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-slate-400 mb-1.5 block">Karta raqami <span className="text-slate-600">(ixtiyoriy)</span></label>
+                        <label className="text-xs text-slate-400 mb-1.5 block">{t.card_optional}</label>
                         <input
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-white/25 transition-colors"
                             value={cardVal}
@@ -1159,7 +1052,7 @@ const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, savi
                     disabled={saving}
                     className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 ${ac.bg} ${ac.border} border ${ac.text}`}
                 >
-                    {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                    {saving ? t.saving : t.save}
                 </button>
             </div>
         </div>
@@ -1167,7 +1060,8 @@ const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, savi
 };
 
 // ── WITHDRAW SELECT PAGE ─────────────────────────────────────────────────────
-const WithdrawSelect = ({ user }) => {
+const WithdrawSelect = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const navigate = useNavigate();
     const [step, setStep] = useState('select'); // 'select' | 'form'
     const [method, setMethod] = useState(null); // 'mostbet' | '1xbet' | 'card'
@@ -1190,7 +1084,7 @@ const WithdrawSelect = ({ user }) => {
             border: 'rgba(234,179,8,0.3)',
             text: '#facc15',
             wallet: mostbetWallet,
-            missing: !mostbetWallet ? "Mostbet ID saqlanmagan. Hamyonlar bo'limida qo'shing." : null,
+            missing: !mostbetWallet ? t.mostbet_id_missing : null,
         },
         {
             id: '1xbet',
@@ -1201,7 +1095,7 @@ const WithdrawSelect = ({ user }) => {
             border: 'rgba(59,130,246,0.3)',
             text: '#60a5fa',
             wallet: xbetWallet,
-            missing: !xbetWallet ? "1xbet ID saqlanmagan. Hamyonlar bo'limida qo'shing." : null,
+            missing: !xbetWallet ? t.xbet_id_missing : null,
         },
         {
             id: 'card',
@@ -1225,12 +1119,12 @@ const WithdrawSelect = ({ user }) => {
     };
 
     const handleSubmit = async () => {
-        if (!amount || Number(amount) <= 0) return toast.error("Summani kiriting");
-        if (Number(amount) < 10000) return toast.error("Eng kam summa 10,000 UZS");
-        if (user?.balance_uzs < Number(amount)) return toast.error("Mablag' yetarli emas");
+        if (!amount || Number(amount) <= 0) return toast.error(t.enter_valid_amount);
+        if (Number(amount) < 10000) return toast.error(t.min_withdraw_err);
+        if (user?.balance_uzs < Number(amount)) return toast.error(t.insufficient_funds);
         if (method === 'card') {
             const digits = cardNumber.replace(/\s/g, '');
-            if (digits.length < 16) return toast.error("16 xonali karta raqamini kiriting");
+            if (digits.length < 16) return toast.error(t.enter_16_digits);
         }
         setLoading(true);
         try {
@@ -1251,22 +1145,22 @@ const WithdrawSelect = ({ user }) => {
                 payload.wallet_number = cardNumber.replace(/\s/g, '');
             }
             await axios.post(`${API_URL}/transactions/create`, payload);
-            toast.success("Pul yechish so'rovi yuborildi! ✅");
+            toast.success(t.withdraw_sent);
             navigate('/profile');
         } catch(e) {
-            toast.error(e?.response?.data?.detail || "Xatolik yuz berdi");
+            toast.error(e?.response?.data?.detail || t.error_occurred);
         } finally { setLoading(false); }
     };
 
     return (
         <div className="min-h-screen animate-in fade-in duration-300">
-            <PageHeader title="Pul yechish" />
+            <PageHeader title={t.withdraw_select_title} />
             <div className="p-4 space-y-4 pb-24">
 
                 {/* Balans */}
                 <div className="rounded-xl px-4 py-3 flex items-center justify-between"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span className="text-sm text-slate-400">Mavjud balans</span>
+                    <span className="text-sm text-slate-400">{t.available_balance}</span>
                     <span className="text-base font-bold text-yellow-400">
                         {(user?.balance_uzs ?? 0).toLocaleString('uz-UZ')} UZS
                     </span>
@@ -1274,7 +1168,7 @@ const WithdrawSelect = ({ user }) => {
 
                 {step === 'select' && (
                     <div className="space-y-3 animate-in fade-in">
-                        <p className="text-sm text-slate-400 font-medium">Qayerga yechmoqchisiz?</p>
+                        <p className="text-sm text-slate-400 font-medium">{t.where_withdraw}</p>
                         {METHODS.map(m => (
                             <button key={m.id} onClick={() => handleSelect(m)}
                                 className="w-full flex items-center gap-4 p-4 rounded-2xl text-left active:scale-95 transition-all"
@@ -1290,9 +1184,9 @@ const WithdrawSelect = ({ user }) => {
                                             ID: {m.wallet.number}
                                         </div>
                                     ) : m.id === 'card' ? (
-                                        <div className="text-xs text-slate-500 mt-0.5">Karta raqamini o'zingiz kiritasiz</div>
+                                        <div className="text-xs text-slate-500 mt-0.5">{t.card_self_enter}</div>
                                     ) : (
-                                        <div className="text-xs text-red-400 mt-0.5">Saqlanmagan</div>
+                                        <div className="text-xs text-red-400 mt-0.5">{t.not_saved}</div>
                                     )}
                                 </div>
                                 <ChevronRight size={18} className="text-slate-600 flex-shrink-0" />
@@ -1311,7 +1205,7 @@ const WithdrawSelect = ({ user }) => {
                                 {selected.badge}
                             </div>
                             <div>
-                                <div className="text-xs text-slate-400">Yechish usuli</div>
+                                <div className="text-xs text-slate-400">{t.withdraw_method_label}</div>
                                 <div className="font-bold text-white text-sm">{selected.label}</div>
                                 {selected.wallet && (
                                     <div className="text-xs font-mono mt-0.5" style={{ color: selected.text }}>
@@ -1324,7 +1218,7 @@ const WithdrawSelect = ({ user }) => {
                         {/* Karta raqami — faqat card usulida */}
                         {method === 'card' && (
                             <div>
-                                <label className="text-xs text-slate-400 mb-2 block">Karta raqami (16 xonali)</label>
+                                <label className="text-xs text-slate-400 mb-2 block">{t.card_16}</label>
                                 <input
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-base font-mono placeholder-slate-600 focus:outline-none focus:border-white/25 transition-colors tracking-widest"
                                     value={cardNumber}
@@ -1338,7 +1232,7 @@ const WithdrawSelect = ({ user }) => {
 
                         {/* Summa */}
                         <div>
-                            <label className="text-xs text-slate-400 mb-2 block">Yechiladigan summa (UZS)</label>
+                            <label className="text-xs text-slate-400 mb-2 block">{t.withdraw_amount_uzs}</label>
                             <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-yellow-500/50 transition-colors">
                                 <span className="text-slate-500 text-sm font-bold">UZS</span>
                                 <input
@@ -1349,18 +1243,18 @@ const WithdrawSelect = ({ user }) => {
                                     placeholder="0"
                                 />
                             </div>
-                            <p className="text-xs text-slate-600 mt-1 text-right">Min: 10,000 UZS</p>
+                            <p className="text-xs text-slate-600 mt-1 text-right">{t.min_withdraw}</p>
                         </div>
 
                         <div className="flex gap-3 pt-2">
                             <button onClick={() => { setStep('select'); setAmount(''); setCardNumber(''); }}
                                 className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-white/10 text-slate-400 active:scale-95 transition-all">
-                                Ortga
+                                {t.back}
                             </button>
                             <button onClick={handleSubmit} disabled={loading}
                                 className="flex-[2] py-3 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50"
                                 style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)', color: '#facc15' }}>
-                                {loading ? 'Yuborilmoqda...' : "So'rov yuborish ✅"}
+                                {loading ? t.submitting : t.send_request}
                             </button>
                         </div>
                     </div>
@@ -1370,7 +1264,8 @@ const WithdrawSelect = ({ user }) => {
     );
 };
 
-const Wallets = ({ user, lang }) => {
+const Wallets = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const [wallets, setWallets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState(null);
@@ -1421,10 +1316,10 @@ const Wallets = ({ user, lang }) => {
                     });
                 }
             }
-            toast.success("Saqlandi!");
+            toast.success(t.saved_ok);
             setModal(null);
             await fetchWallets();
-        } catch(e) { toast.error("Xatolik yuz berdi"); }
+        } catch(e) { toast.error(t.error_occurred); }
         finally { setSaving(false); }
     };
 
@@ -1436,9 +1331,9 @@ const Wallets = ({ user, lang }) => {
             if (idWallet) deletes.push(axios.post(`${API_URL}/wallets/delete`, { telegram_id: user.telegram_id, wallet_id: idWallet.id }));
             if (cardWallet) deletes.push(axios.post(`${API_URL}/wallets/delete`, { telegram_id: user.telegram_id, wallet_id: cardWallet.id }));
             await Promise.all(deletes);
-            toast.success("O'chirildi!");
+            toast.success(t.deleted_ok);
             await fetchWallets();
-        } catch(e) { toast.error("Xatolik yuz berdi"); }
+        } catch(e) { toast.error(t.error_occurred); }
         finally { setDeletingKey(null); }
     };
 
@@ -1448,7 +1343,7 @@ const Wallets = ({ user, lang }) => {
 
     return (
         <div className="min-h-screen animate-in fade-in duration-300">
-            <PageHeader title="Hamyonlarim"/>
+            <PageHeader title={t.wallets_title}/>
             <div className="p-4 space-y-3">
 
                 {loading ? (
@@ -1460,8 +1355,8 @@ const Wallets = ({ user, lang }) => {
                         <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
                             <CreditCard size={28} className="text-slate-600"/>
                         </div>
-                        <p className="text-slate-500 text-sm font-medium">Hozircha hamyonlar qo'shilmagan</p>
-                        <p className="text-slate-600 text-xs">Pastdagi tugmani bosib qo'shing</p>
+                        <p className="text-slate-500 text-sm font-medium">{t.no_wallets_added}</p>
+                        <p className="text-slate-600 text-xs">{t.press_below}</p>
                     </div>
                 ) : (
                     savedGroups.map(({ platform, idWallet, cardWallet }) => {
@@ -1484,14 +1379,14 @@ const Wallets = ({ user, lang }) => {
                                             onClick={() => setModal({ platform, idWallet, cardWallet })}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-slate-300 text-xs font-semibold active:scale-95 transition-all"
                                         >
-                                            <Edit size={12}/> Tahrirlash
+                                            <Edit size={12}/> {t.edit}
                                         </button>
                                         <button
                                             onClick={() => handleDelete(platform)}
                                             disabled={isDeleting}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
                                         >
-                                            <Trash2 size={12}/> {isDeleting ? '...' : "O'chirish"}
+                                            <Trash2 size={12}/> {isDeleting ? '...' : t.delete}
                                         </button>
                                     </div>
                                 </div>
@@ -1505,14 +1400,14 @@ const Wallets = ({ user, lang }) => {
                                     )}
                                     {cardWallet && (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs text-slate-500 w-16 shrink-0">Karta:</span>
+                                            <span className="text-xs text-slate-500 w-16 shrink-0">{t.card_label}</span>
                                             <span className="text-sm font-semibold text-slate-300 font-mono tracking-wider">{maskCard(cardWallet.number)}</span>
                                         </div>
                                     )}
                                     {!cardWallet && (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs text-slate-500 w-16 shrink-0">Karta:</span>
-                                            <span className="text-xs text-slate-600 italic">Qo'shilmagan</span>
+                                            <span className="text-xs text-slate-500 w-16 shrink-0">{t.card_label}</span>
+                                            <span className="text-xs text-slate-600 italic">{t.not_added_yet}</span>
                                         </div>
                                     )}
                                 </div>
@@ -1533,8 +1428,8 @@ const Wallets = ({ user, lang }) => {
                                 <Plus size={16} className="text-slate-500"/>
                             </div>
                             <div className="text-left">
-                                <p className="text-sm font-semibold text-slate-400">{platform.name} qo'shish</p>
-                                <p className="text-xs text-slate-600">ID va karta raqamini kiriting</p>
+                                <p className="text-sm font-semibold text-slate-400">{platform.name} {t.add_platform}</p>
+                                <p className="text-xs text-slate-600">{t.enter_id_card}</p>
                             </div>
                             <ChevronRight size={16} className="text-slate-600 ml-auto"/>
                         </button>
@@ -1548,6 +1443,7 @@ const Wallets = ({ user, lang }) => {
                     existingId={modal.idWallet?.number || ''}
                     existingCard={modal.cardWallet?.number || ''}
                     saving={saving}
+                    lang={lang}
                     onSave={(idVal, cardVal) => handleSave(modal.platform, idVal, cardVal)}
                     onClose={() => !saving && setModal(null)}
                 />
@@ -1556,62 +1452,64 @@ const Wallets = ({ user, lang }) => {
     );
 };
 
-const ReferralPage = ({ user }) => {
+const ReferralPage = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const BOT_USERNAME = 'MR_KASSABOT';
     const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
     return (
         <div className="min-h-screen animate-in fade-in duration-300">
-            <PageHeader title="Referal"/>
+            <PageHeader title={t.referral_title}/>
             <div className="p-4 space-y-4">
                 <div className="bg-slate-800 rounded-xl p-4">
-                    <p className="text-xs text-slate-400 mb-1">Sizning havolangiz:</p>
+                    <p className="text-xs text-slate-400 mb-1">{t.your_link}</p>
                     <p className="text-sm font-mono text-yellow-400 break-all">{referralLink}</p>
                 </div>
                 <button
-                    onClick={() => { navigator.clipboard.writeText(referralLink); toast.success("Nusxalandi!"); }}
+                    onClick={() => { navigator.clipboard.writeText(referralLink); toast.success(t.copied); }}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-400 font-bold active:scale-95 transition-all duration-200"
                 >
-                    <Copy size={16}/> Nusxa olish
+                    <Copy size={16}/> {t.copy_link}
                 </button>
             </div>
         </div>
     );
 };
 
-const PartnershipPage = ({ user }) => {
+const PartnershipPage = ({ user, lang = 'uz' }) => {
+    const t = translations[lang];
     const [partnerToken, setPartnerToken] = useState('');
     const [partnerName, setPartnerName] = useState('');
     const [partnerResult, setPartnerResult] = useState(null);
     const [partnerLoading, setPartnerLoading] = useState(false);
 
     const submitPartnership = async () => {
-        if (!partnerToken.trim()) return toast.error("Token kiriting");
+        if (!partnerToken.trim()) return toast.error(t.token_enter);
         setPartnerLoading(true);
         try {
             const res = await axios.post(`${API_URL}/partnership/apply`, { telegram_id: user.telegram_id, bot_token: partnerToken, bot_name: partnerName });
             setPartnerResult(res.data);
-            toast.success("Bot muvaffaqiyatli ulandi!");
+            toast.success(t.bot_connected);
             setPartnerToken(''); setPartnerName('');
         } catch(e) {
-            const msg = e.response?.data?.detail || "Xatolik yuz berdi";
+            const msg = e.response?.data?.detail || t.error_occurred;
             toast.error(msg);
         } finally { setPartnerLoading(false); }
     };
 
     return (
         <div className="min-h-screen animate-in fade-in duration-300">
-            <PageHeader title="Hamkorlik"/>
+            <PageHeader title={t.partnership_title}/>
             <div className="p-4">
                 {partnerResult ? (
                     <div className="space-y-3">
                         <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/30">
                             <div className="flex items-center gap-2 mb-3">
                                 <CheckCircle2 size={18} className="text-green-400"/>
-                                <p className="font-bold text-green-400">Bot muvaffaqiyatli ulandi!</p>
+                                <p className="font-bold text-green-400">{t.bot_connected}</p>
                             </div>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between items-center py-1.5 border-b border-white/5">
-                                    <span className="text-slate-400">Bot nomi</span>
+                                    <span className="text-slate-400">{t.bot_name_label}</span>
                                     <span className="font-bold text-white">{partnerResult.bot_name}</span>
                                 </div>
                                 <div className="flex justify-between items-center py-1.5 border-b border-white/5">
