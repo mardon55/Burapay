@@ -2311,6 +2311,16 @@ function App() {
         }
     };
     login();
+
+    // Har 10 soniyada balansni yangilash
+    const pollBalance = setInterval(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/user/${telegramId}`);
+            setUser(prev => prev ? { ...prev, ...res.data } : res.data);
+        } catch(e) {}
+    }, 10000);
+
+    return () => clearInterval(pollBalance);
   }, []);
 
   const recheckSub = async () => {
