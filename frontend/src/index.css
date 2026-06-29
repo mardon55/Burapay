@@ -50,7 +50,7 @@
   }
 }
 
-/* Telegram Mini App: Android-safe full-screen lock */
+/* ── Telegram Mini App: full-screen lock (Android + iOS) ────────────────── */
 html,
 body {
   position: fixed;
@@ -59,11 +59,13 @@ body {
   height: 100%;
   height: var(--app-height, var(--tg-viewport-stable-height, 100vh));
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+  /* NOTE: -webkit-overflow-scrolling MUST NOT be on body/html —
+     it conflicts with position:fixed + overflow:hidden and causes
+     iOS rubber-banding even when there is nothing to scroll. */
   touch-action: none;
   top: 0;
   left: 0;
-  background-color: #020617; /* bg-midnight — status bar ortida ham to'g'ri rang */
+  background-color: #020617;
 }
 
 #root {
@@ -72,14 +74,34 @@ body {
   width: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  /* Push all content below Telegram close-button / device notch */
   padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
   padding-bottom: var(--safe-bottom, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
 
-/* Allow vertical scroll only inside explicitly scrollable containers */
+/* ── Scrollable containers (Reports, Casino inner lists, sub-page forms) ── */
 .scrollable {
   overflow-y: auto;
   touch-action: pan-y;
   overscroll-behavior: contain;
+  /* Enable smooth momentum scrolling on iOS (only here, not on body) */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Sub-page full-height layout helper ─────────────────────────────────── */
+/* Pages that use <PageHeader> and need the content area to scroll
+   should use:  class="page-full"  on the outer div
+   and:         class="page-body scrollable"  on the inner content div */
+.page-full {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.page-body {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 1rem;
+  padding-bottom: 6rem; /* clear bottom nav */
 }

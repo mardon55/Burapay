@@ -828,10 +828,10 @@ const BalanceDepositPage = ({ user, lang = 'uz' }) => {
     );
 
     return (
-        <div className="min-h-screen pb-28 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+        <div className="page-full animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
             <PageHeader title={t.balance_deposit_title} />
 
-            <div className="px-4 pt-4 space-y-4">
+            <div className="page-body scrollable space-y-4">
                 {/* Bot ID — readonly */}
                 <div className="rounded-2xl p-4" style={{ background: 'rgba(15,20,32,1)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Bot ID</p>
@@ -928,9 +928,9 @@ const WalletPage = ({ user, lang = 'uz' }) => {
     const balanceUZS = user?.balance_uzs ?? 0;
     const balanceUSD = user?.balance_usd ?? 0;
     return (
-        <div className="min-h-screen animate-in fade-in duration-300">
+        <div className="page-full animate-in fade-in duration-300">
             <PageHeader title={t.wallet_title}/>
-            <div className="p-4 space-y-4">
+            <div className="page-body scrollable space-y-4">
                 <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
                     <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">{t.my_account}</p>
                     <div className="flex items-end gap-2 mb-2">
@@ -1156,9 +1156,9 @@ const WithdrawSelect = ({ user, lang = 'uz' }) => {
     };
 
     return (
-        <div className="min-h-screen animate-in fade-in duration-300">
+        <div className="page-full animate-in fade-in duration-300">
             <PageHeader title={t.withdraw_select_title} />
-            <div className="p-4 space-y-4 pb-24">
+            <div className="page-body scrollable space-y-4">
 
                 {/* Balans */}
                 <div className="rounded-xl px-4 py-3 flex items-center justify-between"
@@ -1345,9 +1345,9 @@ const Wallets = ({ user, lang = 'uz' }) => {
     const unsavedPlatforms = groups.filter(g => !g.hasData).map(g => g.platform);
 
     return (
-        <div className="min-h-screen animate-in fade-in duration-300">
+        <div className="page-full animate-in fade-in duration-300">
             <PageHeader title={t.wallets_title}/>
-            <div className="p-4 space-y-3">
+            <div className="page-body scrollable space-y-3">
 
                 {loading ? (
                     <div className="flex justify-center pt-12">
@@ -1460,9 +1460,9 @@ const ReferralPage = ({ user, lang = 'uz' }) => {
     const BOT_USERNAME = 'MR_KASSABOT';
     const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user?.telegram_id}`;
     return (
-        <div className="min-h-screen animate-in fade-in duration-300">
+        <div className="page-full animate-in fade-in duration-300">
             <PageHeader title={t.referral_title}/>
-            <div className="p-4 space-y-4">
+            <div className="page-body scrollable space-y-4">
                 <div className="bg-slate-800 rounded-xl p-4">
                     <p className="text-xs text-slate-400 mb-1">{t.your_link}</p>
                     <p className="text-sm font-mono text-yellow-400 break-all">{referralLink}</p>
@@ -1500,9 +1500,9 @@ const PartnershipPage = ({ user, lang = 'uz' }) => {
     };
 
     return (
-        <div className="min-h-screen animate-in fade-in duration-300">
+        <div className="page-full animate-in fade-in duration-300">
             <PageHeader title={t.partnership_title}/>
-            <div className="p-4">
+            <div className="page-body scrollable">
                 {partnerResult ? (
                     <div className="space-y-3">
                         <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/30">
