@@ -1593,7 +1593,7 @@ const Admin = ({ user }) => {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
-    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', exchange_rate: 12800 });
+    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', balance_channel_id: '', exchange_rate: 12800 });
     const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
     const [requiredChannels, setRequiredChannels] = useState([]);
     const [newChannel, setNewChannel] = useState({ channel_id: '', channel_name: '', channel_link: '' });
@@ -1983,8 +1983,18 @@ const Admin = ({ user }) => {
                             Kanal Sozlamalari
                         </h3>
                         <div className="space-y-4 mb-6">
-                            <div><label className="text-xs text-slate-400 mb-1 block">Depozit Kanali ID</label><Input value={settings.deposit_channel_id || ''} onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})} placeholder="-100..." /></div>
-                            <div><label className="text-xs text-slate-400 mb-1 block">Pul Yechish Kanali ID</label><Input value={settings.withdraw_channel_id || ''} onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})} placeholder="-100..." /></div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">📥 Mostbet/1xbet Depozit Kanali ID</label>
+                                <Input value={settings.deposit_channel_id || ''} onChange={e => setSettings({...settings, deposit_channel_id: e.target.value})} placeholder="-100..." />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">📤 Pul Yechish Kanali ID</label>
+                                <Input value={settings.withdraw_channel_id || ''} onChange={e => setSettings({...settings, withdraw_channel_id: e.target.value})} placeholder="-100..." />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">💳 Balans To'ldirish Kanali ID</label>
+                                <Input value={settings.balance_channel_id || ''} onChange={e => setSettings({...settings, balance_channel_id: e.target.value})} placeholder="-100..." />
+                            </div>
                         </div>
 
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">

@@ -278,6 +278,7 @@ class TransactionCreate(BaseModel):
 class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
+    balance_channel_id: Optional[str] = None
     exchange_rate: float = 12800.0
     required_channels: List[dict] = []
 
@@ -288,7 +289,7 @@ class Settings(BaseModel):
             raise ValueError("Kurs musbat bo'lishi kerak")
         return v
 
-    @field_validator('deposit_channel_id', 'withdraw_channel_id', mode='before')
+    @field_validator('deposit_channel_id', 'withdraw_channel_id', 'balance_channel_id', mode='before')
     @classmethod
     def validate_channel_id(cls, v: Any) -> Optional[str]:
         if v is None or v == '':
@@ -1111,7 +1112,8 @@ async def create_balance_deposit(request: Request, data: dict = Body(...)):
             InlineKeyboardButton(text="❌ Rad etish", callback_data=f"bal_reject_{short_id}")
         ]])
         settings = await get_settings()
-        target = settings.get("deposit_channel_id")
+        # Balans to'ldirish uchun alohida kanal, yo'q bo'lsa adminlarga PM
+        target = settings.get("balance_channel_id")
         notified = False
         if target:
             try:
@@ -1761,10 +1763,12 @@ async def create_tables():
                 id SERIAL PRIMARY KEY,
                 deposit_channel_id VARCHAR(50),
                 withdraw_channel_id VARCHAR(50),
+                balance_channel_id VARCHAR(50),
                 exchange_rate NUMERIC(10,2) DEFAULT 12800.0,
                 required_channels JSONB DEFAULT '[]'::jsonb,
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
+            ALTER TABLE settings ADD COLUMN IF NOT EXISTS balance_channel_id VARCHAR(50);
 
             CREATE TABLE IF NOT EXISTS deposit_requests (
                 id VARCHAR(100) PRIMARY KEY,
