@@ -36,7 +36,9 @@ import {
   Coins,
   Shield,
   Gamepad2,
-  ChevronDown
+  ChevronDown,
+  Home as HomeIcon,
+  User
 } from "lucide-react";
 import axios from "axios";
 import translations from "./translations";
@@ -133,10 +135,10 @@ const BottomNav = ({ isAdmin, lang }) => {
   const isActive = (paths) => paths.includes(p);
 
   const navItems = [
-    { icon: <Wallet size={22} />, label: t.home, path: "/", match: ["/"] },
+    { icon: <HomeIcon size={22} />, label: t.home, path: "/", match: ["/"] },
     { icon: <ArrowDownUp size={22} />, label: t.otkazmalar, path: "/transfers", match: ["/transfers", "/deposit"] },
     { icon: <History size={22} />, label: t.reports, path: "/reports", match: ["/reports"] },
-    { icon: <CreditCard size={22} />, label: t.profile, path: "/profile", match: ["/profile", "/profil"] },
+    { icon: <User size={22} />, label: t.profile, path: "/profile", match: ["/profile", "/profil"] },
   ];
 
   return (
