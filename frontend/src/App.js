@@ -281,7 +281,7 @@ const Otkazmalar = ({ lang }) => {
   const navigate = useNavigate();
   const t = translations[lang];
   return (
-    <div className="p-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
       <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
 
       {/* Mostbet */}
