@@ -354,42 +354,92 @@ const Otkazmalar = ({ user, lang }) => {
 };
 
 // ── P2P Transfer Page ──────────────────────────────────────────────────────────
-const P2PTransfer = ({ user, lang }) => {
+const P2PTransfer = ({ user, lang, setUser }) => {
   const navigate = useNavigate();
   const t = translations[lang];
 
-  const [receiverBotId, setReceiverBotId] = useState('');
+  // "MR" + suffix → full bot ID
+  const [idSuffix, setIdSuffix] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [result, setResult] = useState(null);
+  const [idError, setIdError] = useState('');
+  const [amtError, setAmtError] = useState('');
+  const [currentBalance, setCurrentBalance] = useState(user?.balance_uzs || 0);
+  const [countdown, setCountdown] = useState(null);
+
+  // Keep balance in sync with prop
+  useEffect(() => { setCurrentBalance(user?.balance_uzs || 0); }, [user]);
 
   const amtNum = parseFloat(amount) || 0;
   const commission = amtNum >= 1000 ? Math.round(amtNum * 0.03) : 0;
   const totalDeducted = amtNum >= 1000 ? amtNum + commission : 0;
-  const isValid = receiverBotId.trim().length > 0 && amtNum >= 1000;
+  const fullBotId = 'MR' + idSuffix.trim().toUpperCase();
+  const isValid = idSuffix.trim().length > 0 && amtNum >= 1000;
+
+  const handleIdChange = (val) => {
+    // Strip any "MR" if user pastes full ID
+    const clean = val.replace(/^MR/i, '');
+    setIdSuffix(clean);
+    if (idError) setIdError('');
+  };
+
+  const handleAmtChange = (val) => {
+    setAmount(val);
+    if (amtError) setAmtError('');
+  };
 
   const handleSend = async () => {
-    if (!receiverBotId.trim()) return toast.error(t.p2p_enter_id);
-    if (!amount || amtNum < 1000) return toast.error(t.p2p_min_amount);
+    let valid = true;
+    if (!idSuffix.trim()) { setIdError(t.p2p_enter_id); valid = false; }
+    if (!amount || amtNum < 1000) { setAmtError(t.p2p_min_amount); valid = false; }
+    if (!valid) return;
 
     setLoading(true);
+    setIdError('');
+    setAmtError('');
     try {
       const res = await axios.post(`${API_URL}/transfers/internal`, {
         sender_id: user?.telegram_id,
-        receiver_bot_id: receiverBotId.trim(),
+        receiver_bot_id: fullBotId,
         amount: amtNum,
       });
       setResult(res.data);
+      // Immediately update local balance from backend response
+      if (res.data.new_sender_balance !== undefined) {
+        setCurrentBalance(res.data.new_sender_balance);
+        if (setUser) setUser(prev => prev ? { ...prev, balance_uzs: res.data.new_sender_balance } : prev);
+      }
       setDone(true);
+
+      // Start 3-second countdown then re-fetch fresh balance
+      let sec = 3;
+      setCountdown(sec);
+      const tick = setInterval(() => {
+        sec -= 1;
+        setCountdown(sec);
+        if (sec <= 0) {
+          clearInterval(tick);
+          setCountdown(null);
+          // Refresh full user profile
+          axios.get(`${API_URL}/user/${user?.telegram_id}`).then(r => {
+            if (setUser) setUser(prev => prev ? { ...prev, ...r.data } : r.data);
+            setCurrentBalance(r.data.balance_uzs || 0);
+          }).catch(() => {});
+        }
+      }, 1000);
+
     } catch (err) {
       const detail = err?.response?.data?.detail || '';
       if (detail.includes('topilmadi') || detail.includes('не найден'))
-        toast.error(t.p2p_error_not_found);
+        setIdError(t.p2p_error_not_found);
       else if (detail.includes('yetarli') || detail.includes('средств'))
-        toast.error(t.p2p_error_insufficient);
+        setAmtError(t.p2p_error_insufficient);
       else if (detail.includes("o'zingizga") || detail.includes('себе'))
-        toast.error(t.p2p_error_self);
+        setIdError(t.p2p_error_self);
+      else if (detail.includes('MR bilan'))
+        setIdError(t.p2p_error_format);
       else
         toast.error(detail || t.error);
     } finally {
@@ -404,30 +454,58 @@ const P2PTransfer = ({ user, lang }) => {
         className="h-full flex flex-col items-center justify-center px-6 animate-in fade-in duration-300"
         style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
       >
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
           style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.4)' }}>
           <CheckCircle2 size={40} className="text-green-400" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">{t.p2p_success}</h2>
-        <p className="text-slate-400 text-sm text-center mb-8">
-          {(result.amount || 0).toLocaleString()} UZS {lang === 'uz' ? "muvaffaqiyatli o'tkazildi" : "успешно переведено"}
+        <h2 className="text-2xl font-bold text-white mb-1">{t.p2p_success}</h2>
+        <p className="text-slate-400 text-sm text-center mb-6">
+          {lang === 'uz'
+            ? `${(result.amount || 0).toLocaleString()} UZS — ${result.receiver_name || ''} ga o'tkazildi`
+            : `${(result.amount || 0).toLocaleString()} UZS переведено — ${result.receiver_name || ''}`}
         </p>
-        <div className="w-full rounded-2xl p-5 mb-8 space-y-3"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{lang === 'uz' ? "O'tkazma summasi" : "Сумма перевода"}</span>
-            <span className="text-white font-semibold">{(result.amount || 0).toLocaleString()} UZS</span>
+
+        {/* Chek */}
+        <div className="w-full rounded-2xl overflow-hidden mb-6"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+              {lang === 'uz' ? "O'tkazma tafsiloti" : "Детали перевода"}
+            </p>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{lang === 'uz' ? "Komissiya (3%)" : "Комиссия (3%)"}</span>
-            <span className="text-yellow-400 font-semibold">{(result.commission || 0).toLocaleString()} UZS</span>
-          </div>
-          <div className="h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{lang === 'uz' ? "Balansdan yechildi" : "Списано с баланса"}</span>
-            <span className="text-red-400 font-bold">{(result.total_deducted || 0).toLocaleString()} UZS</span>
+          <div className="px-5 py-4 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{lang === 'uz' ? "Qabul qiluvchi" : "Получатель"}</span>
+              <span className="text-white font-semibold">{result.receiver_name}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{lang === 'uz' ? "O'tkazma" : "Перевод"}</span>
+              <span className="text-white font-semibold">{(result.amount || 0).toLocaleString()} UZS</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{lang === 'uz' ? "Komissiya (3%)" : "Комиссия (3%)"}</span>
+              <span className="text-yellow-400 font-semibold">{(result.commission || 0).toLocaleString()} UZS</span>
+            </div>
+            <div className="h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{lang === 'uz' ? "Balansdan yechildi" : "Списано с баланса"}</span>
+              <span className="text-red-400 font-bold">{(result.total_deducted || 0).toLocaleString()} UZS</span>
+            </div>
+            <div className="h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{lang === 'uz' ? "Yangi balans" : "Новый баланс"}</span>
+              <span className="text-green-400 font-bold">{currentBalance.toLocaleString()} UZS</span>
+            </div>
           </div>
         </div>
+
+        {/* Countdown hint */}
+        {countdown !== null && (
+          <p className="text-xs text-slate-600 mb-4">
+            {lang === 'uz' ? `Balans ${countdown}s da yangilanadi...` : `Баланс обновится через ${countdown}с...`}
+          </p>
+        )}
+
         <button
           onClick={() => navigate('/transfers')}
           className="w-full py-4 rounded-2xl font-bold text-black text-base"
@@ -471,28 +549,42 @@ const P2PTransfer = ({ user, lang }) => {
           </div>
           <div>
             <p className="text-xs text-slate-500">{lang === 'uz' ? "Mavjud balans" : "Доступный баланс"}</p>
-            <p className="text-lg font-bold text-white">{(user?.balance_uzs || 0).toLocaleString()} <span className="text-yellow-400 text-sm">UZS</span></p>
+            <p className="text-lg font-bold text-white">
+              {currentBalance.toLocaleString()} <span className="text-yellow-400 text-sm">UZS</span>
+            </p>
           </div>
         </div>
 
-        {/* Bot ID field */}
+        {/* Bot ID field — MR prefix badge */}
         <div>
           <label className="block text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">
             {t.p2p_receiver_label}
           </label>
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2">
-              <Users size={16} className="text-slate-500" />
+          <div className="relative flex items-center">
+            {/* Fixed MR badge */}
+            <div
+              className="absolute left-0 top-0 bottom-0 flex items-center px-4 rounded-l-2xl font-bold text-sm select-none z-10"
+              style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderRight: '1px solid rgba(34,197,94,0.25)', minWidth: '54px', justifyContent: 'center' }}
+            >
+              MR
             </div>
             <input
               type="text"
-              value={receiverBotId}
-              onChange={e => setReceiverBotId(e.target.value)}
-              placeholder={t.p2p_receiver_placeholder}
-              className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-white text-sm font-medium placeholder-slate-600 outline-none focus:border-green-500/50 transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              value={idSuffix}
+              onChange={e => handleIdChange(e.target.value)}
+              placeholder="2324407"
+              className="w-full pl-16 pr-4 py-3.5 rounded-2xl text-white text-base font-medium placeholder-slate-700 outline-none transition-all"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: `1px solid ${idError ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.1)'}`,
+              }}
             />
           </div>
+          {idError && (
+            <p className="mt-1.5 px-1 text-xs font-medium text-red-400 flex items-center gap-1">
+              <span>⚠</span> {idError}
+            </p>
+          )}
         </div>
 
         {/* Amount field */}
@@ -505,14 +597,23 @@ const P2PTransfer = ({ user, lang }) => {
               type="number"
               inputMode="numeric"
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              onChange={e => handleAmtChange(e.target.value)}
               placeholder="0"
               className="w-full px-4 py-3.5 rounded-2xl text-white text-2xl font-bold placeholder-slate-700 outline-none transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: `1px solid ${amtError ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.1)'}`,
+              }}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">UZS</span>
           </div>
-          <p className="text-xs text-slate-600 mt-1.5 px-1">{t.p2p_amount_placeholder}</p>
+          {amtError ? (
+            <p className="mt-1.5 px-1 text-xs font-medium text-red-400 flex items-center gap-1">
+              <span>⚠</span> {amtError}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-600 mt-1.5 px-1">{t.p2p_amount_placeholder}</p>
+          )}
         </div>
 
         {/* Real-time commission breakdown */}
@@ -543,7 +644,7 @@ const P2PTransfer = ({ user, lang }) => {
       </div>
 
       {/* Fixed bottom button */}
-      <div className="flex-shrink-0 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingBottom: 'max(16px, calc(var(--sa-bottom) + 12px))' }}>
+      <div className="flex-shrink-0 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingBottom: 'max(16px, calc(var(--sa-bottom, 0px) + 12px))' }}>
         <button
           onClick={handleSend}
           disabled={loading || !isValid}
@@ -2775,7 +2876,7 @@ function App() {
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
           <Route path="/deposit" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/transfers" element={<Otkazmalar user={user} lang={lang} />} />
-          <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} />} />
+          <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} setUser={setUser} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
