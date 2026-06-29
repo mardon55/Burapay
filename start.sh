@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ ! -d "$SCRIPT_DIR/frontend/build" ]; then
   echo "Building frontend..."
   cd "$SCRIPT_DIR/frontend"
-  GENERATE_SOURCEMAP=false CI=false npx craco build 2>&1
+  GENERATE_SOURCEMAP=false CI=false npm run build 2>&1
   echo "Frontend built successfully"
   cd "$SCRIPT_DIR"
 fi
