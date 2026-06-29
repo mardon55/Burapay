@@ -56,7 +56,8 @@
     --sa-top: max(
       var(--tg-content-safe-area-inset-top, 0px),
       var(--tg-safe-area-inset-top, 0px),
-      env(safe-area-inset-top, 24px)
+      env(safe-area-inset-top, 0px),
+      44px
     );
     --sa-bottom: max(
       var(--tg-safe-area-inset-bottom, 0px),

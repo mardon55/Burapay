@@ -8,24 +8,44 @@ const tg = window.Telegram?.WebApp;
 
 // --- Safe area from Telegram + device ---
 function updateSafeArea() {
-  // contentSafeAreaInset — Telegram's own UI (close button, header bar)
+  // contentSafeAreaInset — Telegram's own UI chrome (X button, ... menu)
   const tgContentTop = tg?.contentSafeAreaInset?.top ?? 0;
   // safeAreaInset — device system safe area (notch, status bar)
   const tgSafeTop = tg?.safeAreaInset?.top ?? 0;
 
-  // Use the bigger of: Telegram content safe area, device safe area, or CSS env()
-  // We set it as a CSS variable so the app can use it everywhere
+  const tgContentBottom = tg?.contentSafeAreaInset?.bottom ?? 0;
+  const tgSafeBottom = tg?.safeAreaInset?.bottom ?? 0;
+
+  // Set the individual Telegram vars so CSS --sa-top can pick them up via max()
+  document.documentElement.style.setProperty(
+    "--tg-content-safe-area-inset-top",
+    tgContentTop > 0 ? tgContentTop + "px" : "0px"
+  );
+  document.documentElement.style.setProperty(
+    "--tg-safe-area-inset-top",
+    tgSafeTop > 0 ? tgSafeTop + "px" : "0px"
+  );
+  document.documentElement.style.setProperty(
+    "--tg-safe-area-inset-bottom",
+    tgSafeBottom > 0 ? tgSafeBottom + "px" : "0px"
+  );
+  document.documentElement.style.setProperty(
+    "--tg-content-safe-area-inset-bottom",
+    tgContentBottom > 0 ? tgContentBottom + "px" : "0px"
+  );
+
+  // Also set --safe-top for legacy references
   const topPx = Math.max(tgContentTop, tgSafeTop);
   document.documentElement.style.setProperty(
     "--safe-top",
-    topPx > 0 ? topPx + "px" : "env(safe-area-inset-top, 44px)"
+    topPx > 0 ? topPx + "px" : "0px"
   );
 
   // Bottom safe area
-  const bottomPx = tg?.safeAreaInset?.bottom ?? 0;
+  const bottomPx = Math.max(tgContentBottom, tgSafeBottom);
   document.documentElement.style.setProperty(
     "--safe-bottom",
-    bottomPx > 0 ? bottomPx + "px" : "env(safe-area-inset-bottom, 0px)"
+    bottomPx > 0 ? bottomPx + "px" : "0px"
   );
 }
 
