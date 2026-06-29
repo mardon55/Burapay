@@ -1,0 +1,22 @@
+Siz React (Frontend), FastAPI (Backend), PostgreSQL (Ma'lumotlar bazasi) va Tailwind CSS arxitekturasiga ega bo'lgan Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz.
+
+Muammo: 
+Foydalanuvchi interfeysda "Rus tili"ni tanlaganida, Mini App ichidagi barcha bo'limlar, matnlar, tugmalar va ma'lumotlar bazasidan kelayotgan kontentlar to'liq rus tiliga o'zgarmayapti. Ayrim joylar o'zbek tilida yoki qisman tarjima qilinmay qolib ketgan.
+
+Vazifa:
+Ilovani to'liq ko'p tilli (i18n) tizimga o'tkazish va rus tili tanlanganda interfeys hamda backend ma'lumotlari 100% rus tilida bo'lishini ta'minlash. Quyidagi qadamlar bo'yicha kodga o'zgartirish kiriting:
+
+1. Frontend (React & Tailwind CSS) sozlamalari:
+   - Agar loyihada 'react-i18next' yoki i18n kutubxonasi bo'lsa, uni tekshiring. Agar bo'lmasa, uni integratsiya qiling yoki til holatini (state) markaziy context (LanguageContext) orqali boshqaring.
+   - Barcha qattiq yozilgan (hardcoded) matnlarni (masalan: "O'tkazmalar", "To'ldirish", "Yechish", "Asosiy", "Hisobotlar", "Profil") tarjima obyektlariga (localization JSON/objects) o'tkazing va ruscha tarjimalarini (Переводы, Пополнение, Вывод, Главная, Отчеты, Профиль) to'liq kiriting.
+   - Tailwind CSS interfeysidagi elementlar o'lchami ruscha matnlar uzunligi hisobiga buzilib ketmasligini ta'minlang (flex-wrap, text overflow va dinamik kengliklarni tekshiring).
+
+2. Backend (FastAPI) va Ma'lumotlar bazasi (PostgreSQL):
+   - API so'rovlarida (Headers yoki Query params orqali) foydalanuvchi tanlagan til (uz/ru) serverga yuborilishini ta'minlang.
+   - FastAPI backend qismida ma'lumotlar bazasidan qaytayotgan kontentlar (masalan, status xabarlari, xatoliklar, kontoralar nomlari yoki dinamik matnlar) tanlangan tilga mos ravishda qaytishi uchun middleware yoki tarjima funksiyasini joriy qiling.
+   - Agar PostgreSQL'da dinamik matnlar bo'lsa, ularni ko'p tilli formatda (JSONB strukturasi yoki alohida tillar ustunlari orqali, masalan: name_uz, name_ru) qayta ishlash logikasini yarating.
+
+3. Telegram WebApp Integratsiyasi:
+   - Telegram WebApp InitData ichidan foydalanuvchining til sozlamasini (`user.language_code`) aniqlab, agar ilova birinchi marta ochilayotgan bo'lsa, avtomatik ravishda mos tilni (masalan, 'ru') tanlash funksiyasini ham qo'shing.
+
+Iltimos, o'zgarishlar kiritilishi kerak bo'lgan asosiy fayllar ro'yxatini va kod strukturasini (React komponentlari va FastAPI jadvallari/endpointhari uchun) tayyorlab, kodni yangilang. Barcha bo'limlar to'liq va prafessional rus tilida ishlasin.

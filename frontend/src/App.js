@@ -277,9 +277,10 @@ const Home = ({ user, lang, setLang }) => {
 
 const Otkazmalar = ({ lang }) => {
   const navigate = useNavigate();
+  const t = translations[lang];
   return (
     <div className="p-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-2xl font-bold">{translations[lang].otkazmalar}</h1>
+      <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
 
       {/* Mostbet */}
       <div>
@@ -297,7 +298,7 @@ const Otkazmalar = ({ lang }) => {
             <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
               <ArrowDownToLine size={20} className="text-yellow-400" />
             </div>
-            <span className="text-sm font-bold text-yellow-400">To'ldirish</span>
+            <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
           </button>
           <button
             onClick={() => navigate('/mostbet-withdraw')}
@@ -306,7 +307,7 @@ const Otkazmalar = ({ lang }) => {
             <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
               <ArrowUpFromLine size={20} className="text-slate-300" />
             </div>
-            <span className="text-sm font-bold text-slate-300">Yechish</span>
+            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
           </button>
         </div>
       </div>
@@ -327,7 +328,7 @@ const Otkazmalar = ({ lang }) => {
             <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center">
               <ArrowDownToLine size={20} className="text-blue-400" />
             </div>
-            <span className="text-sm font-bold text-blue-400">To'ldirish</span>
+            <span className="text-sm font-bold text-blue-400">{t.deposit}</span>
           </button>
           <button
             onClick={() => navigate('/1xbet-withdraw')}
@@ -336,7 +337,7 @@ const Otkazmalar = ({ lang }) => {
             <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
               <ArrowUpFromLine size={20} className="text-slate-300" />
             </div>
-            <span className="text-sm font-bold text-slate-300">Yechish</span>
+            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
           </button>
         </div>
       </div>
@@ -689,7 +690,7 @@ const Withdraw = ({ user, lang, platform = "mostbet" }) => {
                                 });
                             }
                         }}
-                        placeholder={platform === "1xbet" ? "1xbet kodi (6 xonali)" : t.code_placeholder}
+                        placeholder={platform === "1xbet" ? (lang === 'ru' ? "Код 1xbet (6 цифр)" : "1xbet kodi (6 xonali)") : t.code_placeholder}
                         maxLength={platform === "1xbet" ? 6 : 8}
                         type={platform === "1xbet" ? "number" : "text"}
                     />
@@ -893,7 +894,7 @@ const BalanceDepositPage = ({ user, lang = 'uz' }) => {
                 {/* Instruction */}
                 <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(250,204,21,0.04)', border: '1px solid rgba(250,204,21,0.1)' }}>
                     <p className="text-[11px] text-yellow-400/70 leading-relaxed">
-                        {t.instruction_pay}
+                        {t.instruction_text}
                     </p>
                 </div>
 
@@ -1483,7 +1484,7 @@ const PartnershipPage = ({ user, lang = 'uz' }) => {
     const [partnerLoading, setPartnerLoading] = useState(false);
 
     const submitPartnership = async () => {
-        if (!partnerToken.trim()) return toast.error(t.token_enter);
+        if (!partnerToken.trim()) return toast.error(t.enter_token);
         setPartnerLoading(true);
         try {
             const res = await axios.post(`${API_URL}/partnership/apply`, { telegram_id: user.telegram_id, bot_token: partnerToken, bot_name: partnerName });
@@ -1523,25 +1524,25 @@ const PartnershipPage = ({ user, lang = 'uz' }) => {
                             </div>
                         </div>
                         <button onClick={() => setPartnerResult(null)} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 text-sm font-bold active:scale-95 transition-all">
-                            Yangi bot ulash
+                            {t.connect_new_bot}
                         </button>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         <div>
-                            <label className="text-xs text-slate-400 mb-1 block">BotFather tokeni</label>
+                            <label className="text-xs text-slate-400 mb-1 block">{t.botfather_token}</label>
                             <Input value={partnerToken} onChange={e => setPartnerToken(e.target.value)} placeholder="1234567890:AAAA..." type="password"/>
-                            <p className="text-xs text-slate-500 mt-1">BotFather → /newbot yoki /mybots → API token</p>
+                            <p className="text-xs text-slate-500 mt-1">{t.botfather_hint}</p>
                         </div>
                         <button onClick={submitPartnership} disabled={partnerLoading}
                             className="w-full py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                             {partnerLoading ? (
-                                <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Tekshirilmoqda...</>
-                            ) : "Botni ulash"}
+                                <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> {t.checking}</>
+                            ) : t.connect_bot}
                         </button>
                         <div className="rounded-xl p-3 bg-slate-800/60 border border-slate-700/50">
-                            <p className="text-xs text-slate-500 font-semibold mb-1.5">Avtomatik sozlanadi:</p>
-                            {["✓ Token tekshiriladi", "✓ Menu button → MR Kassa", "✓ /start komandasi", "✓ Web App URL aniqlanadi"].map(item => (
+                            <p className="text-xs text-slate-500 font-semibold mb-1.5">{t.bot_auto_config}</p>
+                            {["✓ Token", "✓ Menu button → MR Kassa", "✓ /start", "✓ Web App URL"].map(item => (
                                 <p key={item} className="text-xs text-slate-600">{item}</p>
                             ))}
                         </div>
@@ -1554,13 +1555,14 @@ const PartnershipPage = ({ user, lang = 'uz' }) => {
 
 const Profil = ({ user, lang }) => {
     const navigate = useNavigate();
+    const t = translations[lang];
     const balanceUZS = user?.balance_uzs ?? 0;
     const botId = user?.bot_id || null;
 
     const copyBotId = () => {
         if (!botId) return;
         if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(botId).then(() => toast.success("Bot ID nusxalandi!"));
+            navigator.clipboard.writeText(botId).then(() => toast.success(t.bot_id_copied));
         } else {
             const el = document.createElement('textarea');
             el.value = botId;
@@ -1568,7 +1570,7 @@ const Profil = ({ user, lang }) => {
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            toast.success("Bot ID nusxalandi!");
+            toast.success(t.bot_id_copied);
         }
     };
 
@@ -1607,17 +1609,17 @@ const Profil = ({ user, lang }) => {
                             style={{ background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.2)' }}
                         >
                             <Copy size={14} className="text-yellow-400" />
-                            <span className="text-xs font-semibold text-yellow-400">Nusxa</span>
+                            <span className="text-xs font-semibold text-yellow-400">{t.copy_label}</span>
                         </button>
                     </div>
                 </div>
             )}
 
             <div className="px-4 space-y-3">
-                <NavCard icon={<Wallet size={20}/>} title="Hamyonim" subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
-                <NavCard icon={<CreditCard size={20}/>} title="Hamyonlarim" subtitle="Mostbet va 1xbet ID / Karta" accentColor="blue" onClick={() => navigate('/wallets')}/>
-                <NavCard icon={<Users size={20}/>} title="Referal" subtitle="Do'stlaringizni taklif qiling" accentColor="purple" onClick={() => navigate('/referral')}/>
-                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title="Kazino" subtitle="" accentColor="green" onClick={() => navigate('/casino')}/>
+                <NavCard icon={<Wallet size={20}/>} title={t.my_wallet_nav} subtitle={`${balanceUZS.toLocaleString('uz-UZ')} UZS`} accentColor="yellow" onClick={() => navigate('/wallet')}/>
+                <NavCard icon={<CreditCard size={20}/>} title={t.wallets_nav} subtitle={t.wallets_nav_sub} accentColor="blue" onClick={() => navigate('/wallets')}/>
+                <NavCard icon={<Users size={20}/>} title={t.referral_title} subtitle={t.referral_sub} accentColor="purple" onClick={() => navigate('/referral')}/>
+                <NavCard icon={<img src={casinoImg} alt="kazino" className="w-full h-full object-cover rounded-xl"/>} title={t.casino} subtitle="" accentColor="green" onClick={() => navigate('/casino')}/>
             </div>
         </div>
     );
@@ -1625,11 +1627,12 @@ const Profil = ({ user, lang }) => {
 
 const Casino = ({ user, lang }) => {
   const navigate = useNavigate();
+  const t = translations[lang];
   return (
     <div className="pb-28 animate-in fade-in duration-300 min-h-screen" style={{ background: '#080d18' }}>
       <div className="px-4 pb-3" style={{ paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 16px))' }}>
 
-        <h1 className="text-2xl font-black text-white">Kazino</h1>
+        <h1 className="text-2xl font-black text-white">{t.casino_title}</h1>
       </div>
 
       <div className="px-4 space-y-3 mt-2">
@@ -2294,9 +2297,11 @@ const Reports = ({ user, lang }) => {
     return `${day}.${month}.${year} ${hh}:${mm}`;
   };
 
+  const t = translations[lang];
+
   const getPlatformShort = (tx) => {
     const m = (tx.method || '').toLowerCase();
-    if (m === 'balance') return "Balans to'ldirish";
+    if (m === 'balance') return t.balance_method;
     if (m.includes('1xbet')) return '1xbet';
     if (m.includes('mostbet')) return 'Mostbet';
     return tx.method || 'BuraPay';
@@ -2325,8 +2330,8 @@ const Reports = ({ user, lang }) => {
 
       {/* Header */}
       <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <h1 className="text-xl font-bold text-white tracking-tight">Hisobotlar</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Tranzaksiyalar tarixi</p>
+        <h1 className="text-xl font-bold text-white tracking-tight">{t.reports_title}</h1>
+        <p className="text-xs text-slate-500 mt-0.5">{t.tx_history}</p>
       </div>
 
       <div className="px-4 pt-4">
@@ -2341,7 +2346,7 @@ const Reports = ({ user, lang }) => {
               <History size={30} className="text-slate-600" />
             </div>
             <div className="text-center">
-              <p className="text-slate-400 text-sm font-semibold">Hozircha tranzaksiyalar mavjud emas</p>
+              <p className="text-slate-400 text-sm font-semibold">{t.no_tx_history}</p>
 
             </div>
           </div>
@@ -2426,6 +2431,8 @@ function App() {
   const [lang, setLang] = useState('uz');
   const [subCheck, setSubCheck] = useState({ loading: true, subscribed: true, channels: [] });
 
+  useEffect(() => { setAxiosLang(lang); }, [lang]);
+
   useEffect(() => {
     let telegramId = 8321879273;
     let firstName = "Admin";
@@ -2435,6 +2442,11 @@ function App() {
         telegramId = tg.initDataUnsafe.user.id;
         firstName = tg.initDataUnsafe.user.first_name;
         username = tg.initDataUnsafe.user.username;
+        // Auto-detect language from Telegram on first open
+        if (tg.initDataUnsafe.user.language_code === 'ru') {
+            setLang('ru');
+            setAxiosLang('ru');
+        }
     }
 
     const login = async () => {
@@ -2445,7 +2457,7 @@ function App() {
                 username: username
             });
             setUser(res.data);
-            if(res.data.language) setLang(res.data.language);
+            if(res.data.language) { setLang(res.data.language); setAxiosLang(res.data.language); }
             
             // Check subscription
             try {
@@ -2479,24 +2491,27 @@ function App() {
 
   const recheckSub = async () => {
     const telegramId = user?.telegram_id || 123456789;
+    const t = translations[lang];
     try {
         const res = await axios.get(`${API_URL}/check_subscription/${telegramId}`);
         setSubCheck({ loading: false, subscribed: res.data.subscribed, channels: res.data.channels || [] });
-        if (res.data.subscribed) toast.success("Obuna tasdiqlandi!");
-        else toast.error("Kanallarga obuna bo'ling!");
+        if (res.data.subscribed) toast.success(t.sub_confirmed);
+        else toast.error(t.sub_required);
     } catch {
         setSubCheck(prev => ({ ...prev, loading: false }));
     }
   };
 
-  if (subCheck.loading) return <div className="min-h-screen bg-midnight flex items-center justify-center"><div className="text-slate-400">Yuklanmoqda...</div></div>;
+  const t = translations[lang];
+
+  if (subCheck.loading) return <div className="min-h-screen bg-midnight flex items-center justify-center"><div className="text-slate-400">{t.app_loading}</div></div>;
 
   if (!subCheck.subscribed && !user?.is_admin && !isSuperAdmin(user?.telegram_id)) return (
     <div className="min-h-screen bg-midnight text-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm text-center space-y-6">
         <div className="text-4xl">⚠️</div>
-        <h2 className="text-xl font-bold">{lang === 'ru' ? 'Подпишитесь на каналы' : 'Kanallarga obuna bo\'ling'}</h2>
-        <p className="text-slate-400 text-sm">{lang === 'ru' ? 'Для использования приложения подпишитесь на каналы ниже' : 'Ilovadan foydalanish uchun quyidagi kanallarga obuna bo\'ling'}</p>
+        <h2 className="text-xl font-bold">{t.subscribe_title}</h2>
+        <p className="text-slate-400 text-sm">{t.subscribe_desc}</p>
         <div className="space-y-3">
           {subCheck.channels.map((ch, i) => (
             <a key={i} href={ch.channel_link || '#'} target="_blank" rel="noreferrer" className="block w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-colors">
@@ -2505,7 +2520,7 @@ function App() {
           ))}
         </div>
         <button onClick={recheckSub} className="w-full bg-gold text-black font-bold py-3 px-4 rounded-xl">
-          ✅ {lang === 'ru' ? 'Проверить' : 'Tekshirish'}
+          ✅ {t.check_sub}
         </button>
       </div>
       <Toaster position="top-center" theme="dark" />
@@ -2524,14 +2539,14 @@ function App() {
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
           <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
-          <Route path="/withdraw" element={<WithdrawSelect user={user} />} />
+          <Route path="/withdraw" element={<WithdrawSelect user={user} lang={lang} />} />
           <Route path="/profil" element={<Profil user={user} lang={lang} />} />
           <Route path="/profile" element={<Profil user={user} lang={lang} />} />
           <Route path="/reports" element={<Reports user={user} lang={lang} />} />
-          <Route path="/wallet" element={<WalletPage user={user} />} />
-          <Route path="/balance-deposit" element={<BalanceDepositPage user={user} />} />
+          <Route path="/wallet" element={<WalletPage user={user} lang={lang} />} />
+          <Route path="/balance-deposit" element={<BalanceDepositPage user={user} lang={lang} />} />
           <Route path="/wallets" element={<Wallets user={user} lang={lang} />} />
-          <Route path="/referral" element={<ReferralPage user={user} />} />
+          <Route path="/referral" element={<ReferralPage user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/casino" element={<Casino user={user} lang={lang} />} />
           <Route path="/aviator" element={<AviatorGame user={user} />} />

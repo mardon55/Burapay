@@ -1,0 +1,23 @@
+Siz React (Frontend), FastAPI (Backend), PostgreSQL va Tailwind CSS arxitekturasiga ega bo'lgan Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz.
+
+Muammo va Cheklov: 
+Foydalanuvchi interfeysda "Rus tili"ni tanlaganida, Mini App ichidagi barcha mijoz bo'limlari to'liq rus tiliga o'zgarmayapti. 
+DIQQAT: Admin panel qismi har doim O'ZBEK tilida qolishi shart, unga mutlaqo tegish mumkin emas! O'zgarishlar faqat foydalanuvchi (client) interfeysiga tegishli.
+
+Vazifa:
+Foydalanuvchi qismini to'liq ko'p tilli (i18n) tizimga o'tkazish va rus tili tanlanganda mijoz interfeysi hamda unga tegishli backend ma'lumotlari 100% rus tilida bo'lishini ta'minlash. Quyidagi qadamlar bo'yicha kodga o'zgartirish kiriting:
+
+1. Frontend (React & Tailwind CSS - Faqat Foydalanuvchi Qismi):
+   - Mijoz ko'radigan barcha qattiq yozilgan (hardcoded) matnlarni (masalan: "O'tkazmalar", "To'ldirish", "Yechish", "Asosiy", "Hisobotlar", "Profil") tarjima obyektlariga o'tkazing va ruscha tarjimalarini (Переводы, Пополнение, Вывод, Главная, Отчеты, Профиль) to'liq kiriting.
+   - Admin panelga tegishli bo'lgan marshrutlar (routes) va komponentlarni ushbu til o'zgarishidan butunlay mustasno qiling (ular statik o'zbek tilida qolsin).
+   - Tailwind CSS elementlari ruscha matnlar uzunligi hisobiga surilib ketmasligini ta'minlang.
+
+2. Backend (FastAPI & PostgreSQL):
+   - Mijoz tomonidan kelayotgan API so'rovlarida til (uz/ru) yuborilishini yo'lga qo'ying.
+   - FastAPI backend qismida mijoz ilovasi uchun ma'lumotlar bazasidan qaytayotgan status xabarlari, xatoliklar yoki dinamik matnlar tanlangan tilga mos ravishda qaytsin. 
+   - Admin panel so'rovlari va unga qaytadigan ma'lumotlar bazasi kontentlari faqat o'zbek tilida qolishi uchun logikani ajrating.
+
+3. Telegram WebApp Integratsiyasi:
+   - Agar foydalanuvchi ilovani birinchi marta ochayotgan bo'lsa, Telegram WebApp InitData ichidagi `user.language_code` parametridan kelib chiqib tilni avtomatik aniqlang (ru bo'lsa ruscha, aks holda o'zbekcha).
+
+Iltimos, faqat mijoz qismiga tegishli fayllarni yangilang va admin panel xavfsizligi hamda tiliga tegmang. Barcha mijoz bo'limlari professional rus tilida ishlasin.
