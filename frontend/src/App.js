@@ -734,7 +734,12 @@ const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => 
 
 const PageHeader = ({ title }) => {
     return (
-        <div className="flex items-center gap-3 p-4 border-b border-slate-800 sticky top-0 bg-midnight z-10">
+        <div
+            className="flex items-center gap-3 px-4 pb-4 border-b border-slate-800 sticky top-0 bg-midnight z-10"
+            style={{
+                paddingTop: 'max(var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px), 16px)'
+            }}
+        >
             <h1 className="text-lg font-bold">{title}</h1>
         </div>
     );
