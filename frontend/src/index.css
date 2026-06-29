@@ -35,6 +35,41 @@
     --ring: 48 96% 53%;
 
     --radius: 0.75rem;
+
+    /* ── Safe Area Tokens ────────────────────────────────────────────────────
+     *
+     * Computed once here on :root, referenced everywhere via var(--sa-*).
+     * Sources (all three in max() so the tallest always wins):
+     *   --tg-content-safe-area-inset-top  Telegram close/menu button height
+     *   --tg-safe-area-inset-top          Telegram header + device notch
+     *   env(safe-area-inset-top)          Native WebKit value
+     *     iPhone 13 notch      → 47 px
+     *     iPhone 15/16 D.I.    → 59 px
+     *     No-notch / Android   →  0 px  (no wasted space)
+     *
+     * These are used by:
+     *   #root                        → viewport edge guard
+     *   .ios-safe-top / .ios-safe-bottom → fixed elements that bypass #root
+     *   PageHeader                   → sticky blur bar top offset
+     *   Admin sidebar                → fixed sidebar top padding
+     * ─────────────────────────────────────────────────────────────────────── */
+    --sa-top: max(
+      var(--tg-content-safe-area-inset-top, 0px),
+      var(--tg-safe-area-inset-top, 0px),
+      env(safe-area-inset-top, 0px)
+    );
+    --sa-bottom: max(
+      var(--tg-safe-area-inset-bottom, 0px),
+      env(safe-area-inset-bottom, 0px)
+    );
+    --sa-left: max(
+      var(--tg-safe-area-inset-left, 0px),
+      env(safe-area-inset-left, 0px)
+    );
+    --sa-right: max(
+      var(--tg-safe-area-inset-right, 0px),
+      env(safe-area-inset-right, 0px)
+    );
   }
 }
 
@@ -47,6 +82,11 @@
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading uppercase;
+    /* Dynamic Type guard: never let headings stack onto 2+ lines in headers.
+       line-height is unitless (relative to current font-size) so it scales
+       correctly at any Dynamic Type scale. */
+    line-height: 1.2;
+    overflow-wrap: break-word;
   }
 }
 
@@ -68,6 +108,7 @@ body {
   background-color: #020617;
 }
 
+/* ── Root: viewport safe area guard (all four sides) ────────────────────── */
 #root {
   position: relative;
   height: 100%;
@@ -76,40 +117,62 @@ body {
   overscroll-behavior: none;
   box-sizing: border-box;
 
-  /*
-   * ── iOS Safe Area — portrait + landscape + Dynamic Island + Notch ──────────
-   *
-   * TOP: max() of all three sources so the tallest chrome always wins:
-   *   --tg-content-safe-area-inset-top = Telegram's close/menu button height
-   *   --tg-safe-area-inset-top         = Telegram header + device notch (combined)
-   *   env(safe-area-inset-top)         = native WebKit notch/Dynamic Island value
-   *     iPhone 13 notch    → 47px
-   *     iPhone 15/16 D.I.  → 59px
-   *     No-notch iPhones   →  0px  (no wasted space)
-   *
-   * LEFT / RIGHT: landscape notch guard (44px on notched iPhones rotated sideways)
-   *   Telegram Mini Apps run portrait-primary, but we defend anyway.
-   *   Telegram provides --tg-safe-area-inset-left/right for its own chrome.
-   *
-   * BOTTOM: home indicator bar on Face-ID iPhones (34px portrait, 21px landscape)
-   */
-  padding-top:    max(
-                    var(--tg-content-safe-area-inset-top, 0px),
-                    var(--tg-safe-area-inset-top, 0px),
-                    env(safe-area-inset-top, 0px)
-                  );
-  padding-bottom: max(
-                    var(--tg-safe-area-inset-bottom, 0px),
-                    env(safe-area-inset-bottom, 0px)
-                  );
-  padding-left:   max(
-                    var(--tg-safe-area-inset-left, 0px),
-                    env(safe-area-inset-left, 0px)
-                  );
-  padding-right:  max(
-                    var(--tg-safe-area-inset-right, 0px),
-                    env(safe-area-inset-right, 0px)
-                  );
+  /* All four sides use the same tokens defined above */
+  padding-top:    var(--sa-top);
+  padding-bottom: var(--sa-bottom);
+  padding-left:   var(--sa-left);
+  padding-right:  var(--sa-right);
+}
+
+/* ── Utility: Safe Area padding classes ──────────────────────────────────
+ *
+ * Use these on position:fixed / position:absolute elements that bypass
+ * #root's padding (e.g. BottomNav, Admin sidebar, floating panels).
+ *
+ * .ios-safe-top    — top padding equal to the notch / Telegram chrome height
+ * .ios-safe-bottom — bottom padding equal to the Home Indicator bar height
+ *                    with a 12px minimum so the content never kisses the edge
+ * ─────────────────────────────────────────────────────────────────────── */
+.ios-safe-top {
+  padding-top: var(--sa-top);
+}
+
+.ios-safe-bottom {
+  /* min 12 px so label text has breathing room even on no-indicator devices */
+  padding-bottom: max(var(--sa-bottom), 0.75rem);
+}
+
+/* ── Page Header: native iOS frosted-glass bar ───────────────────────────
+ *
+ * backdrop-filter: blur(20px) creates the iOS translucent chrome effect.
+ * -webkit-backdrop-filter is required on all current iOS Safari versions.
+ * background is semi-transparent so the blur actually shows content behind.
+ * sticky top-0 pins the bar when PageHeader is used outside page-full
+ * (inside page-full the bar is already pinned by the flex column layout,
+ *  so sticky is a no-op there but harmless).
+ * ─────────────────────────────────────────────────────────────────────── */
+.page-header-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(2, 6, 23, 0.82);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.page-header-bar h1 {
+  /* Dynamic Type guard: 1 line max, font scales with rem but never wraps */
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Scrollable containers (Reports, Casino inner lists, sub-page forms) ── */
@@ -135,5 +198,40 @@ body {
   flex: 1 1 0;
   min-height: 0;
   padding: 1rem;
-  padding-bottom: 6rem; /* clear bottom nav */
+  /* bottom: enough to clear BottomNav (≈64px) + Home Indicator (≈34px) = 98px.
+     6rem (96px) is the safe minimum; pages with long forms may need more. */
+  padding-bottom: 6rem;
+}
+
+/* ── Dynamic Type density guard ──────────────────────────────────────────
+ *
+ * iOS users can enable Accessibility → Larger Text (up to ~235% scale).
+ * These rules prevent balance figures and names from overflowing their
+ * containers.  clamp(min, preferred, max) scales gracefully:
+ *   - min = readable at normal size
+ *   - preferred = scales with viewport
+ *   - max = cap so it never overflows into Telegram chrome
+ * ─────────────────────────────────────────────────────────────────────── */
+.balance-amount {
+  font-size: clamp(1.75rem, 8vw, 3rem);
+  line-height: 1;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-name-header {
+  font-size: clamp(0.875rem, 3.5vw, 1rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.user-greeting {
+  font-size: clamp(0.65rem, 2.5vw, 0.75rem);
+  line-height: 1.3;
 }

@@ -143,7 +143,7 @@ const BottomNav = ({ isAdmin, lang }) => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[10000]" style={{ background: 'rgba(2,6,23,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-around px-2 pt-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+      <div className="flex items-center justify-around px-2 pt-2 ios-safe-bottom" style={{ paddingBottom: 'max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px), 12px)' }}>
         {navItems.map((item) => {
           const active = isActive(item.match);
           return (
@@ -212,8 +212,8 @@ const Home = ({ user, lang, setLang }) => {
             {user.first_name?.[0]?.toUpperCase()}
           </div>
           <div>
-            <p className="text-xs text-slate-400">{t.hello}</p>
-            <h1 className="text-base font-bold leading-tight">{user.first_name}</h1>
+            <p className="user-greeting text-slate-400">{t.hello}</p>
+            <h1 className="user-name-header">{user.first_name}</h1>
           </div>
         </div>
         <div className="flex gap-2">
@@ -734,8 +734,8 @@ const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => 
 
 const PageHeader = ({ title }) => {
     return (
-        <div className="flex items-center gap-3 p-4 border-b border-slate-800 bg-midnight z-10">
-            <h1 className="text-lg font-bold">{title}</h1>
+        <div className="page-header-bar">
+            <h1>{title}</h1>
         </div>
     );
 };
