@@ -1,0 +1,22 @@
+I have a FastAPI backend (production project "MR_PAY") that is crashing with this error in the Railway logs:
+
+TypeError: Object of type ValueError is not JSON serializable
+
+The traceback shows the crash happens inside Starlette's response rendering (responses.py -> render -> json.dumps), triggered from FastAPI's default http_exception_handler when it tries to serialize an HTTPException's `detail` field. This strongly indicates that somewhere in the codebase, an HTTPException is being raised with a raw exception object instead of a string, e.g.:
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=e)   # WRONG: e is not JSON-serializable
+
+Please do the following:
+
+1. Search the entire codebase for every `raise HTTPException(...)` call where `detail=` is set to a caught exception variable (e.g. `detail=e`, `detail=err`, `detail=exc`) instead of a string. Fix each one to use `detail=str(e)` (or a clear custom message).
+
+2. Also search for any other place where a raw exception, ValueError, or any non-JSON-serializable object (e.g. datetime, Decimal, custom class instances) is passed directly into a response body, dict, or HTTPException detail, and fix those the same way.
+
+3. As a safety net, add a global exception handler in the FastAPI app (e.g. `@app.exception_handler(Exception)`) that catches any unhandled exception and always returns a clean JSON response like `{"detail": str(exc)}` with status 500, so this category of bug can never crash the server again, even if a new one is introduced later.
+
+4. Pay special attention to the transaction-related endpoints (likely `/api/transactions/create` and `/api/transactions/{id}`), since those involve validation logic that is the most likely source of ValueError being raised.
+
+5. After fixing, double check that all existing endpoints that currently return 200 OK keep working exactly as before — only the error-handling path should change.
+
+Make the changes minimal and safe, and show me a summary of every file/line you changed and why.

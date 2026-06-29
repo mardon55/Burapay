@@ -1,6 +1,8 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Body, Request, WebSocket, WebSocketDisconnect
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from decimal import Decimal
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -84,6 +86,59 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def _sanitize_pydantic_errors(errors: list) -> list:
+    """
+    Pydantic v2 embeds raw Exception objects inside ctx['error'].
+    json.dumps cannot serialize them → TypeError: Object of type ValueError
+    is not JSON serializable.  This helper converts every Exception value
+    to its string representation so the error list is always JSON-safe.
+    """
+    safe = []
+    for err in errors:
+        entry = dict(err)
+        if "ctx" in entry and isinstance(entry["ctx"], dict):
+            entry["ctx"] = {
+                k: str(v) if isinstance(v, Exception) else v
+                for k, v in entry["ctx"].items()
+            }
+        safe.append(entry)
+    return safe
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Override FastAPI's default RequestValidationError handler.
+    The default handler passes exc.errors() straight to JSONResponse, which
+    crashes in Pydantic v2 because ctx['error'] holds a raw Exception object.
+    """
+    logging.exception(
+        "Request validation failed: %s %s", request.method, request.url.path
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": _sanitize_pydantic_errors(exc.errors())},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Safety-net: catch any unhandled exception and return a clean JSON 500
+    instead of crashing Starlette's response renderer.
+    The full traceback is always written to the log.
+    """
+    logging.exception(
+        "Unhandled exception on %s %s", request.method, request.url.path
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
 api_router = APIRouter(prefix="/api")
 
 # ── Mostbet Kassa API ─────────────────────────────────────────────────────────
@@ -198,10 +253,14 @@ async def get_settings() -> dict:
     row = await fetchone("SELECT * FROM settings ORDER BY id LIMIT 1")
     if not row:
         return {}
-    # required_channels stored as JSONB — already a list
     result = dict(row)
+    # required_channels stored as JSONB — already a list
     if isinstance(result.get('required_channels'), str):
         result['required_channels'] = json.loads(result['required_channels'])
+    # exchange_rate comes from a NUMERIC column — asyncpg returns Decimal,
+    # which is not JSON serializable; convert to float.
+    if isinstance(result.get('exchange_rate'), Decimal):
+        result['exchange_rate'] = float(result['exchange_rate'])
     return result
 
 # ── Pydantic models (hardened — default values + validators) ──────────────────
@@ -702,21 +761,10 @@ async def add_wallet(request: Request, data: dict = Body(...)):
         new_wallet = WalletIn(**wallet_data)
     except PydanticValidationError as e:
         # Pydantic v2 embeds the raw ValueError object inside ctx['error'].
-        # Passing e.errors() directly to HTTPException crashes JSON serialisation
-        # with "Object of type ValueError is not JSON serializable".
-        # We log the full traceback so the original message is never hidden,
-        # then produce a JSON-safe copy of the error list.
+        # _sanitize_pydantic_errors converts those objects to strings so the
+        # detail list is always JSON-safe.  Full traceback goes to the log.
         logging.exception("WalletIn validation failed")
-        safe_errors = []
-        for err in e.errors():
-            safe_err = dict(err)
-            if "ctx" in safe_err and isinstance(safe_err["ctx"], dict):
-                safe_err["ctx"] = {
-                    k: str(v) if isinstance(v, Exception) else v
-                    for k, v in safe_err["ctx"].items()
-                }
-            safe_errors.append(safe_err)
-        raise HTTPException(status_code=422, detail=safe_errors)
+        raise HTTPException(status_code=422, detail=_sanitize_pydantic_errors(e.errors()))
     await execute(
         """INSERT INTO wallets (id, user_telegram_id, type, number, expiry, name)
            VALUES (:id, :uid, :type, :number, :expiry, :name)""",
@@ -947,8 +995,13 @@ async def get_admin_stats():
     total_deposits = deposit_row['total'] if deposit_row else 0
     pending_row = await fetchone("SELECT COUNT(*) as cnt FROM transactions WHERE status='pending'")
     pending_count = pending_row['cnt'] if pending_row else 0
-    return {"total_users": total_users, "total_balance": total_balance,
-            "total_deposits": total_deposits, "pending_count": pending_count}
+    # SUM() on NUMERIC columns returns Decimal — not JSON serializable.
+    return {
+        "total_users": int(total_users),
+        "total_balance": float(total_balance),
+        "total_deposits": float(total_deposits),
+        "pending_count": int(pending_count),
+    }
 
 @api_router.get("/admin/users")
 async def get_all_users(search: str = ""):
