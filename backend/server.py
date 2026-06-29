@@ -798,15 +798,30 @@ async def create_transaction(request: Request, tx: TransactionCreate):
                 break
 
     currency_label = "SO'M" if tx.currency == 'UZS' else "USD"
+    method_lower = (tx.method or '').lower()
     if tx.type == 'deposit':
         msg = (f"🆔 <b>ID:</b> {user_internal_id}\n\n💳 <b>{user_card_type}:</b> {user_card_number}\n\n"
                f"🎮 <b>{mostbet_label}:</b> {mostbet_id}\n\n💰 <b>{tx.amount:,.0f} {currency_label}</b>\n\n"
                f"👤 <b>Telegram:</b> {user_username}\n📞 <b>Telefon:</b> {user_phone}")
+    elif 'uzcard' in method_lower or 'humo' in method_lower or 'card' in method_lower:
+        # Uzcard/Humo karta yechish
+        msg = (f"💳 <b>KARTA YECHISH SO'ROVI</b>\n\n"
+               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"👤 <b>Telegram:</b> {user_username}\n\n"
+               f"💰 <b>Summa:</b> {tx.amount:,.0f} {currency_label}\n"
+               f"📤 <b>Yechish kartasi:</b> <code>{tx.wallet_number}</code>\n\n"
+               f"🏦 <b>Foydalanuvchi kartasi ({user_card_type}):</b> <code>{user_card_number}</code>")
     else:
-        msg = (f"🆔 <b>ID:</b> {user_internal_id}\n\n💳 <b>{user_card_type}:</b> {user_card_number}\n\n"
-               f"🎮 <b>{mostbet_label}:</b> {mostbet_id}\n\n💰 <b>{tx.amount:,.0f} {currency_label}</b>\n\n"
-               f"🔑 <b>Kod:</b> <code>{tx.secret_code}</code>\n\n"
-               f"👤 <b>Telegram:</b> {user_username}\n📞 <b>Telefon:</b> {user_phone}")
+        # Mostbet / 1xbet yechish
+        platform_label = "1xbet ID" if '1xbet' in method_lower else mostbet_label
+        platform_id    = tx.wallet_number or mostbet_id
+        msg = (f"🎮 <b>{platform_label} YECHISH SO'ROVI</b>\n\n"
+               f"🆔 <b>ID:</b> {user_internal_id}\n"
+               f"👤 <b>Telegram:</b> {user_username}\n\n"
+               f"💰 <b>Summa:</b> {tx.amount:,.0f} {currency_label}\n"
+               f"🎯 <b>{platform_label}:</b> <code>{platform_id}</code>\n\n"
+               f"🏦 <b>Foydalanuvchi kartasi ({user_card_type}):</b> <code>{user_card_number}</code>"
+               + (f"\n🔑 <b>Kod:</b> <code>{tx.secret_code}</code>" if tx.secret_code else ""))
 
     await send_notification(msg, tx.type, short_id)
     return {"id": tx_id, "short_id": short_id, "user_id": tx.user_id, "type": tx.type,

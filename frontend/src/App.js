@@ -1166,6 +1166,210 @@ const WalletModal = ({ platform, existingId, existingCard, onSave, onClose, savi
     );
 };
 
+// ── WITHDRAW SELECT PAGE ─────────────────────────────────────────────────────
+const WithdrawSelect = ({ user }) => {
+    const navigate = useNavigate();
+    const [step, setStep] = useState('select'); // 'select' | 'form'
+    const [method, setMethod] = useState(null); // 'mostbet' | '1xbet' | 'card'
+    const [amount, setAmount] = useState('');
+    const [cardNumber, setCardNumber] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const wallets = user?.wallets || [];
+    const mostbetWallet = wallets.find(w => ['mostbet_uzs', 'mostbet_usd', 'mostbet'].includes(w.type));
+    const xbetWallet    = wallets.find(w => w.type === '1xbet');
+    const hasCard       = wallets.some(w => ['uzcard', 'humo'].includes(w.type));
+
+    const METHODS = [
+        {
+            id: 'mostbet',
+            label: 'Mostbet ID',
+            badge: 'MB',
+            color: 'yellow',
+            bg: 'rgba(234,179,8,0.1)',
+            border: 'rgba(234,179,8,0.3)',
+            text: '#facc15',
+            wallet: mostbetWallet,
+            missing: !mostbetWallet ? "Mostbet ID saqlanmagan. Hamyonlar bo'limida qo'shing." : null,
+        },
+        {
+            id: '1xbet',
+            label: '1xbet ID',
+            badge: '1X',
+            color: 'blue',
+            bg: 'rgba(59,130,246,0.1)',
+            border: 'rgba(59,130,246,0.3)',
+            text: '#60a5fa',
+            wallet: xbetWallet,
+            missing: !xbetWallet ? "1xbet ID saqlanmagan. Hamyonlar bo'limida qo'shing." : null,
+        },
+        {
+            id: 'card',
+            label: 'Uzcard / Humo',
+            badge: '💳',
+            color: 'slate',
+            bg: 'rgba(255,255,255,0.06)',
+            border: 'rgba(255,255,255,0.12)',
+            text: '#e2e8f0',
+            wallet: null,
+            missing: null,
+        },
+    ];
+
+    const selected = METHODS.find(m => m.id === method);
+
+    const handleSelect = (m) => {
+        if (m.missing) { toast.error(m.missing); return; }
+        setMethod(m.id);
+        setStep('form');
+    };
+
+    const handleSubmit = async () => {
+        if (!amount || Number(amount) <= 0) return toast.error("Summani kiriting");
+        if (Number(amount) < 10000) return toast.error("Eng kam summa 10,000 UZS");
+        if (user?.balance_uzs < Number(amount)) return toast.error("Mablag' yetarli emas");
+        if (method === 'card') {
+            const digits = cardNumber.replace(/\s/g, '');
+            if (digits.length < 16) return toast.error("16 xonali karta raqamini kiriting");
+        }
+        setLoading(true);
+        try {
+            const payload = {
+                user_id: user.telegram_id,
+                type: 'withdraw',
+                amount: Number(amount),
+                currency: 'UZS',
+            };
+            if (method === 'mostbet') {
+                payload.method = 'Mostbet ID';
+                payload.wallet_number = mostbetWallet?.number;
+            } else if (method === '1xbet') {
+                payload.method = '1xbet ID';
+                payload.wallet_number = xbetWallet?.number;
+            } else {
+                payload.method = 'Uzcard/Humo';
+                payload.wallet_number = cardNumber.replace(/\s/g, '');
+            }
+            await axios.post(`${API_URL}/transactions/create`, payload);
+            toast.success("Pul yechish so'rovi yuborildi! ✅");
+            navigate('/profile');
+        } catch(e) {
+            toast.error(e?.response?.data?.detail || "Xatolik yuz berdi");
+        } finally { setLoading(false); }
+    };
+
+    return (
+        <div className="min-h-screen animate-in fade-in duration-300">
+            <PageHeader title="Pul yechish" />
+            <div className="p-4 space-y-4 pb-24">
+
+                {/* Balans */}
+                <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span className="text-sm text-slate-400">Mavjud balans</span>
+                    <span className="text-base font-bold text-yellow-400">
+                        {(user?.balance_uzs ?? 0).toLocaleString('uz-UZ')} UZS
+                    </span>
+                </div>
+
+                {step === 'select' && (
+                    <div className="space-y-3 animate-in fade-in">
+                        <p className="text-sm text-slate-400 font-medium">Qayerga yechmoqchisiz?</p>
+                        {METHODS.map(m => (
+                            <button key={m.id} onClick={() => handleSelect(m)}
+                                className="w-full flex items-center gap-4 p-4 rounded-2xl text-left active:scale-95 transition-all"
+                                style={{ background: m.bg, border: `1px solid ${m.border}` }}>
+                                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-lg font-extrabold"
+                                    style={{ background: 'rgba(255,255,255,0.06)', color: m.text }}>
+                                    {m.badge}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-white text-sm">{m.label}</div>
+                                    {m.wallet ? (
+                                        <div className="text-xs font-mono mt-0.5" style={{ color: m.text }}>
+                                            ID: {m.wallet.number}
+                                        </div>
+                                    ) : m.id === 'card' ? (
+                                        <div className="text-xs text-slate-500 mt-0.5">Karta raqamini o'zingiz kiritasiz</div>
+                                    ) : (
+                                        <div className="text-xs text-red-400 mt-0.5">Saqlanmagan</div>
+                                    )}
+                                </div>
+                                <ChevronRight size={18} className="text-slate-600 flex-shrink-0" />
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {step === 'form' && selected && (
+                    <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                        {/* Tanlangan usul */}
+                        <div className="rounded-xl p-4 flex items-center gap-3"
+                            style={{ background: selected.bg, border: `1px solid ${selected.border}` }}>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-base flex-shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.08)', color: selected.text }}>
+                                {selected.badge}
+                            </div>
+                            <div>
+                                <div className="text-xs text-slate-400">Yechish usuli</div>
+                                <div className="font-bold text-white text-sm">{selected.label}</div>
+                                {selected.wallet && (
+                                    <div className="text-xs font-mono mt-0.5" style={{ color: selected.text }}>
+                                        {selected.wallet.number}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Karta raqami — faqat card usulida */}
+                        {method === 'card' && (
+                            <div>
+                                <label className="text-xs text-slate-400 mb-2 block">Karta raqami (16 xonali)</label>
+                                <input
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-base font-mono placeholder-slate-600 focus:outline-none focus:border-white/25 transition-colors tracking-widest"
+                                    value={cardNumber}
+                                    onChange={e => setCardNumber(formatCardInput(e.target.value))}
+                                    placeholder="8600 0000 0000 0000"
+                                    inputMode="numeric"
+                                    maxLength={19}
+                                />
+                            </div>
+                        )}
+
+                        {/* Summa */}
+                        <div>
+                            <label className="text-xs text-slate-400 mb-2 block">Yechiladigan summa (UZS)</label>
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-yellow-500/50 transition-colors">
+                                <span className="text-slate-500 text-sm font-bold">UZS</span>
+                                <input
+                                    type="number"
+                                    className="flex-1 bg-transparent text-white text-xl font-bold outline-none text-right placeholder-slate-700"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1 text-right">Min: 10,000 UZS</p>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={() => { setStep('select'); setAmount(''); setCardNumber(''); }}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-white/10 text-slate-400 active:scale-95 transition-all">
+                                Ortga
+                            </button>
+                            <button onClick={handleSubmit} disabled={loading}
+                                className="flex-[2] py-3 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50"
+                                style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)', color: '#facc15' }}>
+                                {loading ? 'Yuborilmoqda...' : "So'rov yuborish ✅"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const Wallets = ({ user, lang }) => {
     const [wallets, setWallets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -2370,7 +2574,7 @@ function App() {
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
           <Route path="/1xbet-withdraw" element={<Withdraw user={user} lang={lang} platform="1xbet" />} />
-          <Route path="/withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
+          <Route path="/withdraw" element={<WithdrawSelect user={user} />} />
           <Route path="/profil" element={<Profil user={user} lang={lang} />} />
           <Route path="/profile" element={<Profil user={user} lang={lang} />} />
           <Route path="/reports" element={<Reports user={user} lang={lang} />} />
