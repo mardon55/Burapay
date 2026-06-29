@@ -1,0 +1,28 @@
+Loyiha tarkibiga yangi funksional — "Foydalanuvchilararo ichki pul o'tkazmasi (P2P)" tizimini frontend, backend va ma'lumotlar bazasi (PostgreSQL) darajasida to'liq qo'shish kerak.
+
+Quyidagi texnik talablar asosida kodni professional darajada yozing:
+
+1. DATABASE (PostgreSQL & SQLAlchemy/Alembic):
+- `transfers` yoki `transactions` jadvaliga ichki o'tkazmalar uchun yangi tur qo'shing: type = "INTERNAL_TRANSFER".
+- O'tkazmada: `sender_id` (yuboruvchi), `receiver_id` (qabul qiluvchi), `amount` (yuborilgan sof summa), `commission` (3% komissiya miqdori), `total_deducted` (balansdan jami yechilgan summa = amount + commission) va `status` bo'lishi shart.
+
+2. BACKEND (FastAPI):
+- `/api/transfers/internal` nomli POST endpoint yarating.
+- Validatsiya va xavfsizlik:
+  a) `receiver_id` (Telegram ID) ma'lumotlar bazasida mavjudligini tekshirilsin. Agar foydalanuvchi topilmasa, "Foydalanuvchi topilmadi" xatoligini qaytarsin.
+  b) Yuboruvchi o'z-o'ziga pul o'tkaza olmasligi kerak.
+  c) Balans tekshiruvi: O'tkazma summasi + 3% komissiya miqdori yuboruvchining balansidan ko'p bo'lsa, "Mablag' yetarli emas" (400 Bad Request) xatoligi qaytsin.
+- Tranzaksiya algoritmi (DB Transaction): Yuboruvchidan pul ayriladi (`total_deducted`), qabul qiluvchiga sof summa (`amount`) qo'shiladi va tranzaksiyalar tarixiga yozilib, DB `commit` qilinadi.
+
+3. FRONTEND (React & Tailwind CSS):
+- O'tkazmalar sahifasida (`/transfers`), MOSTBET va 1XBET bloklaridan keyin, eng pastga yangi blok qo'shilsin: "Foydalanuvchiga pul o'tkazish".
+- Dizayn: Boshqa bloklar bilan bir xil va uyg'un Tailwind uslubida bo'lsin.
+- Oqim (Flow):
+  a) "O'tkazish" tugmasi bosilganda Modal oyna (yoki inline forma) ochilsin. Unda: "Bot bergan maxsus ID raqamni kiriting" va "Summa" kiritish maydonlari bo'lsin.
+  b) Inputlar validatsiya qilinsin. Yuborishdan oldin foydalanuvchiga 3% komissiya olinishi haqida ogohlantirish ko'rsatilsin.
+  c) Balansda pul yetarli bo'lmasa, API xatoligini ushlab ekranda chiroyli "Mablag' yetarli emas" degan notification (ogohlantirish) chiqsin.
+
+4. HISOBOTLAR SAHIFASI (Reports):
+- Ushbu o'tkazma muvaffaqiyatli yakunlangach, yuboruvchida ham, qabul qiluvchida ham "Hisobotlar" bo'limida "Ichki o'tkazma (Yuborildi / Qabul qilindi)" ko'rinishida aks etsin.
+
+Ushbu funksionalni arxitekturaviy jihatdan toza va xavfsiz (ACID qoidalariga mos) qilib yozing.

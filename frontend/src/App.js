@@ -30,6 +30,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   ArrowDownUp,
+  ArrowRightLeft,
   Key,
   Trash2,
   Plus,
@@ -277,73 +278,220 @@ const Home = ({ user, lang, setLang }) => {
   );
 };
 
-const Otkazmalar = ({ lang }) => {
+const Otkazmalar = ({ user, lang }) => {
   const navigate = useNavigate();
   const t = translations[lang];
+
+  const [p2pOpen, setP2pOpen] = useState(false);
+  const [receiverBotId, setReceiverBotId] = useState('');
+  const [p2pAmount, setP2pAmount] = useState('');
+  const [p2pLoading, setP2pLoading] = useState(false);
+
+  const commission = p2pAmount ? Math.round(parseFloat(p2pAmount) * 0.03) : 0;
+  const totalDeducted = p2pAmount ? Math.round(parseFloat(p2pAmount) + commission) : 0;
+  const showCommission = p2pAmount && parseFloat(p2pAmount) >= 1000;
+
+  const handleP2pSend = async () => {
+    if (!receiverBotId.trim()) return toast.error(t.p2p_enter_id);
+    const amt = parseFloat(p2pAmount);
+    if (!p2pAmount || isNaN(amt)) return toast.error(t.p2p_enter_amount);
+    if (amt < 1000) return toast.error(t.p2p_min_amount);
+
+    setP2pLoading(true);
+    try {
+      await axios.post(`${API_URL}/transfers/internal`, {
+        sender_id: user?.telegram_id,
+        receiver_bot_id: receiverBotId.trim(),
+        amount: amt,
+      });
+      toast.success(t.p2p_success);
+      setP2pOpen(false);
+      setReceiverBotId('');
+      setP2pAmount('');
+    } catch (err) {
+      const detail = err?.response?.data?.detail || '';
+      if (detail.includes('topilmadi') || detail.includes('не найден')) toast.error(t.p2p_error_not_found);
+      else if (detail.includes('yetarli') || detail.includes('средств')) toast.error(t.p2p_error_insufficient);
+      else if (detail.includes("o'zingizga") || detail.includes('себе')) toast.error(t.p2p_error_self);
+      else toast.error(detail || t.error);
+    } finally {
+      setP2pLoading(false);
+    }
+  };
+
   return (
-    <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
-      <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
+    <>
+      <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
+        <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
 
-      {/* Mostbet */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-            <span className="text-xs font-extrabold text-yellow-400">MB</span>
+        {/* Mostbet */}
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+              <span className="text-xs font-extrabold text-yellow-400">MB</span>
+            </div>
+            <h2 className="text-lg font-bold text-white">Mostbet</h2>
           </div>
-          <h2 className="text-lg font-bold text-white">Mostbet</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/mostbet-deposit')}
+              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
+                <ArrowDownToLine size={20} className="text-yellow-400" />
+              </div>
+              <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
+            </button>
+            <button
+              onClick={() => navigate('/mostbet-withdraw')}
+              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
+                <ArrowUpFromLine size={20} className="text-slate-300" />
+              </div>
+              <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => navigate('/mostbet-deposit')}
-            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 active:scale-95 transition-all"
-          >
-            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
-              <ArrowDownToLine size={20} className="text-yellow-400" />
+
+        {/* 1xbet */}
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
+              <span className="text-xs font-extrabold text-blue-400">1X</span>
             </div>
-            <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
-          </button>
-          <button
-            onClick={() => navigate('/mostbet-withdraw')}
-            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
-          >
-            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
-              <ArrowUpFromLine size={20} className="text-slate-300" />
+            <h2 className="text-lg font-bold text-white">1xbet</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/1xbet-deposit')}
+              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center">
+                <ArrowDownToLine size={20} className="text-blue-400" />
+              </div>
+              <span className="text-sm font-bold text-blue-400">{t.deposit}</span>
+            </button>
+            <button
+              onClick={() => navigate('/1xbet-withdraw')}
+              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
+                <ArrowUpFromLine size={20} className="text-slate-300" />
+              </div>
+              <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* P2P — Foydalanuvchiga pul o'tkazish */}
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center">
+              <Users size={16} className="text-green-400" />
             </div>
-            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
+            <h2 className="text-lg font-bold text-white">{t.p2p_title}</h2>
+          </div>
+          <button
+            onClick={() => setP2pOpen(true)}
+            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 active:scale-95 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center">
+                <ArrowRightLeft size={18} className="text-green-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-green-400">{t.p2p_btn}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{t.p2p_commission_note}</p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-500" />
           </button>
         </div>
       </div>
 
-      {/* 1xbet */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
-            <span className="text-xs font-extrabold text-blue-400">1X</span>
+      {/* P2P Modal */}
+      {p2pOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-end"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setP2pOpen(false); }}
+        >
+          <div
+            className="w-full rounded-t-3xl px-5 pt-6 pb-10 space-y-5 animate-in slide-in-from-bottom-4 duration-300"
+            style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">{t.p2p_modal_title}</h2>
+              <button
+                onClick={() => setP2pOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Bot ID input */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1.5 font-medium">{t.p2p_receiver_label}</label>
+              <input
+                type="text"
+                value={receiverBotId}
+                onChange={e => setReceiverBotId(e.target.value)}
+                placeholder={t.p2p_receiver_placeholder}
+                className="w-full px-4 py-3 rounded-xl text-white text-sm font-medium placeholder-slate-600 outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </div>
+
+            {/* Amount input */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1.5 font-medium">{t.p2p_amount_label}</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={p2pAmount}
+                onChange={e => setP2pAmount(e.target.value)}
+                placeholder={t.p2p_amount_placeholder}
+                className="w-full px-4 py-3 rounded-xl text-white text-sm font-medium placeholder-slate-600 outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </div>
+
+            {/* Commission preview */}
+            {showCommission && (
+              <div className="px-4 py-3 rounded-xl" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
+                <p className="text-xs text-yellow-400 font-medium">
+                  {t.p2p_commission_detail
+                    .replace('{commission}', commission.toLocaleString())
+                    .replace('{total}', totalDeducted.toLocaleString())}
+                </p>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setP2pOpen(false)}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-300 transition-all active:scale-95"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                {t.p2p_cancel_btn}
+              </button>
+              <button
+                onClick={handleP2pSend}
+                disabled={p2pLoading}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+              >
+                {p2pLoading ? '...' : t.p2p_confirm_btn}
+              </button>
+            </div>
           </div>
-          <h2 className="text-lg font-bold text-white">1xbet</h2>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => navigate('/1xbet-deposit')}
-            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 active:scale-95 transition-all"
-          >
-            <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center">
-              <ArrowDownToLine size={20} className="text-blue-400" />
-            </div>
-            <span className="text-sm font-bold text-blue-400">{t.deposit}</span>
-          </button>
-          <button
-            onClick={() => navigate('/1xbet-withdraw')}
-            className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
-          >
-            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
-              <ArrowUpFromLine size={20} className="text-slate-300" />
-            </div>
-            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
@@ -2312,6 +2460,8 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformShort = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'internal_sent') return t.p2p_sent_label;
+    if (m === 'internal_received') return t.p2p_received_label;
     if (m === 'balance') return t.balance_method;
     if (m.includes('1xbet')) return '1xbet';
     if (m.includes('mostbet')) return 'Mostbet';
@@ -2320,6 +2470,8 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformIcon = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'internal_sent') return <ArrowRightLeft size={14} className="text-red-400" />;
+    if (m === 'internal_received') return <ArrowRightLeft size={14} className="text-green-400" />;
     if (m === 'balance') return <Wallet size={14} className="text-green-400" />;
     if (m.includes('1xbet')) return (
       <span className="text-[11px] font-extrabold text-blue-400">1X</span>
@@ -2331,9 +2483,19 @@ const Reports = ({ user, lang }) => {
 
   const getPlatformBg = (tx) => {
     const m = (tx.method || '').toLowerCase();
+    if (m === 'internal_sent') return 'rgba(239,68,68,0.12)';
+    if (m === 'internal_received') return 'rgba(34,197,94,0.12)';
     if (m === 'balance') return 'rgba(34,197,94,0.12)';
     if (m.includes('1xbet')) return 'rgba(59,130,246,0.15)';
     return 'rgba(250,204,21,0.12)';
+  };
+
+  const getAmountSign = (tx) => {
+    const m = (tx.method || '').toLowerCase();
+    if (m === 'internal_sent') return { sign: '−', color: 'text-red-400', amount: tx.total_deducted || tx.amount };
+    if (m === 'internal_received') return { sign: '+', color: 'text-green-400', amount: tx.amount };
+    if (tx.type === 'deposit') return { sign: '+', color: 'text-green-400', amount: tx.amount };
+    return { sign: '−', color: 'text-red-400', amount: tx.amount };
   };
 
   return (
@@ -2364,9 +2526,9 @@ const Reports = ({ user, lang }) => {
         ) : (
           <div className="space-y-0 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             {txs.map((tx, idx) => {
-              const isDeposit = tx.type === 'deposit';
               const platform  = getPlatformShort(tx);
               const isLast    = idx === txs.length - 1;
+              const { sign, color, amount: displayAmount } = getAmountSign(tx);
 
               return (
                 <div
@@ -2393,8 +2555,8 @@ const Reports = ({ user, lang }) => {
 
                   {/* Amount */}
                   <div className="text-right flex-shrink-0">
-                    <p className={`text-base font-bold leading-tight ${isDeposit ? 'text-green-400' : 'text-red-400'}`}>
-                      {isDeposit ? '+' : '−'}{(tx.amount || 0).toLocaleString()} <span className="text-xs font-semibold">{tx.currency || 'UZS'}</span>
+                    <p className={`text-base font-bold leading-tight ${color}`}>
+                      {sign}{(displayAmount || 0).toLocaleString()} <span className="text-xs font-semibold">{tx.currency || 'UZS'}</span>
                     </p>
                   </div>
                 </div>
@@ -2544,8 +2706,8 @@ function App() {
         <TelegramBackButton />
         <Routes>
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
-          <Route path="/deposit" element={<Otkazmalar lang={lang} />} />
-          <Route path="/transfers" element={<Otkazmalar lang={lang} />} />
+          <Route path="/deposit" element={<Otkazmalar user={user} lang={lang} />} />
+          <Route path="/transfers" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />

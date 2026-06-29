@@ -945,6 +945,101 @@ async def verify_code(data: dict = Body(...)):
         raise HTTPException(status_code=400, detail="So'rov bekor qilingan")
     raise HTTPException(status_code=400, detail="Noto'g'ri kod")
 
+@api_router.post("/transfers/internal")
+@limiter.limit("10/minute")
+async def internal_transfer(request: Request, data: dict = Body(...)):
+    sender_id = data.get("sender_id")
+    receiver_bot_id = str(data.get("receiver_bot_id", "")).strip()
+    amount = data.get("amount")
+
+    if not sender_id or not receiver_bot_id or not amount:
+        raise HTTPException(status_code=400, detail="Ma'lumotlar to'liq emas")
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Noto'g'ri summa formati")
+
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Summa 0 dan katta bo'lishi kerak")
+
+    # Qabul qiluvchini bot_id orqali topish
+    receiver = await fetchone(
+        "SELECT telegram_id, first_name, bot_id FROM users WHERE bot_id = :bid",
+        {"bid": receiver_bot_id}
+    )
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+    if int(receiver["telegram_id"]) == int(sender_id):
+        raise HTTPException(status_code=400, detail="O'zingizga pul o'tkaza olmaysiz")
+
+    commission = round(amount * 0.03, 2)
+    total_deducted = round(amount + commission, 2)
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Yuboruvchi balansini LOCK bilan tekshirish (race condition oldini olish)
+            sender_row = await conn.fetchrow(
+                "SELECT balance_uzs FROM users WHERE telegram_id = $1 FOR UPDATE",
+                int(sender_id)
+            )
+            if not sender_row:
+                raise HTTPException(status_code=404, detail="Yuboruvchi topilmadi")
+            if float(sender_row["balance_uzs"]) < total_deducted:
+                raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
+
+            # Yuboruvchidan ayirish
+            await conn.execute(
+                "UPDATE users SET balance_uzs = balance_uzs - $1 WHERE telegram_id = $2",
+                total_deducted, int(sender_id)
+            )
+            # Qabul qiluvchiga qo'shish
+            await conn.execute(
+                "UPDATE users SET balance_uzs = balance_uzs + $1 WHERE telegram_id = $2",
+                amount, int(receiver["telegram_id"])
+            )
+
+            now = datetime.now(timezone.utc)
+
+            # Yuboruvchi uchun tranzaksiya yozuvi
+            tx_id_s = str(uuid.uuid4())
+            short_id_s = generate_short_id()
+            await conn.execute(
+                """INSERT INTO transactions
+                   (id, short_id, user_id, type, amount, currency, method, status,
+                    sender_id, receiver_id, commission, total_deducted, created_at)
+                   VALUES ($1,$2,$3,'INTERNAL_TRANSFER',$4,'UZS','internal_sent','approved',
+                           $5,$6,$7,$8,$9)""",
+                tx_id_s, short_id_s, int(sender_id), amount,
+                int(sender_id), int(receiver["telegram_id"]),
+                commission, total_deducted, now
+            )
+
+            # Qabul qiluvchi uchun tranzaksiya yozuvi
+            tx_id_r = str(uuid.uuid4())
+            short_id_r = generate_short_id()
+            await conn.execute(
+                """INSERT INTO transactions
+                   (id, short_id, user_id, type, amount, currency, method, status,
+                    sender_id, receiver_id, commission, total_deducted, created_at)
+                   VALUES ($1,$2,$3,'INTERNAL_TRANSFER',$4,'UZS','internal_received','approved',
+                           $5,$6,$7,$8,$9)""",
+                tx_id_r, short_id_r, int(receiver["telegram_id"]), amount,
+                int(sender_id), int(receiver["telegram_id"]),
+                0, amount, now
+            )
+
+    return {
+        "success": True,
+        "amount": amount,
+        "commission": commission,
+        "total_deducted": total_deducted,
+        "receiver_name": receiver["first_name"] or receiver_bot_id
+    }
+
+
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
     rows = await fetchall(
@@ -1936,6 +2031,13 @@ async def create_tables():
                 current_multiplier NUMERIC(10,4) DEFAULT 1.0,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
+        """)
+        # P2P o'tkazma ustunlari — mavjud bo'lmasa qo'shiladi
+        await conn.execute("""
+            ALTER TABLE transactions ADD COLUMN IF NOT EXISTS sender_id BIGINT;
+            ALTER TABLE transactions ADD COLUMN IF NOT EXISTS receiver_id BIGINT;
+            ALTER TABLE transactions ADD COLUMN IF NOT EXISTS commission NUMERIC(18,2) DEFAULT 0;
+            ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_deducted NUMERIC(18,2) DEFAULT 0;
         """)
         # settings jadvalida kamida bitta yozuv bo'lishi kerak
         await conn.execute("""
