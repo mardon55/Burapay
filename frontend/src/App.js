@@ -2132,9 +2132,9 @@ const Admin = ({ user }) => {
                         {users.map(u => (
                             <div key={u.telegram_id} className="bg-midnight-light border border-slate-800 p-4 rounded-xl flex items-center justify-between">
                                 <div>
-                                    <div className="font-bold">{u.first_name}</div>
-                                    <div className="text-xs text-slate-500">ID: {u.internal_id} | TG: {u.telegram_id}</div>
-                                    <div className="text-gold font-mono mt-1">{u.balance.toLocaleString()} UZS</div>
+                                    <div className="font-bold">{u.first_name ?? '—'}</div>
+                                    <div className="text-xs text-slate-500">ID: {u.internal_id ?? '—'} | TG: {u.telegram_id}</div>
+                                    <div className="text-gold font-mono mt-1">{(u.balance_uzs ?? 0).toLocaleString()} UZS {u.balance_usd > 0 ? `· $${(u.balance_usd ?? 0).toLocaleString()}` : ''}</div>
                                 </div>
                                 <button 
                                     onClick={() => setEditingUser(u)}
