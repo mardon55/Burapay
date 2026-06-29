@@ -1,0 +1,23 @@
+Siz Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz. Loyihamizda iOS (iPhone) foydalanuvchilari uchun juda muhim bo'lgan ikkita vizual muammoni hal qilishimiz kerak. 
+
+DIQQAT: Admin panel qismiga mutlaqo tegilmasin, u o'z holatida qolsin. O'zgarishlar faqat foydalanuvchi (client-side) sahifalariga tegishli.
+
+Muammolar:
+1. Keraksiz skrol (Scroll): "Hisobotlar" (Reports) va "Kazino" (Casino) sahifalaridan tashqari, boshqa hech bir sahifada (Asosiy, O'tkazmalar, Profil va h.k.) vertikal skrol bo'lmasligi, sahifa ekranga to'liq (100vh) sig'ishi kerak. iOS'dagi "rubber-banding" (pastga tortganda oq fonsiz cho'zilish) effektini yo'qotish zarur.
+2. Telegram tugmalari to'sib qolishi: iOS qurilmalarida Telegram Mini App'ning yuqori o'ng burchagidagi "Yopish" (Close/X) va menyu tugmalari sahifalardagi sarlavhalar va yozuvlarning ustiga minib qolyapti (ularni yopib qo'yapti).
+
+Vazifa:
+Quyidagi yechimlarni loyihaning Frontend (React & Tailwind CSS) qismiga professional darajada tatbiq eting:
+
+1. Yuqori qismdagi to'silib qolishni (Padding/Safe Area) to'g'rilash:
+   - Telegram WebApp taqdim etadigan xavfsiz zonalarni hisobga olish uchun asosiy konteynerga yoki global layoutga Tailwind orqali moslashuvchan yuqori padding bering: `pt-[var(--tg-viewport-safe-area-inset-top,20px)]` yoki standart xavfsiz padding (`pt-12` / `pt-14`) qo'shing. Barcha sahifa sarlavhalari Telegram tizim tugmalaridan pastda, chiroyli va toza ko'rinsin.
+
+2. Sahifalardagi skrolni boshqarish (Overflow Control):
+   - Ilovaning umumiy foni va asosiy `body`/`div` qatlamiga skrolni bloklovchi qoidalarni bering: `h-screen overflow-hidden select-none`.
+   - Faqatgina skrol bo'lishi shart bo'lgan "Hisobotlar" va "Kazino" sahifalarining o'ziga xos konteynerlariga Tailwind'ning `overflow-y-auto` sinfini qo'shing va ularning balandligini to'g'ri cheklang (masalan, `h-[calc(100vh-navbar-height)]`).
+   - Qolgan barcha sahifalar ekranga qat'iy 100% joylashsin (fixed/flex flex-col h-full) va vertikal cho'zilmasin.
+
+3. Telegram WebApp expand() funksiyasi:
+   - Ilova ochilganda Telegram oynasi yarimta bo'lib ochilib, skrol paydo bo'lishining oldini olish uchun `window.Telegram.WebApp.expand()` funksiyasi to'g'ri chaqirilganini va barqaror ishlayotganini tekshiring.
+
+Iltimos, ushbu o'zgarishlarni faqat foydalanuvchi interfeysidagi Tailwind sinflari va React komponentlariga joriy qiling, admin panel tuzilishiga tegmang. Yangilanishdan so'ng build qilib, natijani tekshiring.

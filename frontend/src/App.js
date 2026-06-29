@@ -1629,13 +1629,12 @@ const Casino = ({ user, lang }) => {
   const navigate = useNavigate();
   const t = translations[lang];
   return (
-    <div className="pb-28 animate-in fade-in duration-300 min-h-screen" style={{ background: '#080d18' }}>
-      <div className="px-4 pb-3" style={{ paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 16px))' }}>
-
+    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#080d18' }}>
+      <div className="px-4 pt-4 pb-3 flex-shrink-0">
         <h1 className="text-2xl font-black text-white">{t.casino_title}</h1>
       </div>
 
-      <div className="px-4 space-y-3 mt-2">
+      <div className="flex-1 overflow-y-auto scrollable px-4 space-y-3 pb-28">
         {/* Aviator card */}
         <button onClick={() => navigate('/aviator')}
           className="w-full rounded-2xl overflow-hidden transition-all active:scale-95 text-left"
@@ -2326,22 +2325,22 @@ const Reports = ({ user, lang }) => {
   };
 
   return (
-    <div className="min-h-screen pb-28 animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
+    <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300" style={{ background: '#0a0e1a' }}>
 
       {/* Header */}
-      <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="px-4 pt-5 pb-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <h1 className="text-xl font-bold text-white tracking-tight">{t.reports_title}</h1>
         <p className="text-xs text-slate-500 mt-0.5">{t.tx_history}</p>
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="flex-1 overflow-y-auto scrollable px-4 pt-4 pb-28">
         {loading ? (
           <div className="flex justify-center pt-16">
             <div className="w-8 h-8 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
           </div>
         ) : txs.length === 0 ? (
           <div className="flex flex-col items-center justify-center pt-24 space-y-4">
-            <div className="w-18 h-18 w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
+            <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <History size={30} className="text-slate-600" />
             </div>
@@ -2528,7 +2527,7 @@ function App() {
   );
 
   return (
-    <div className="App min-h-screen bg-midnight text-white font-body selection:bg-gold selection:text-black">
+    <div className="App h-full overflow-hidden bg-midnight text-white font-body selection:bg-gold selection:text-black">
       <BrowserRouter>
         <TelegramBackButton />
         <Routes>
