@@ -734,12 +734,7 @@ const NavCard = ({ icon, title, subtitle, accentColor = 'yellow', onClick }) => 
 
 const PageHeader = ({ title }) => {
     return (
-        <div
-            className="flex items-center gap-3 px-4 pb-4 border-b border-slate-800 sticky top-0 bg-midnight z-10"
-            style={{
-                paddingTop: 'max(var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px), 16px)'
-            }}
-        >
+        <div className="flex items-center gap-3 p-4 border-b border-slate-800 bg-midnight z-10">
             <h1 className="text-lg font-bold">{title}</h1>
         </div>
     );
@@ -1833,8 +1828,14 @@ const Admin = ({ user }) => {
                 md:static md:translate-x-0 md:flex
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             `}>
-                {/* Logo / title */}
-                <div className="flex items-center justify-between px-5 py-5 border-b border-slate-800">
+                {/* Logo / title — safe area for fixed sidebar */}
+                <div
+                    className="flex items-center justify-between px-5 border-b border-slate-800"
+                    style={{
+                        paddingTop: 'calc(max(var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px)) + 20px)',
+                        paddingBottom: '20px',
+                    }}
+                >
                     <div className="flex items-center gap-2">
                         <ShieldCheck size={20} className="text-gold" />
                         <span className="text-base font-black text-white tracking-wide">Admin Panel</span>
