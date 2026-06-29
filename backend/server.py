@@ -279,6 +279,7 @@ class Settings(BaseModel):
     deposit_channel_id: Optional[str] = None
     withdraw_channel_id: Optional[str] = None
     balance_channel_id: Optional[str] = None
+    balance_withdraw_channel_id: Optional[str] = None
     exchange_rate: float = 12800.0
     required_channels: List[dict] = []
 
@@ -289,7 +290,7 @@ class Settings(BaseModel):
             raise ValueError("Kurs musbat bo'lishi kerak")
         return v
 
-    @field_validator('deposit_channel_id', 'withdraw_channel_id', 'balance_channel_id', mode='before')
+    @field_validator('deposit_channel_id', 'withdraw_channel_id', 'balance_channel_id', 'balance_withdraw_channel_id', mode='before')
     @classmethod
     def validate_channel_id(cls, v: Any) -> Optional[str]:
         if v is None or v == '':
@@ -581,7 +582,7 @@ async def bal_action_handler(callback: CallbackQuery):
         logging.error(f"Error in bal_action_handler: {e}")
         await callback.answer("Xatolik yuz berdi", show_alert=True)
 
-async def send_notification(msg: str, tx_type: str, short_id: str = None):
+async def send_notification(msg: str, tx_type: str, short_id: str = None, method: str = ''):
     if not bot: return
     markup = None
     if short_id:
@@ -590,7 +591,18 @@ async def send_notification(msg: str, tx_type: str, short_id: str = None):
             InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admin_reject_{short_id}")
         ]])
     settings = await get_settings()
-    target_channel = settings.get('deposit_channel_id' if tx_type == 'deposit' else 'withdraw_channel_id')
+    # Kanal tanlash mantiqqi:
+    # deposit           → deposit_channel_id
+    # withdraw card     → balance_withdraw_channel_id  (Uzcard/Humo balansdan yechish)
+    # withdraw platform → withdraw_channel_id           (Mostbet/1xbet)
+    method_lower = (method or '').lower()
+    if tx_type == 'deposit':
+        channel_key = 'deposit_channel_id'
+    elif tx_type == 'withdraw' and ('card' in method_lower or 'uzcard' in method_lower or 'humo' in method_lower):
+        channel_key = 'balance_withdraw_channel_id'
+    else:
+        channel_key = 'withdraw_channel_id'
+    target_channel = settings.get(channel_key)
     if target_channel:
         try:
             await bot.send_message(target_channel, msg, parse_mode="HTML", reply_markup=markup)
@@ -823,7 +835,7 @@ async def create_transaction(request: Request, tx: TransactionCreate):
                f"🏦 <b>Foydalanuvchi kartasi ({user_card_type}):</b> <code>{user_card_number}</code>"
                + (f"\n🔑 <b>Kod:</b> <code>{tx.secret_code}</code>" if tx.secret_code else ""))
 
-    await send_notification(msg, tx.type, short_id)
+    await send_notification(msg, tx.type, short_id, method=tx.method or '')
     return {"id": tx_id, "short_id": short_id, "user_id": tx.user_id, "type": tx.type,
             "amount": tx.amount, "currency": tx.currency, "method": tx.method,
             "wallet_number": tx.wallet_number, "secret_code": tx.secret_code, "status": "pending"}
@@ -1784,6 +1796,7 @@ async def create_tables():
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
             ALTER TABLE settings ADD COLUMN IF NOT EXISTS balance_channel_id VARCHAR(50);
+            ALTER TABLE settings ADD COLUMN IF NOT EXISTS balance_withdraw_channel_id VARCHAR(50);
 
             CREATE TABLE IF NOT EXISTS deposit_requests (
                 id VARCHAR(100) PRIMARY KEY,

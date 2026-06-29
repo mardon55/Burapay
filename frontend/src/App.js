@@ -1797,7 +1797,7 @@ const Admin = ({ user }) => {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ amount: '', type: 'credit' });
-    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', balance_channel_id: '', exchange_rate: 12800 });
+    const [settings, setSettings] = useState({ deposit_channel_id: '', withdraw_channel_id: '', balance_channel_id: '', balance_withdraw_channel_id: '', exchange_rate: 12800 });
     const [newCard, setNewCard] = useState({ type: 'uzcard', number: '' });
     const [requiredChannels, setRequiredChannels] = useState([]);
     const [newChannel, setNewChannel] = useState({ channel_id: '', channel_name: '', channel_link: '' });
@@ -2198,6 +2198,10 @@ const Admin = ({ user }) => {
                             <div>
                                 <label className="text-xs text-slate-400 mb-1 block">💳 Balans To'ldirish Kanali ID</label>
                                 <Input value={settings.balance_channel_id || ''} onChange={e => setSettings({...settings, balance_channel_id: e.target.value})} placeholder="-100..." />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-400 mb-1 block">💸 Balansdan Yechish Kanali ID</label>
+                                <Input value={settings.balance_withdraw_channel_id || ''} onChange={e => setSettings({...settings, balance_withdraw_channel_id: e.target.value})} placeholder="-100..." />
                             </div>
                         </div>
 
