@@ -344,7 +344,6 @@ const Otkazmalar = ({ user, lang }) => {
             </div>
             <div className="text-left">
               <p className="text-sm font-bold text-green-400">{t.p2p_btn}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{t.p2p_commission_note}</p>
             </div>
           </div>
           <ChevronRight size={18} className="text-slate-500" />
@@ -458,7 +457,6 @@ const P2PTransfer = ({ user, lang }) => {
         </button>
         <div>
           <h1 className="text-lg font-bold text-white leading-tight">{t.p2p_modal_title}</h1>
-          <p className="text-xs text-slate-500">{t.p2p_commission_note}</p>
         </div>
       </div>
 
