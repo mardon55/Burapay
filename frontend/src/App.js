@@ -237,10 +237,10 @@ const Home = ({ user, lang, setLang }) => {
           {/* UZS Balance — main */}
           <div className="mt-1 mb-3">
             <div className="flex items-end gap-2">
-              <span className="text-4xl font-bold tracking-tight text-white">
+              <span className="balance-amount text-white">
                 {balanceVisible ? (balanceUZS).toLocaleString('uz-UZ') : '••••••'}
               </span>
-              <span className="text-lg font-semibold text-yellow-400 mb-1">UZS</span>
+              <span className="text-base font-semibold text-yellow-400 mb-0.5 flex-shrink-0">UZS</span>
             </div>
             {balanceUZS === 0 && (
               <p className="text-xs text-slate-500 mt-0.5">
@@ -934,8 +934,8 @@ const WalletPage = ({ user, lang = 'uz' }) => {
                 <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg,#1a1f2e 0%,#0f1420 50%,#1a2a1a 100%)", border: "1px solid rgba(250,204,21,0.15)" }}>
                     <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">{t.my_account}</p>
                     <div className="flex items-end gap-2 mb-2">
-                        <span className="text-3xl font-bold text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
-                        <span className="text-base font-semibold text-yellow-400 mb-0.5">UZS</span>
+                        <span className="balance-amount text-white">{balanceUZS.toLocaleString('uz-UZ')}</span>
+                        <span className="text-base font-semibold text-yellow-400 mb-0.5 flex-shrink-0">UZS</span>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1 w-fit">
                         <span className="text-xs text-slate-400">USD</span>
@@ -1380,16 +1380,16 @@ const Wallets = ({ user, lang = 'uz' }) => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setModal({ platform, idWallet, cardWallet })}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-slate-300 text-xs font-semibold active:scale-95 transition-all"
+                                            className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-white/8 border border-white/10 text-slate-300 text-xs font-semibold active:scale-95 transition-all min-h-[44px]"
                                         >
-                                            <Edit size={12}/> {t.edit}
+                                            <Edit size={13}/> {t.edit}
                                         </button>
                                         <button
                                             onClick={() => handleDelete(platform)}
                                             disabled={isDeleting}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                                            className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50 min-h-[44px]"
                                         >
-                                            <Trash2 size={12}/> {isDeleting ? '...' : t.delete}
+                                            <Trash2 size={13}/> {isDeleting ? '...' : t.delete}
                                         </button>
                                     </div>
                                 </div>
@@ -1584,9 +1584,9 @@ const Profil = ({ user, lang }) => {
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-2xl shadow-lg flex-shrink-0">
                         {user?.first_name?.[0]?.toUpperCase()}
                     </div>
-                    <div>
-                        <h1 className="text-xl font-bold">{user?.first_name}</h1>
-                        <p className="text-sm text-slate-500">
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold leading-tight truncate max-w-[200px]">{user?.first_name}</h1>
+                        <p className="text-sm text-slate-500 truncate max-w-[200px]">
                             {user?.username ? `@${user.username}` : `ID: ${user?.internal_id || user?.telegram_id}`}
                         </p>
                     </div>

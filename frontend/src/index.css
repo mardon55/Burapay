@@ -235,3 +235,13 @@ body {
   font-size: clamp(0.65rem, 2.5vw, 0.75rem);
   line-height: 1.3;
 }
+
+/* ── Toaster: offset from Telegram chrome ────────────────────────────────
+ *
+ * sonner renders <ol data-sonner-toaster data-position="top-center"> as a
+ * fixed overlay. Without this, toast messages appear under Telegram's ✕ and
+ * ··· buttons.  We push the list down by --sa-top + a small visual gap.
+ * ─────────────────────────────────────────────────────────────────────── */
+[data-sonner-toaster][data-position="top-center"] {
+  top: calc(var(--sa-top) + 8px) !important;
+}
