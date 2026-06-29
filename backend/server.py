@@ -266,7 +266,9 @@ async def get_settings() -> dict:
 # ── Pydantic models (hardened — default values + validators) ──────────────────
 VALID_WALLET_TYPES = {
     'uzcard', 'humo', 'visa', 'mastercard',
-    'mostbet_uzs', 'mostbet_usd', '1xbet_uzs', '1xbet_usd'
+    'mostbet_uzs', 'mostbet_usd', '1xbet_uzs', '1xbet_usd',
+    # Frontend sends '1xbet' for 1xbet ID and '1xbet_card' for 1xbet card number
+    '1xbet', '1xbet_card',
 }
 
 class WalletIn(BaseModel):
