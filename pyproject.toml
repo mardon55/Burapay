@@ -1,7 +1,7 @@
 [project]
 name = "repl-nix-workspace"
 version = "0.1.0"
-description = "BuraPay - Telegram Mini App payment system"
+description = "MR Kassa - Telegram Mini App payment system"
 requires-python = ">=3.12"
 dependencies = [
     "aiofiles==23.2.1",

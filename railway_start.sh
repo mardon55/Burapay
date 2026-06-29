@@ -3,7 +3,7 @@ set -e
 
 PORT="${PORT:-8000}"
 
-echo "🚀 BuraPay backend ishga tushmoqda (port: $PORT)..."
+echo "🚀 MR Kassa backend ishga tushmoqda (port: $PORT)..."
 
 if [ -z "$DATABASE_URL" ]; then
   echo "❌ XATO: DATABASE_URL muhit o'zgaruvchisi topilmadi!"

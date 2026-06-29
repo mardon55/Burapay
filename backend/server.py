@@ -390,8 +390,8 @@ async def check_subscription(user_id: int) -> dict:
 # ── Messages ──────────────────────────────────────────────────────────────────
 MESSAGES = {
     "uz": {
-        "welcome": "👋 Salom, {name}!\n\n<b>BuraPay</b> - ishonchli to'lov tizimiga xush kelibsiz.\nHisobni to'ldirish va yechish uchun pastdagi tugmani bosing.",
-        "open_app": "📱 BuraPay ilovasini ochish",
+        "welcome": "👋 Salom, {name}!\n\n<b>MR Kassa</b> - ishonchli to'lov tizimiga xush kelibsiz.\nHisobni to'ldirish va yechish uchun pastdagi tugmani bosing.",
+        "open_app": "📱 MR Kassa ilovasini ochish",
         "approved": "✅ Sizning {amount:,.0f} {currency} miqdoridagi so'rovingiz tasdiqlandi!",
         "rejected": "❌ Sizning {amount:,.0f} {currency} miqdoridagi so'rovingiz bekor qilindi.",
         "choose_lang": "👇 Tilni tanlang / Выберите язык",
@@ -399,8 +399,8 @@ MESSAGES = {
         "balance_updated": "💰 Sizning hisobingiz admin tomonidan {amount:,.0f} UZS ga {action}."
     },
     "ru": {
-        "welcome": "👋 Привет, {name}!\n\nДобро пожаловать в <b>BuraPay</b> - надежную платежную систему.\nНажмите кнопку ниже для пополнения и вывода средств.",
-        "open_app": "📱 Открыть приложение BuraPay",
+        "welcome": "👋 Привет, {name}!\n\nДобро пожаловать в <b>MR Kassa</b> - надежную платежную систему.\nНажмите кнопку ниже для пополнения и вывода средств.",
+        "open_app": "📱 Открыть приложение MR Kassa",
         "approved": "✅ Ваша заявка на {amount:,.0f} {currency} одобрена!",
         "rejected": "❌ Ваша заявка на {amount:,.0f} {currency} отклонена.",
         "choose_lang": "👇 Tilni tanlang / Выберите язык",
@@ -681,7 +681,7 @@ async def send_notification(msg: str, tx_type: str, short_id: str = None, method
 # ── API Routes ────────────────────────────────────────────────────────────────
 @api_router.get("/")
 async def root():
-    return {"message": "BuraPay API Running"}
+    return {"message": "MR Kassa API Running"}
 
 @api_router.post("/auth/login")
 @limiter.limit("30/minute")
@@ -1309,9 +1309,9 @@ async def apply_partnership(request: Request, data: dict = Body(...)):
         detected_username = bot_info.get("username", "")
         detected_name = bot_info.get("first_name", bot_name)
         webapp_url = WEBAPP_URL.rstrip("/")
-        menu_payload = {"menu_button": {"type": "web_app", "text": "BuraPay", "web_app": {"url": webapp_url}}}
+        menu_payload = {"menu_button": {"type": "web_app", "text": "MR Kassa", "web_app": {"url": webapp_url}}}
         await client.post(f"{tg_api}/setChatMenuButton", json=menu_payload)
-        start_cmd = [{"command": "start", "description": "BuraPay ilovasini ochish"}]
+        start_cmd = [{"command": "start", "description": "MR Kassa ilovasini ochish"}]
         await client.post(f"{tg_api}/setMyCommands", json={"commands": start_cmd})
     await execute(
         """INSERT INTO partnerships (telegram_id, bot_token, bot_name, bot_username, webapp_url, status)
@@ -1982,13 +1982,13 @@ async def startup():
             try:
                 from aiogram.types import MenuButtonWebApp, WebAppInfo as TgWebAppInfo
                 await bot.set_chat_menu_button(
-                    menu_button=MenuButtonWebApp(text="BuraPay", web_app=TgWebAppInfo(url=public_url))
+                    menu_button=MenuButtonWebApp(text="MR Kassa", web_app=TgWebAppInfo(url=public_url))
                 )
             except Exception as e:
                 logging.warning(f"Could not set menu button: {e}")
             try:
                 from aiogram.types import BotCommand
-                await bot.set_my_commands([BotCommand(command="start", description="BuraPay ilovasini ochish")])
+                await bot.set_my_commands([BotCommand(command="start", description="MR Kassa ilovasini ochish")])
             except Exception as e:
                 logging.warning(f"Could not set commands: {e}")
         else:

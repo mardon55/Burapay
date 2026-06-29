@@ -1643,7 +1643,7 @@ const PartnershipPage = ({ user }) => {
                         </button>
                         <div className="rounded-xl p-3 bg-slate-800/60 border border-slate-700/50">
                             <p className="text-xs text-slate-500 font-semibold mb-1.5">Avtomatik sozlanadi:</p>
-                            {["✓ Token tekshiriladi", "✓ Menu button → BuraPay", "✓ /start komandasi", "✓ Web App URL aniqlanadi"].map(item => (
+                            {["✓ Token tekshiriladi", "✓ Menu button → MR Kassa", "✓ /start komandasi", "✓ Web App URL aniqlanadi"].map(item => (
                                 <p key={item} className="text-xs text-slate-600">{item}</p>
                             ))}
                         </div>
@@ -2363,7 +2363,7 @@ const getPlatformLabel = (tx) => {
   if (m.includes('1xbet')) return '1xbet UZS';
   if (m.includes('uzcard')) return 'Uzcard';
   if (m.includes('humo'))   return 'Humo';
-  return tx.method || 'BuraPay';
+  return tx.method || 'MR Kassa';
 };
 
 const Reports = ({ user, lang }) => {
