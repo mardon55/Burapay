@@ -362,12 +362,13 @@ const P2PTransfer = ({ user, lang, setUser }) => {
   const [idSuffix, setIdSuffix] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [result, setResult] = useState(null);
   const [idError, setIdError] = useState('');
   const [amtError, setAmtError] = useState('');
   const [currentBalance, setCurrentBalance] = useState(user?.balance_uzs || 0);
-  const [countdown, setCountdown] = useState(null);
 
   // Keep balance in sync with prop
   useEffect(() => { setCurrentBalance(user?.balance_uzs || 0); }, [user]);
@@ -406,29 +407,32 @@ const P2PTransfer = ({ user, lang, setUser }) => {
         amount: amtNum,
       });
       setResult(res.data);
-      // Immediately update local balance from backend response
-      if (res.data.new_sender_balance !== undefined) {
-        setCurrentBalance(res.data.new_sender_balance);
-        if (setUser) setUser(prev => prev ? { ...prev, balance_uzs: res.data.new_sender_balance } : prev);
-      }
-      setDone(true);
+      setLoading(false);
 
-      // Start 3-second countdown then re-fetch fresh balance
-      let sec = 3;
-      setCountdown(sec);
-      const tick = setInterval(() => {
-        sec -= 1;
-        setCountdown(sec);
-        if (sec <= 0) {
-          clearInterval(tick);
-          setCountdown(null);
-          // Refresh full user profile
-          axios.get(`${API_URL}/user/${user?.telegram_id}`).then(r => {
-            if (setUser) setUser(prev => prev ? { ...prev, ...r.data } : r.data);
-            setCurrentBalance(r.data.balance_uzs || 0);
-          }).catch(() => {});
-        }
-      }, 1000);
+      // ── 3-soniyalik sinxronizatsiya animatsiyasi ──────────────────────────
+      setSyncing(true);
+      setSyncProgress(0);
+
+      // Progress bar: 0 → 100 over 3 seconds (every 30ms)
+      let prog = 0;
+      const progressTick = setInterval(() => {
+        prog += 100 / (3000 / 30);
+        setSyncProgress(Math.min(prog, 100));
+      }, 30);
+
+      // After exactly 3 seconds — fetch fresh balance then show success
+      setTimeout(async () => {
+        clearInterval(progressTick);
+        setSyncProgress(100);
+        try {
+          const r = await axios.get(`${API_URL}/user/${user?.telegram_id}`);
+          const freshBalance = r.data.balance_uzs || 0;
+          setCurrentBalance(freshBalance);
+          if (setUser) setUser(prev => prev ? { ...prev, ...r.data } : r.data);
+        } catch (_) {}
+        setSyncing(false);
+        setDone(true);
+      }, 3000);
 
     } catch (err) {
       const detail = err?.response?.data?.detail || '';
@@ -447,11 +451,72 @@ const P2PTransfer = ({ user, lang, setUser }) => {
     }
   };
 
-  // ── Success screen ──
-  if (done && result) {
+  // ── Syncing screen (3 seconds) ─────────────────────────────────────────────
+  if (syncing && result) {
     return (
       <div
         className="h-full flex flex-col items-center justify-center px-6 animate-in fade-in duration-300"
+        style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
+      >
+        {/* Pulsing ring animation */}
+        <div className="relative flex items-center justify-center mb-8">
+          <div className="absolute w-28 h-28 rounded-full animate-ping opacity-20"
+            style={{ background: 'rgba(34,197,94,0.4)' }} />
+          <div className="absolute w-22 h-22 rounded-full animate-pulse opacity-30"
+            style={{ width: 88, height: 88, background: 'rgba(34,197,94,0.3)' }} />
+          <div className="w-20 h-20 rounded-full flex items-center justify-center z-10"
+            style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.5)' }}>
+            <ArrowRightLeft size={32} className="text-green-400" />
+          </div>
+        </div>
+
+        <h2 className="text-xl font-bold text-white mb-2">
+          {lang === 'uz' ? "Balanslar yangilanmoqda..." : "Синхронизация баланса..."}
+        </h2>
+        <p className="text-slate-500 text-sm text-center mb-10">
+          {lang === 'uz'
+            ? "Iltimos, kuting. Ikkala tomon balansi tekshirilmoqda"
+            : "Пожалуйста, подождите. Проверяем балансы обеих сторон"}
+        </p>
+
+        {/* Animated progress bar */}
+        <div className="w-full mb-3">
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${syncProgress}%`,
+                background: 'linear-gradient(90deg, #22c55e, #16a34a)',
+                transition: 'width 0.03s linear',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Syncing steps */}
+        <div className="w-full space-y-2.5 mt-2">
+          {[
+            lang === 'uz' ? "✓ Tranzaksiya tasdiqlandi" : "✓ Транзакция подтверждена",
+            lang === 'uz' ? (syncProgress >= 50 ? "✓ Yuboruvchi balansi yangilandi" : "⟳ Yuboruvchi balansi yangilanmoqda...") : (syncProgress >= 50 ? "✓ Баланс отправителя обновлён" : "⟳ Обновление баланса отправителя..."),
+            lang === 'uz' ? (syncProgress >= 85 ? "✓ Qabul qiluvchi balansi yangilandi" : "⟳ Qabul qiluvchi balansi yangilanmoqda...") : (syncProgress >= 85 ? "✓ Баланс получателя обновлён" : "⟳ Обновление баланса получателя..."),
+          ].map((step, i) => (
+            <div key={i} className="flex items-center gap-2.5 px-1">
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${step.startsWith('✓') ? 'bg-green-400' : 'bg-slate-600'}`} />
+              <p className={`text-xs font-medium ${step.startsWith('✓') ? 'text-green-400' : 'text-slate-500'}`}>
+                {step.replace('✓ ', '').replace('⟳ ', '')}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Success screen ─────────────────────────────────────────────────────────
+  if (done && result) {
+    return (
+      <div
+        className="h-full flex flex-col items-center justify-center px-6 animate-in fade-in duration-500"
         style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
       >
         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
@@ -498,13 +563,6 @@ const P2PTransfer = ({ user, lang, setUser }) => {
             </div>
           </div>
         </div>
-
-        {/* Countdown hint */}
-        {countdown !== null && (
-          <p className="text-xs text-slate-600 mb-4">
-            {lang === 'uz' ? `Balans ${countdown}s da yangilanadi...` : `Баланс обновится через ${countdown}с...`}
-          </p>
-        )}
 
         <button
           onClick={() => navigate('/transfers')}
