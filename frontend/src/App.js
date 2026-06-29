@@ -282,216 +282,285 @@ const Otkazmalar = ({ user, lang }) => {
   const navigate = useNavigate();
   const t = translations[lang];
 
-  const [p2pOpen, setP2pOpen] = useState(false);
-  const [receiverBotId, setReceiverBotId] = useState('');
-  const [p2pAmount, setP2pAmount] = useState('');
-  const [p2pLoading, setP2pLoading] = useState(false);
-
-  const commission = p2pAmount ? Math.round(parseFloat(p2pAmount) * 0.03) : 0;
-  const totalDeducted = p2pAmount ? Math.round(parseFloat(p2pAmount) + commission) : 0;
-  const showCommission = p2pAmount && parseFloat(p2pAmount) >= 1000;
-
-  const handleP2pSend = async () => {
-    if (!receiverBotId.trim()) return toast.error(t.p2p_enter_id);
-    const amt = parseFloat(p2pAmount);
-    if (!p2pAmount || isNaN(amt)) return toast.error(t.p2p_enter_amount);
-    if (amt < 1000) return toast.error(t.p2p_min_amount);
-
-    setP2pLoading(true);
-    try {
-      await axios.post(`${API_URL}/transfers/internal`, {
-        sender_id: user?.telegram_id,
-        receiver_bot_id: receiverBotId.trim(),
-        amount: amt,
-      });
-      toast.success(t.p2p_success);
-      setP2pOpen(false);
-      setReceiverBotId('');
-      setP2pAmount('');
-    } catch (err) {
-      const detail = err?.response?.data?.detail || '';
-      if (detail.includes('topilmadi') || detail.includes('не найден')) toast.error(t.p2p_error_not_found);
-      else if (detail.includes('yetarli') || detail.includes('средств')) toast.error(t.p2p_error_insufficient);
-      else if (detail.includes("o'zingizga") || detail.includes('себе')) toast.error(t.p2p_error_self);
-      else toast.error(detail || t.error);
-    } finally {
-      setP2pLoading(false);
-    }
-  };
-
   return (
-    <>
-      <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
-        <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
+    <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
+      <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
 
-        {/* Mostbet */}
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-              <span className="text-xs font-extrabold text-yellow-400">MB</span>
-            </div>
-            <h2 className="text-lg font-bold text-white">Mostbet</h2>
+      {/* Mostbet */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+            <span className="text-xs font-extrabold text-yellow-400">MB</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate('/mostbet-deposit')}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 active:scale-95 transition-all"
-            >
-              <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
-                <ArrowDownToLine size={20} className="text-yellow-400" />
-              </div>
-              <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
-            </button>
-            <button
-              onClick={() => navigate('/mostbet-withdraw')}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
-                <ArrowUpFromLine size={20} className="text-slate-300" />
-              </div>
-              <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
-            </button>
-          </div>
+          <h2 className="text-lg font-bold text-white">Mostbet</h2>
         </div>
-
-        {/* 1xbet */}
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
-              <span className="text-xs font-extrabold text-blue-400">1X</span>
-            </div>
-            <h2 className="text-lg font-bold text-white">1xbet</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate('/1xbet-deposit')}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 active:scale-95 transition-all"
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center">
-                <ArrowDownToLine size={20} className="text-blue-400" />
-              </div>
-              <span className="text-sm font-bold text-blue-400">{t.deposit}</span>
-            </button>
-            <button
-              onClick={() => navigate('/1xbet-withdraw')}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all"
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center">
-                <ArrowUpFromLine size={20} className="text-slate-300" />
-              </div>
-              <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* P2P — Foydalanuvchiga pul o'tkazish */}
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center">
-              <Users size={16} className="text-green-400" />
-            </div>
-            <h2 className="text-lg font-bold text-white">{t.p2p_title}</h2>
-          </div>
-          <button
-            onClick={() => setP2pOpen(true)}
-            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 active:scale-95 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center">
-                <ArrowRightLeft size={18} className="text-green-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-green-400">{t.p2p_btn}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{t.p2p_commission_note}</p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-slate-500" />
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => navigate('/mostbet-deposit')} className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center"><ArrowDownToLine size={20} className="text-yellow-400" /></div>
+            <span className="text-sm font-bold text-yellow-400">{t.deposit}</span>
+          </button>
+          <button onClick={() => navigate('/mostbet-withdraw')} className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center"><ArrowUpFromLine size={20} className="text-slate-300" /></div>
+            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
           </button>
         </div>
       </div>
 
-      {/* P2P Modal */}
-      {p2pOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-end"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setP2pOpen(false); }}
+      {/* 1xbet */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
+            <span className="text-xs font-extrabold text-blue-400">1X</span>
+          </div>
+          <h2 className="text-lg font-bold text-white">1xbet</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => navigate('/1xbet-deposit')} className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-blue-400/20 flex items-center justify-center"><ArrowDownToLine size={20} className="text-blue-400" /></div>
+            <span className="text-sm font-bold text-blue-400">{t.deposit}</span>
+          </button>
+          <button onClick={() => navigate('/1xbet-withdraw')} className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-slate-700/30 border border-slate-700/50 hover:bg-slate-700/50 active:scale-95 transition-all">
+            <div className="w-10 h-10 rounded-full bg-slate-600/50 flex items-center justify-center"><ArrowUpFromLine size={20} className="text-slate-300" /></div>
+            <span className="text-sm font-bold text-slate-300">{t.withdraw}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* P2P — Foydalanuvchiga pul o'tkazish */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center">
+            <Users size={16} className="text-green-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white">{t.p2p_title}</h2>
+        </div>
+        <button
+          onClick={() => navigate('/p2p-transfer')}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-green-500/10 border border-green-500/20 active:scale-95 transition-all"
         >
-          <div
-            className="w-full rounded-t-3xl px-5 pt-6 pb-10 space-y-5 animate-in slide-in-from-bottom-4 duration-300"
-            style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">{t.p2p_modal_title}</h2>
-              <button
-                onClick={() => setP2pOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center">
+              <ArrowRightLeft size={18} className="text-green-400" />
             </div>
-
-            {/* Bot ID input */}
-            <div>
-              <label className="block text-xs text-slate-400 mb-1.5 font-medium">{t.p2p_receiver_label}</label>
-              <input
-                type="text"
-                value={receiverBotId}
-                onChange={e => setReceiverBotId(e.target.value)}
-                placeholder={t.p2p_receiver_placeholder}
-                className="w-full px-4 py-3 rounded-xl text-white text-sm font-medium placeholder-slate-600 outline-none transition-all"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            </div>
-
-            {/* Amount input */}
-            <div>
-              <label className="block text-xs text-slate-400 mb-1.5 font-medium">{t.p2p_amount_label}</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={p2pAmount}
-                onChange={e => setP2pAmount(e.target.value)}
-                placeholder={t.p2p_amount_placeholder}
-                className="w-full px-4 py-3 rounded-xl text-white text-sm font-medium placeholder-slate-600 outline-none transition-all"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            </div>
-
-            {/* Commission preview */}
-            {showCommission && (
-              <div className="px-4 py-3 rounded-xl" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
-                <p className="text-xs text-yellow-400 font-medium">
-                  {t.p2p_commission_detail
-                    .replace('{commission}', commission.toLocaleString())
-                    .replace('{total}', totalDeducted.toLocaleString())}
-                </p>
-              </div>
-            )}
-
-            {/* Buttons */}
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setP2pOpen(false)}
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-300 transition-all active:scale-95"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                {t.p2p_cancel_btn}
-              </button>
-              <button
-                onClick={handleP2pSend}
-                disabled={p2pLoading}
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-              >
-                {p2pLoading ? '...' : t.p2p_confirm_btn}
-              </button>
+            <div className="text-left">
+              <p className="text-sm font-bold text-green-400">{t.p2p_btn}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t.p2p_commission_note}</p>
             </div>
           </div>
+          <ChevronRight size={18} className="text-slate-500" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── P2P Transfer Page ──────────────────────────────────────────────────────────
+const P2PTransfer = ({ user, lang }) => {
+  const navigate = useNavigate();
+  const t = translations[lang];
+
+  const [receiverBotId, setReceiverBotId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const amtNum = parseFloat(amount) || 0;
+  const commission = amtNum >= 1000 ? Math.round(amtNum * 0.03) : 0;
+  const totalDeducted = amtNum >= 1000 ? amtNum + commission : 0;
+  const isValid = receiverBotId.trim().length > 0 && amtNum >= 1000;
+
+  const handleSend = async () => {
+    if (!receiverBotId.trim()) return toast.error(t.p2p_enter_id);
+    if (!amount || amtNum < 1000) return toast.error(t.p2p_min_amount);
+
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/transfers/internal`, {
+        sender_id: user?.telegram_id,
+        receiver_bot_id: receiverBotId.trim(),
+        amount: amtNum,
+      });
+      setResult(res.data);
+      setDone(true);
+    } catch (err) {
+      const detail = err?.response?.data?.detail || '';
+      if (detail.includes('topilmadi') || detail.includes('не найден'))
+        toast.error(t.p2p_error_not_found);
+      else if (detail.includes('yetarli') || detail.includes('средств'))
+        toast.error(t.p2p_error_insufficient);
+      else if (detail.includes("o'zingizga") || detail.includes('себе'))
+        toast.error(t.p2p_error_self);
+      else
+        toast.error(detail || t.error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Success screen ──
+  if (done && result) {
+    return (
+      <div
+        className="h-full flex flex-col items-center justify-center px-6 animate-in fade-in duration-300"
+        style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
+      >
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+          style={{ background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.4)' }}>
+          <CheckCircle2 size={40} className="text-green-400" />
         </div>
-      )}
-    </>
+        <h2 className="text-2xl font-bold text-white mb-2">{t.p2p_success}</h2>
+        <p className="text-slate-400 text-sm text-center mb-8">
+          {(result.amount || 0).toLocaleString()} UZS {lang === 'uz' ? "muvaffaqiyatli o'tkazildi" : "успешно переведено"}
+        </p>
+        <div className="w-full rounded-2xl p-5 mb-8 space-y-3"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-400">{lang === 'uz' ? "O'tkazma summasi" : "Сумма перевода"}</span>
+            <span className="text-white font-semibold">{(result.amount || 0).toLocaleString()} UZS</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-400">{lang === 'uz' ? "Komissiya (3%)" : "Комиссия (3%)"}</span>
+            <span className="text-yellow-400 font-semibold">{(result.commission || 0).toLocaleString()} UZS</span>
+          </div>
+          <div className="h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-400">{lang === 'uz' ? "Balansdan yechildi" : "Списано с баланса"}</span>
+            <span className="text-red-400 font-bold">{(result.total_deducted || 0).toLocaleString()} UZS</span>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/transfers')}
+          className="w-full py-4 rounded-2xl font-bold text-black text-base"
+          style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+        >
+          {lang === 'uz' ? "O'tkazmalarga qaytish" : "Вернуться к переводам"}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Form screen ──
+  return (
+    <div
+      className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300"
+      style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
+    >
+      {/* Header */}
+      <div className="px-4 pt-5 pb-4 flex-shrink-0 flex items-center gap-3"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <button
+          onClick={() => navigate(-1)}
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          <ArrowDownLeft size={18} className="text-slate-300 rotate-45" />
+        </button>
+        <div>
+          <h1 className="text-lg font-bold text-white leading-tight">{t.p2p_modal_title}</h1>
+          <p className="text-xs text-slate-500">{t.p2p_commission_note}</p>
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto scrollable px-4 pt-6 pb-4 space-y-5">
+
+        {/* Sender balance info */}
+        <div className="rounded-2xl px-5 py-4 flex items-center gap-4"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center flex-shrink-0">
+            <Wallet size={18} className="text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">{lang === 'uz' ? "Mavjud balans" : "Доступный баланс"}</p>
+            <p className="text-lg font-bold text-white">{(user?.balance_uzs || 0).toLocaleString()} <span className="text-yellow-400 text-sm">UZS</span></p>
+          </div>
+        </div>
+
+        {/* Bot ID field */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">
+            {t.p2p_receiver_label}
+          </label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2">
+              <Users size={16} className="text-slate-500" />
+            </div>
+            <input
+              type="text"
+              value={receiverBotId}
+              onChange={e => setReceiverBotId(e.target.value)}
+              placeholder={t.p2p_receiver_placeholder}
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-white text-sm font-medium placeholder-slate-600 outline-none focus:border-green-500/50 transition-all"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </div>
+        </div>
+
+        {/* Amount field */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">
+            {t.p2p_amount_label}
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="0"
+              className="w-full px-4 py-3.5 rounded-2xl text-white text-2xl font-bold placeholder-slate-700 outline-none transition-all"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">UZS</span>
+          </div>
+          <p className="text-xs text-slate-600 mt-1.5 px-1">{t.p2p_amount_placeholder}</p>
+        </div>
+
+        {/* Real-time commission breakdown */}
+        {amtNum >= 1000 && (
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(250,204,21,0.2)' }}>
+            <div className="px-4 py-2" style={{ background: 'rgba(250,204,21,0.08)' }}>
+              <p className="text-xs text-yellow-500 font-semibold uppercase tracking-wider">
+                {lang === 'uz' ? "Hisob-kitob" : "Расчёт"}
+              </p>
+            </div>
+            <div className="px-4 py-3 space-y-2.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">{lang === 'uz' ? "O'tkazma" : "Перевод"}</span>
+                <span className="text-sm font-bold text-white">{amtNum.toLocaleString()} UZS</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">{lang === 'uz' ? "Komissiya (3%)" : "Комиссия (3%)"}</span>
+                <span className="text-sm font-bold text-yellow-400">{commission.toLocaleString()} UZS</span>
+              </div>
+              <div className="h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-300 font-semibold">{lang === 'uz' ? "Balansdan yechiladi" : "Спишется с баланса"}</span>
+                <span className="text-base font-bold text-red-400">{totalDeducted.toLocaleString()} UZS</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Fixed bottom button */}
+      <div className="flex-shrink-0 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingBottom: 'max(16px, calc(var(--sa-bottom) + 12px))' }}>
+        <button
+          onClick={handleSend}
+          disabled={loading || !isValid}
+          className="w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 disabled:opacity-40"
+          style={{ background: isValid ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.08)', color: isValid ? '#000' : '#64748b' }}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              {lang === 'uz' ? "Yuborilmoqda..." : "Отправка..."}
+            </span>
+          ) : t.p2p_confirm_btn}
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -2708,6 +2777,7 @@ function App() {
           <Route path="/" element={<Home user={user} lang={lang} setLang={setLang} />} />
           <Route path="/deposit" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/transfers" element={<Otkazmalar user={user} lang={lang} />} />
+          <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />
