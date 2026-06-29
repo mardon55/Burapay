@@ -1665,6 +1665,18 @@ const Admin = ({ user }) => {
         } catch(e) { toast.error("Xatolik"); }
     };
 
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const adminTabs = [
+        { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
+        { id: 'pending',   icon: List,            label: `To'lovlar (${stats?.pending_count || 0})` },
+        { id: 'cards',     icon: Wallet,          label: 'Kartalar' },
+        { id: 'channels',  icon: Megaphone,       label: 'Kanallar' },
+        { id: 'users',     icon: Users,           label: 'Userlar' },
+        { id: 'settings',  icon: Settings,        label: 'Sozlama' },
+        { id: 'balans',    icon: ArrowDownToLine, label: 'Balans' },
+    ];
+
     if (!user?.is_admin && !isSuperAdmin(user?.telegram_id)) return (
         <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]">
             <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
@@ -1679,33 +1691,81 @@ const Admin = ({ user }) => {
     );
 
     return (
-        <div className="p-6 pb-24">
-            <div className="flex items-center justify-between mb-6"><h1 className="text-2xl font-bold">Admin Panel</h1><Link to="/" className="text-sm text-slate-500">Chiqish</Link></div>
-            
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-                {[
-                    { id: 'dashboard', icon: LayoutDashboard, label: 'Statistika' },
-                    { id: 'pending', icon: List, label: `To'lovlar (${stats?.pending_count || 0})` },
-                    { id: 'cards', icon: Wallet, label: 'Kartalar' },
-                    { id: 'channels', icon: Users, label: 'Kanallar' },
-                    { id: 'users', icon: Users, label: 'Userlar' },
-                    { id: 'settings', icon: Settings, label: 'Sozlama' },
-                    { id: 'balans', icon: ArrowDownToLine, label: 'Balans' },
-                ].map(tab => (
-                    <button 
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                            activeTab === tab.id 
-                            ? 'bg-gold text-black' 
-                            : 'bg-midnight-light border border-slate-800 text-slate-400'
-                        }`}
-                    >
-                        <tab.icon size={16} />
-                        {tab.label}
+        <div className="flex min-h-screen">
+
+            {/* ── SIDEBAR (desktop: always visible | mobile: burger toggle) ── */}
+            <aside className={`
+                fixed inset-y-0 left-0 z-[9999] flex flex-col w-60
+                bg-[#0d1225] border-r border-slate-800
+                transition-transform duration-300 ease-in-out
+                md:static md:translate-x-0 md:flex
+                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
+                {/* Logo / title */}
+                <div className="flex items-center justify-between px-5 py-5 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck size={20} className="text-gold" />
+                        <span className="text-base font-black text-white tracking-wide">Admin Panel</span>
+                    </div>
+                    <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
+                        <X size={20} />
                     </button>
-                ))}
-            </div>
+                </div>
+
+                {/* Nav items */}
+                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                    {adminTabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => { setActiveTab(tab.id); setSidebarOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all text-left
+                                ${activeTab === tab.id
+                                    ? 'bg-gold text-black shadow-[0_0_12px_rgba(250,204,21,0.25)]'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                        >
+                            <tab.icon size={17} />
+                            {tab.label}
+                        </button>
+                    ))}
+                </nav>
+
+                {/* Chiqish */}
+                <div className="px-3 py-4 border-t border-slate-800">
+                    <Link
+                        to="/"
+                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all font-semibold text-sm"
+                    >
+                        <LogOut size={17} />
+                        Chiqish
+                    </Link>
+                </div>
+            </aside>
+
+            {/* Mobile overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 z-[9998] bg-black/60 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            {/* ── MAIN CONTENT ── */}
+            <div className="flex-1 flex flex-col min-w-0">
+
+                {/* Mobile top bar */}
+                <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#0d1225] sticky top-0 z-[9997]">
+                    <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg bg-slate-800 text-white">
+                        <Menu size={20} />
+                    </button>
+                    <span className="text-sm font-bold text-white">
+                        {adminTabs.find(t => t.id === activeTab)?.label || 'Admin Panel'}
+                    </span>
+                    <Link to="/" className="text-xs text-slate-500 font-medium">Chiqish</Link>
+                </div>
+
+                {/* Scrollable content */}
+                <div className="flex-1 overflow-auto p-4 md:p-8 pb-28">
 
             {activeTab === 'dashboard' && stats && (
                 <div className="grid grid-cols-2 gap-4 animate-in fade-in">
@@ -2018,6 +2078,8 @@ const Admin = ({ user }) => {
                     </Card>
                 </div>
             )}
+                </div>
+            </div>
         </div>
     );
 };
