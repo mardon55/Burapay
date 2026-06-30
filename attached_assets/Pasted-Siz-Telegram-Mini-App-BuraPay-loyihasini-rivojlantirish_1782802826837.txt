@@ -1,0 +1,29 @@
+Siz Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz. Loyihamizda "Hisobotlar" (Reports/Transactions) tizimini xuddi professional bank ilovalaridek (Uzcard/Humo tizimlaridek) aniq va batafsil holatga keltirishimiz shart.
+
+Muammo/Talab:
+Foydalanuvchi Mostbet yoki 1Xbet hisobini to'ldirganda (Deposit) yoki pul yechganda (Withdraw), ushbu tranzaksiya "Hisobotlar" bo'limida real vaqt rejimida aks etishi kerak. Har bir tranzaksiyaning ustiga bosilganda, xuddi bank cheki (receipt) kabi modal oyna ochilib, barcha tafsilotlar chiqishi shart. Vaqtlar Toshkent vaqti (Asia/Tashkent, UTC+5) bilan soniyasigacha aniq ko'rsatilishi lozim.
+
+DIQQAT: Admin paneliga mutlaqo tegilmasin. O'zgarishlar faqat foydalanuvchilarning "Hisobotlar" bo'limi va tegishli API/Baza mantiqiga qo'llaniladi.
+
+Vazifa:
+
+1. Ma'lumotlar bazasi (PostgreSQL) va Backend (FastAPI):
+   - Tranzaksiyalar (transactions/orders) jadvalida quyidagi maydonlar mavjudligini va to'g'ri saqlanayotganini tekshiring: `id` (unikal chek raqami), `user_id`, `type` (To'ldirish/Yechish), `platform` (Mostbet/1Xbet), `amount` (summa), `account_id` (o'yinchi ID-si), `status` (Muvaffaqiyatli/Kutilmoqda/Rad etildi) va `created_at` (timestamp).
+   - Vaqt bazaga saqlanayotganda yoki API orqali qaytarilayotganda Toshkent vaqt zonasi (`Asia/Tashkent`) bilan soniyasigacha (`YYYY-MM-DD HH:mm:ss`) to'g'ri formatlanishini ta'minlang.
+
+2. Frontend (React & Tailwind CSS - Hisobotlar bo'limi):
+   - "Hisobotlar" sahifasida tranzaksiyalar ro'yxatini chiroyli formatda chiqaring (Platforma logosi, summa, vaqt).
+   - Har bir tranzaksiya qatoriga bosish imkoniyatini qo'shing (`onClick`).
+   - Bosilganda xuddi BANK CHEKI dizaynida modal oyna (Popup) ochilsin. Chek ichida quyidagi ma'lumotlar professional tarzda joylashishi shart:
+     * 📄 Chek raqami (Tranzaksiya ID)
+     * 🕒 Sana va aniq vaqt (Soniya va daqiqasigacha, masalan: 30.06.2026, 12:05:23)
+     * 🔄 Turi (Hisobni to'ldirish / Pul yechish)
+     * 🎮 Platforma (Mostbet yoki 1Xbet)
+     * 🆔 O'yinchi ID (Hisob raqami)
+     * 💰 Summa (Masalan: 50 000 UZS)
+     * 🟢 Status (Muvaffaqiyatli / Rad etilgan / Kutilmoqda - ranglar bilan: yashil, qizil, sariq)
+
+3. Formatlash:
+   - Summalarni oson o'qilishi uchun ajratib ko'rsating (masalan, `50000` emas, `50 000 UZS`).
+
+Iltimos, ushbu o'zgarishlarni kiritib, loyihani qayta build qiling va chek modali ishlashini to'liq tekshiring.

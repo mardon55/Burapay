@@ -1,0 +1,27 @@
+Siz Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz. "Hisobotlar" (Reports) bo'limida "Ichki Kazino" (Internal Casino) o'yinlari uchun ham tranzaksiyalar tarixi va bank cheki tizimini mukammal holatga keltirishimiz shart.
+
+Muammo/Talab:
+Foydalanuvchi ichki kazino o'yinlarida qatnashganda, o'yinga tikilgan summa (Deposit/Bet) va o'yindan yechilgan yutuqlar (Withdraw/Win) "Hisobotlar" bo'limida real vaqtda qayd etilishi kerak. Har bir kazino tranzaksiyasi ustiga bosilganda xuddi bank cheki (receipt) kabi modal oyna ochilib, o'yin nomi va natijasi soniyasigacha (Toshkent vaqti bilan) aniq chiqishi shart.
+
+DIQQAT: Admin paneliga mutlaqo tegilmasin. O'zgarishlar faqat foydalanuvchilarning "Hisobotlar" bo'limi, kazino tarixi va tegishli API mantiqiga qo'llaniladi.
+
+Vazifa:
+
+1. Backend (FastAPI) va PostgreSQL:
+   - Kazino o'yinlari tranzaksiyalarini qayd etish uchun bazada quyidagi maydonlar to'g'ri saqlanayotganini tekshiring: `game_name` (o'yin nomi, masalan: Slots, Dice, Roulette), `action_type` (Tikildi / Yutib olindi), `amount`, `status` (Muvaffaqiyatli) va `created_at`.
+   - API orqali vaqtni `Asia/Tashkent` vaqt zonasi bilan soniyasigacha (`YYYY-MM-DD HH:mm:ss`) formatda frontendga taqdim eting.
+
+2. Frontend (React & Tailwind CSS - Kazino Chek Modali):
+   - "Hisobotlar" sahifasida kazino tranzaksiyasi ustiga bosilganda ochiladigan BANK CHEKI modal oynasiga quyidagi ma'lumotlarni professional tarzda joylang:
+     * 📄 Chek raqami (Tranzaksiya ID)
+     * 🕒 Sana va aniq vaqt (Soniya va daqiqasigacha, masalan: 30.06.2026, 12:05:23)
+     * 🎮 Bo'lim: "Ichki Kazino"
+     * 🕹️ O'yin nomi: (Masalan: Dice yoki Slots)
+     * 🔄 Operatsiya turi: "O'yinga tikildi" (Qizil rangda) yoki "O'yindan yutib olindi" (Yashil rangda)
+     * 💰 Summa: Ajratilgan formatda (Masalan: 20 000 UZS)
+     * 🟢 Status: Muvaffaqiyatli (Yashil rangda)
+
+3. Formatlash va Integratsiya:
+   - Kazino cheklari dizayni ham tizimdagi boshqa P2P va bukmekerlik cheklari bilan bir xil, qat'iy va tushunarli bank andozasida bo'lsin.
+
+Iltimos, ushbu o'zgarishlarni kiritib, loyihani qayta build qiling va kazino o'yinlari hisoboti tizimini to'liq tekshiring.

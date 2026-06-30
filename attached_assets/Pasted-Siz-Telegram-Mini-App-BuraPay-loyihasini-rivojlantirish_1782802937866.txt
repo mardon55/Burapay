@@ -1,0 +1,28 @@
+Siz Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz. "Hisobotlar" (Reports) bo'limidagi P2P (Foydalanuvchilararo) pul o'tkazmalari tizimini xuddi bank cheki kabi mukammal holatga keltirishimiz shart.
+
+Muammo/Talab:
+Foydalanuvchi boshqa bir foydalanuvchiga pul o'tkazganida (P2P Transfer), ushbu tranzaksiya "Hisobotlar" bo'limida Toshkent vaqti bilan soniyasigacha aniq qayd etilishi kerak. Foydalanuvchi tranzaksiya ustiga bosganida xuddi bank cheki (receipt) kabi modal oyna ochilishi va unda sherigining Bot ID raqami hamda ismi (username) aniq ko'rinishi shart.
+
+DIQQAT: Admin paneliga mutlaqo tegilmasin. O'zgarishlar faqat foydalanuvchilarning "Hisobotlar" bo'limi, P2P tarixi va unga tegishli API mantiqiga qo'llaniladi.
+
+Vazifa:
+
+1. Backend (FastAPI) va PostgreSQL:
+   - P2P o'tkazmalar jadvalida (yoki umumiy tranzaksiyalar ichida) yuboruvchi (sender) va qabul qiluvchi (receiver) ma'lumotlari (`bot_id`, `username` / `first_name`) to'liq bog'langanligini tekshiring.
+   - API orqali tranzaksiya tafsilotlari so'ralganda, qarshi tomonning Bot ID raqami va ismini ham frontendga qaytaring.
+   - Vaqtni Toshkent vaqt zonasi (`Asia/Tashkent`) bilan soniyasigacha (`YYYY-MM-DD HH:mm:ss`) formatda taqdim eting.
+
+2. Frontend (React & Tailwind CSS - P2P Chek Modali):
+   - "Hisobotlar" sahifasida P2P o'tkazmasi ustiga bosilganda ochiladigan BANK CHEKI modal oynasiga quyidagi ma'lumotlarni professional tarzda joylang:
+     * 📄 Chek raqami (Tranzaksiya ID)
+     * 🕒 Sana va aniq vaqt (Soniya va daqiqasigacha, masalan: 30.06.2026, 12:05:23)
+     * 🔄 Turi: "Foydalanuvchiga o'tkazma" (yoki "Foydalanuvchidan qabul qilindi")
+     * 🆔 Kimga/Kimdan: Sherigining Bot ID raqami (Masalan: ID: 6817400)
+     * 👤 Foydalanuvchi: Ismi yoki Telegram Username (Masalan: @username)
+     * 💰 Summa: Ajratilgan formatda (Masalan: 75 000 UZS)
+     * 🟢 Status: Muvaffaqiyatli (Yashil rangda)
+
+3. Dizayn:
+   - Chek dizayni xuddi bank kvitansiyasi kabi chiroyli, chetlari punktir chiziqli yoki oq fonli toza kartochka ko'rinishida bo'lsin.
+
+Iltimos, ushbu o'zgarishlarni kiritib, loyihani qayta build qiling va P2P tranzaksiyalar cheki ishlashini to'liq tekshiring.

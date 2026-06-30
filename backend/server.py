@@ -904,13 +904,22 @@ async def create_transaction(request: Request, tx: TransactionCreate):
 
 @api_router.get("/transactions/{telegram_id}")
 async def get_history(telegram_id: int):
+    TASHKENT = timezone(timedelta(hours=5))
     rows = await fetchall(
-        "SELECT * FROM transactions WHERE user_id = :uid ORDER BY created_at DESC LIMIT 100",
+        """SELECT t.*,
+                  s.first_name  AS sender_name,   s.bot_id  AS sender_bot_id,
+                  rv.first_name AS receiver_name,  rv.bot_id AS receiver_bot_id
+           FROM transactions t
+           LEFT JOIN users s  ON t.sender_id   = s.telegram_id
+           LEFT JOIN users rv ON t.receiver_id  = rv.telegram_id
+           WHERE t.user_id = :uid
+           ORDER BY t.created_at DESC LIMIT 100""",
         {"uid": telegram_id}
     )
     for r in rows:
         if isinstance(r.get('created_at'), datetime):
-            r['created_at'] = r['created_at'].isoformat()
+            tashkent_dt = r['created_at'].astimezone(TASHKENT)
+            r['created_at'] = tashkent_dt.strftime('%Y-%m-%d %H:%M:%S')
     return rows
 
 _code_attempts = {}
