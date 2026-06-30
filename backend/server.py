@@ -442,8 +442,6 @@ async def cmd_start(message: types.Message):
 
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
-            [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
-            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/MR_KASSABOT")]
         ])
         await message.answer(
             MESSAGES[lang]["welcome"].format(name=message.from_user.first_name),
@@ -480,8 +478,6 @@ async def cb_check_sub(callback: CallbackQuery):
         lang = (user or {}).get("language", "uz")
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=MESSAGES[lang]["open_app"], web_app=WebAppInfo(url=WEBAPP_URL))],
-            [InlineKeyboardButton(text="🇺🇿 O'zbekcha / 🇷🇺 Русский", callback_data="change_lang")],
-            [InlineKeyboardButton(text="📞 Qo'llab-quvvatlash / Поддержка", url="https://t.me/MR_KASSABOT")]
         ])
         await callback.message.edit_text(
             MESSAGES[lang]["welcome"].format(name=callback.from_user.first_name),
