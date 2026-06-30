@@ -699,23 +699,23 @@ const P2PTransfer = ({ user, lang, setUser }) => {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Fixed bottom button */}
-      <div className="flex-shrink-0 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingBottom: 'max(16px, calc(var(--sa-bottom, 0px) + 12px))' }}>
-        <button
-          onClick={handleSend}
-          disabled={loading || !isValid}
-          className="w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 disabled:opacity-40"
-          style={{ background: isValid ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.08)', color: isValid ? '#000' : '#64748b' }}
-        >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-              {lang === 'uz' ? "Yuborilmoqda..." : "Отправка..."}
-            </span>
-          ) : t.p2p_confirm_btn}
-        </button>
+        {/* Confirm button — inside scroll area so keyboard hides it instead of pushing it up */}
+        <div className="pt-2" style={{ paddingBottom: 'max(16px, calc(var(--sa-bottom, 0px) + 12px))' }}>
+          <button
+            onClick={handleSend}
+            disabled={loading || !isValid}
+            className="w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: isValid ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.08)', color: isValid ? '#000' : '#64748b' }}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                {lang === 'uz' ? "Yuborilmoqda..." : "Отправка..."}
+              </span>
+            ) : t.p2p_confirm_btn}
+          </button>
+        </div>
       </div>
     </div>
   );
