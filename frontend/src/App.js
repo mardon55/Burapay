@@ -7,7 +7,6 @@ import { Toaster, toast } from "sonner";
 import { 
   Wallet, 
   ArrowUpRight, 
-  ArrowDownLeft, 
   History, 
   Settings, 
   ShieldCheck, 
@@ -582,18 +581,9 @@ const P2PTransfer = ({ user, lang, setUser }) => {
       style={{ background: '#080d18', paddingTop: 'calc(var(--sa-top) + 12px)' }}
     >
       {/* Header */}
-      <div className="px-4 pt-5 pb-4 flex-shrink-0 flex items-center gap-3"
+      <div className="px-4 pt-5 pb-4 flex-shrink-0"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button
-          onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(255,255,255,0.06)' }}
-        >
-          <ArrowDownLeft size={18} className="text-slate-300 rotate-45" />
-        </button>
-        <div>
-          <h1 className="text-lg font-bold text-white leading-tight">{t.p2p_modal_title}</h1>
-        </div>
+        <h1 className="text-lg font-bold text-white leading-tight">{t.p2p_modal_title}</h1>
       </div>
 
       {/* Scrollable body */}
