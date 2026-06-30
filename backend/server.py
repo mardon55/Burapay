@@ -1548,6 +1548,14 @@ async def _aviator_round():
                 "UPDATE aviator_bets SET result='lost', profit=:p WHERE id=:id",
                 {"p": -bet["amount"], "id": bet["id"]}
             )
+            try:
+                await execute(
+                    "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
+                    "VALUES (:id, :sid, :uid, 'withdraw', :amt, 'UZS', 'aviator', 'completed')",
+                    {"id": str(uuid.uuid4()), "sid": generate_short_id(), "uid": int(tid), "amt": bet["amount"]}
+                )
+            except Exception:
+                pass
     await execute(
         "UPDATE aviator_games SET status='crashed', ended_at=NOW() WHERE id=:id",
         {"id": game_id}
@@ -1639,7 +1647,23 @@ async def aviator_cashout_api(data: dict = Body(...)):
         "UPDATE aviator_bets SET result='won', cashout_multiplier=:m, profit=:p WHERE id=:id",
         {"m": m, "p": profit, "id": bet["id"]}
     )
-    return {"status": "ok", "multiplier": m, "winnings": winnings, "profit": profit}
+    tx_id = str(uuid.uuid4())
+    short_id = generate_short_id()
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    await execute(
+        "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, wallet_number, status) "
+        "VALUES (:id, :sid, :uid, 'deposit', :amt, 'UZS', 'aviator', :wn, 'completed')",
+        {"id": tx_id, "sid": short_id, "uid": int(data.get("telegram_id")), "amt": winnings, "wn": f"x{m:.2f}"}
+    )
+    return {
+        "status": "ok", "multiplier": m, "winnings": winnings, "profit": profit,
+        "receipt": {
+            "id": tx_id, "short_id": short_id, "type": "deposit",
+            "amount": winnings, "currency": "UZS", "method": "aviator",
+            "wallet_number": f"x{m:.2f}", "status": "completed",
+            "created_at": now_str
+        }
+    }
 
 
 @api_router.get("/aviator/state")
@@ -1789,6 +1813,14 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "UPDATE mines_games SET status = 'lost', opened_cells = :oc WHERE id = :id",
             {"oc": json.dumps(opened_cells + [cell_index]), "id": game["id"]}
         )
+        loss_tx_id = str(uuid.uuid4())
+        loss_short_id = generate_short_id()
+        loss_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        await execute(
+            "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
+            "VALUES (:id, :sid, :uid, 'withdraw', :amt, 'UZS', 'mines', 'completed')",
+            {"id": loss_tx_id, "sid": loss_short_id, "uid": int(telegram_id), "amt": float(game["bet_amount"])}
+        )
         return {
             "result": "lost",
             "cell": cell_index,
@@ -1796,7 +1828,12 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "mine_positions": mine_positions,
             "opened_cells": opened_cells + [cell_index],
             "current_multiplier": float(game["current_multiplier"]),
-            "status": "lost"
+            "status": "lost",
+            "receipt": {
+                "id": loss_tx_id, "short_id": loss_short_id, "type": "withdraw",
+                "amount": float(game["bet_amount"]), "currency": "UZS", "method": "mines",
+                "wallet_number": None, "status": "completed", "created_at": loss_now
+            }
         }
 
     # Xavfsiz katak
@@ -1817,6 +1854,14 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "UPDATE users SET balance_uzs = balance_uzs + :w WHERE telegram_id = :tid",
             {"w": winnings, "tid": telegram_id}
         )
+        aw_tx_id = str(uuid.uuid4())
+        aw_short_id = generate_short_id()
+        aw_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        await execute(
+            "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, wallet_number, status) "
+            "VALUES (:id, :sid, :uid, 'deposit', :amt, 'UZS', 'mines', :wn, 'completed')",
+            {"id": aw_tx_id, "sid": aw_short_id, "uid": int(telegram_id), "amt": winnings, "wn": f"x{new_mult:.2f}"}
+        )
         return {
             "result": "won",
             "cell": cell_index,
@@ -1825,7 +1870,12 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "opened_cells": new_opened,
             "current_multiplier": new_mult,
             "winnings": winnings,
-            "status": "won"
+            "status": "won",
+            "receipt": {
+                "id": aw_tx_id, "short_id": aw_short_id, "type": "deposit",
+                "amount": winnings, "currency": "UZS", "method": "mines",
+                "wallet_number": f"x{new_mult:.2f}", "status": "completed", "created_at": aw_now
+            }
         }
 
     await execute(
@@ -1872,13 +1922,40 @@ async def mines_cashout(data: dict = Body(...)):
     )
 
     mine_positions = game["mine_positions"] if isinstance(game["mine_positions"], list) else json.loads(game["mine_positions"])
+    co_tx_id = str(uuid.uuid4())
+    co_short_id = generate_short_id()
+    co_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    await execute(
+        "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, wallet_number, status) "
+        "VALUES (:id, :sid, :uid, 'deposit', :amt, 'UZS', 'mines', :wn, 'completed')",
+        {"id": co_tx_id, "sid": co_short_id, "uid": int(telegram_id), "amt": winnings, "wn": f"x{mult:.2f}"}
+    )
     return {
         "status": "won",
         "winnings": winnings,
         "multiplier": mult,
         "mine_positions": mine_positions,
-        "opened_cells": opened_cells
+        "opened_cells": opened_cells,
+        "receipt": {
+            "id": co_tx_id, "short_id": co_short_id, "type": "deposit",
+            "amount": winnings, "currency": "UZS", "method": "mines",
+            "wallet_number": f"x{mult:.2f}", "status": "completed", "created_at": co_now
+        }
     }
+
+
+@api_router.get("/aviator/last-receipt/{telegram_id}")
+async def aviator_last_receipt(telegram_id: int):
+    row = await fetchone(
+        "SELECT * FROM transactions WHERE user_id=:uid AND method='aviator' ORDER BY created_at DESC LIMIT 1",
+        {"uid": telegram_id}
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    row = dict(row)
+    if isinstance(row.get("created_at"), datetime):
+        row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+    return row
 
 
 @api_router.get("/aviator/mybets/{telegram_id}")

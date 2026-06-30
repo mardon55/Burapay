@@ -1,0 +1,51 @@
+### Project Context & Tech Stack
+- **Frontend:** React.js, Tailwind CSS
+- **Backend:** FastAPI (Python)
+- **Database:** PostgreSQL (with SQLAlchemy or Tortoise ORM / AsyncPG)
+- **Current State:** The application is a Telegram Mini App / Web App called "Burapay" (MR Kassa). Users can view their balance, but when they play the internal casino game and place a bet, the system fails to deduct the money from their balance, does not log the transaction in the history, and does not generate a receipt/check.
+
+---
+
+### Objective
+Implement a robust, atomic, and secure betting transaction system for the internal casino game. When a user places a bet, the backend must execute a database transaction that:
+1. Validates if the user has enough balance.
+2. Deducts the bet amount from the user's balance using a database lock (to prevent race conditions).
+3. Records a new transaction entry in the `transactions` table.
+4. Generates a receipt/check entry or status that can be fetched by the frontend.
+5. Returns the updated balance and transaction status to the React frontend.
+
+---
+
+### Step-by-Step Instructions for Replit Agent
+
+#### Step 1: Database Schema Check & Updates (PostgreSQL)
+Ensure the following models or tables exist and have the necessary relationships. If not, create or update them:
+- **Users/Balances Table:** Must have a `balance` field (Numeric/Decimal, not Float to avoid precision issues).
+- **Transactions Table:** Must include fields: `id`, `user_id`, `amount` (negative for bets), `type` (e.g., 'casino_bet', 'casino_win'), `status` ('success', 'failed'), `receipt_id` (optional/nullable), and `created_at`.
+- **Receipts/Checks Table (or embedded JSON):** To store receipt data (game type, bet details, unique hash, timestamp).
+
+#### Step 2: FastAPI Backend Implementation
+Create or update the API endpoint for placing a bet (e.g., `POST /api/casino/bet`):
+1. **Authentication:** Ensure the route is protected and identifies the user via `telegramId` or JWT token.
+2. **ACID Transaction:** Use SQLAlchemy's `db.begin()` or async session context to ensure all steps succeed or fail together (rollback on error).
+3. **Pessimistic Locking:** Use `.with_for_update()` on the user query to prevent race conditions (concurrency issues where a user clicks multiple times rapidly).
+4. **Validation:** If `user.balance < bet_amount`, raise an HTTP 400 Bad Request ("Mablag' yetarli emas").
+5. **Deduction & Logging:**
+   - Subtract `bet_amount` from `user.balance`.
+   - Create a row in `Transaction` table.
+   - Create a row in `Receipt` table (or return receipt structure).
+6. **Response:** Return JSON containing `{ "success": true, "new_balance": X, "transaction_id": Y, "receipt": {...} }`.
+
+#### Step 3: React Frontend Integration
+Update the casino game component where the "Tikish" (Place Bet) button is handled:
+1. **State Management:** When the user clicks "Bet", disable the button to prevent double-submitting.
+2. **API Call:** Send a POST request to the backend with the bet amount.
+3. **Success Handling:**
+   - Update the global or local context balance state with the `new_balance` received from the server (so the top header UI updates immediately).
+   - Display the generated digital check/receipt in a Tailwind-styled modal component (showing transaction ID, date, amount deducted, and game details).
+4. **Error Handling:** If the backend returns an error (e.g., insufficient funds), show a beautiful Tailwind alert or toast notification.
+
+#### Step 4: Verification & Execution
+- Review the modified code to ensure `FastAPI` doesn't throw 500 errors.
+- Ensure the frontend properly fetches and renders the updated state without needing a full page reload.
+- Run the app and test the flow end-to-end.

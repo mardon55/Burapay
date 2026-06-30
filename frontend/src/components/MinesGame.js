@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import ReceiptModal from './ReceiptModal';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
@@ -27,6 +28,7 @@ export default function MinesGame({ user }) {
   const [clickingCell, setClickingCell] = useState(null);
   const [err, setErr]                   = useState('');
   const [msg, setMsg]                   = useState('');
+  const [receipt, setReceipt]           = useState(null);
   const errTimer = useRef(null);
   const msgTimer = useRef(null);
 
@@ -129,6 +131,7 @@ export default function MinesGame({ user }) {
         }, 350);
         setGameStatus('lost');
         showErr(`💣 Mina! -${fmt(betAmount)} UZS`, 3500);
+        if (d.receipt) setTimeout(() => setReceipt(d.receipt), 800);
       } else if (d.result === 'won') {
         setCells(prev => {
           const n=[...prev]; n[idx]=CELL_GEM;
@@ -140,6 +143,7 @@ export default function MinesGame({ user }) {
         setGameStatus('won');
         setBalance(b => b + d.winnings);
         showMsg(`🏆 +${fmt(d.winnings)} UZS`, 3500);
+        if (d.receipt) setTimeout(() => setReceipt(d.receipt), 600);
       } else {
         setCells(prev => { const n=[...prev]; n[idx]=CELL_GEM; return n; });
         setOpenedCount((d.opened_cells||[]).length);
@@ -165,6 +169,7 @@ export default function MinesGame({ user }) {
       setBalance(b => b + res.data.winnings);
       setCurrentMult(parseFloat(res.data.multiplier));
       showMsg(`✅ +${fmt(res.data.winnings)} UZS (${fmtM(res.data.multiplier)})`, 3500);
+      if (res.data.receipt) setTimeout(() => setReceipt(res.data.receipt), 600);
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik');
     } finally { setLoading(false); }
@@ -206,6 +211,7 @@ export default function MinesGame({ user }) {
   };
 
   return (
+    <>
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100dvh',
       background: 'linear-gradient(180deg,#0a0f1e 0%,#0d1225 100%)',
@@ -430,5 +436,10 @@ export default function MinesGame({ user }) {
         input[type=number] { -moz-appearance: textfield; }
       `}</style>
     </div>
+
+    {receipt && (
+      <ReceiptModal tx={receipt} lang="uz" onClose={() => setReceipt(null)} />
+    )}
+    </>
   );
 }

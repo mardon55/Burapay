@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import ReceiptModal from './ReceiptModal';
 
 const API_URL = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
@@ -95,6 +96,7 @@ export default function AviatorGame({ user }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [balance, setBalance] = useState(user?.balance_uzs || 0);
+  const [receipt, setReceipt] = useState(null);
   const [betTab, setBetTab] = useState('bet');
 
   const nextRoundBetRef = useRef(null);
@@ -376,6 +378,13 @@ export default function AviatorGame({ user }) {
           }, ...prev].slice(0, 50));
           setErr(`✈ ${Number(cp).toFixed(2)}x da uchib ketdi`);
           setActiveBet(null); betRef.current = null;
+          if (user?.telegram_id) {
+            setTimeout(() => {
+              axios.get(`${API_URL}/aviator/last-receipt/${user.telegram_id}`)
+                .then(r => { if (r.data?.id) setReceipt(r.data); })
+                .catch(() => {});
+            }, 800);
+          }
         }
       }
     };
@@ -487,6 +496,7 @@ export default function AviatorGame({ user }) {
       }, ...prev].slice(0, 50));
       setActiveBet(null); betRef.current = null;
       setBalance(b => b + res.data.winnings);
+      if (res.data.receipt) setTimeout(() => setReceipt(res.data.receipt), 600);
     } catch (ex) {
       setErr(ex.response?.data?.detail || 'Xatolik');
     } finally { setLoading(false); }
@@ -910,6 +920,10 @@ export default function AviatorGame({ user }) {
         </div>
 
       </div>
+
+      {receipt && (
+        <ReceiptModal tx={receipt} lang="uz" onClose={() => setReceipt(null)} />
+      )}
     </>
   );
 }
