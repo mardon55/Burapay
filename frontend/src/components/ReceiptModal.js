@@ -32,9 +32,11 @@ export const _txGetPlatformBg = (tx) => {
 
 export const _txGetAmountSign = (tx) => {
   const m = (tx.method || '').toLowerCase();
+  const t = (tx.type || '').toLowerCase();
   if (m === 'internal_sent') return { sign: '−', color: 'text-red-400', amount: tx.total_deducted || tx.amount };
   if (m === 'internal_received') return { sign: '+', color: 'text-green-400', amount: tx.amount };
-  if ((tx.type || '').toLowerCase() === 'deposit') return { sign: '+', color: 'text-green-400', amount: tx.amount };
+  if (t === 'casino_bet') return { sign: '−', color: 'text-red-400', amount: tx.amount };
+  if (t === 'deposit') return { sign: '+', color: 'text-green-400', amount: tx.amount };
   return { sign: '−', color: 'text-red-400', amount: tx.amount };
 };
 
@@ -42,6 +44,7 @@ export const _txGetStatusLabel = (status, lang) => {
   const s = (status || '').toLowerCase();
   if (s === 'approved' || s === 'completed') return { label: lang === 'uz' ? 'Muvaffaqiyatli' : 'Успешно', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
   if (s === 'pending') return { label: lang === 'uz' ? 'Kutilmoqda' : 'В ожидании', color: '#facc15', bg: 'rgba(250,204,21,0.12)' };
+  if (s === 'lost') return { label: lang === 'uz' ? 'Yutqazildi' : 'Проигрыш', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
   return { label: lang === 'uz' ? 'Rad etildi' : 'Отклонено', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
 };
 
@@ -68,8 +71,9 @@ const ReceiptModal = ({ tx, onClose, lang = 'uz' }) => {
   const isWithdraw    = !isP2P && !isDeposit;
   const { sign, color: amtColor, amount: displayAmount } = _txGetAmountSign(tx);
   const statusInfo = _txGetStatusLabel(tx.status, lang);
-  const isWin = isCasino && isDeposit;
-  const isLoss = isCasino && !isDeposit;
+  const isCasinoBet = (tx.type || '').toLowerCase() === 'casino_bet';
+  const isWin = isCasino && isDeposit && !isCasinoBet;
+  const isLoss = isCasino && !isDeposit && !isCasinoBet;
 
   const platform =
     m === 'aviator' ? '✈️ Aviator' :
@@ -85,6 +89,7 @@ const ReceiptModal = ({ tx, onClose, lang = 'uz' }) => {
   const typeLabel = () => {
     if (isP2PSent)     return lang === 'uz' ? "Foydalanuvchiga o'tkazma" : 'Перевод пользователю';
     if (isP2PReceived) return lang === 'uz' ? 'Foydalanuvchidan qabul'   : 'Получено от пользователя';
+    if (isCasinoBet)        return lang === 'uz' ? '🎮 Casino stavkasi'  : '🎮 Ставка в казино';
     if (isCasino && isWin)  return lang === 'uz' ? '🏆 Casino yutug\'i'  : '🏆 Выигрыш в казино';
     if (isCasino && isLoss) return lang === 'uz' ? '❌ Casino yutqazish' : '❌ Проигрыш в казино';
     if (isDeposit)     return lang === 'uz' ? "Hisobni to'ldirish" : 'Пополнение счёта';
@@ -128,10 +133,11 @@ const ReceiptModal = ({ tx, onClose, lang = 'uz' }) => {
             style={{ background: _txGetPlatformBg(tx) }}>
             {isP2PSent     && <ArrowRightLeft size={22} className="text-red-400" />}
             {isP2PReceived && <ArrowRightLeft size={22} className="text-green-400" />}
+            {isCasinoBet        && <Gamepad2 size={22} className="text-amber-400" />}
             {isCasino && isWin  && <Gamepad2 size={22} className="text-green-400" />}
             {isCasino && isLoss && <Gamepad2 size={22} className="text-red-400" />}
-            {!isCasino && isDeposit && !isP2P && <ArrowDownToLine size={22} className="text-green-400" />}
-            {!isCasino && isWithdraw && !isP2P && <ArrowUpFromLine size={22} className="text-red-400" />}
+            {!isCasino && !isCasinoBet && isDeposit && !isP2P && <ArrowDownToLine size={22} className="text-green-400" />}
+            {!isCasino && !isCasinoBet && isWithdraw && !isP2P && <ArrowUpFromLine size={22} className="text-red-400" />}
           </div>
           <p className="text-xs text-slate-500 mb-0.5">{lang === 'uz' ? 'Chek raqami' : 'Номер чека'}</p>
           <p className="text-sm font-bold text-yellow-400 font-mono tracking-wider">#{shortId}</p>

@@ -1,0 +1,38 @@
+### Critical Issue: Casino Game Flow & Cashout Transaction Bug
+In our Telegram Mini App (Burapay / MR Kassa), the game flow for the internal casino games (Mines and Aviator) is broken, causing user dissatisfaction. 
+
+#### Current Problem:
+1. When a user clicks "Tikish" (Place Bet) and the game starts, the button does not dynamically change to "Yechish" (Cashout / Take Winnings).
+2. When a user successfully cashes out or wins, the won amount is not being correctly processed, credited, or logged as a distinct "+ Win" transaction in the database and the Reports ("Hisobotlar") section.
+
+---
+
+### Objective & Requirements for Replit Agent
+
+Please refactor both the FastAPI backend and the React frontend to fix this core game loop immediately:
+
+#### 1. Frontend State & Button Toggle (React + Tailwind CSS)
+- **State tracking:** Ensure there is a robust game state variable (e.g., `gameState: 'idle' | 'playing' | 'ended'`).
+- **Button Mutation:** 
+  - When `gameState === 'idle'`, the button text must be **"Tikish"** (Place Bet).
+  - As soon as the user places a bet and the game starts, the state must switch to `'playing'`, and the exact same button must change its text to **"Yechish"** (Cashout) with a distinct Tailwind color (e.g., bright green or orange).
+- **Cashout Trigger:** Clicking the "Yechish" button during active gameplay must immediately call the backend cashout endpoint with the current multiplier/coefficient.
+
+#### 2. Backend Transactions & Locking (FastAPI + PostgreSQL)
+Create or update the cashout endpoint (e.g., `POST /api/casino/cashout`):
+- **Atomic Operations:** Wrap the cashout sequence in a database transaction block (`db.begin()`) using pessimistic locking (`with_for_update()`) on the user's balance to prevent exploitation.
+- **Calculate Winnings:** `winnings = bet_amount * current_multiplier`.
+- **Database Updates:**
+  1. Add the `winnings` directly to the user's `balance` field in PostgreSQL.
+  2. Insert a new record into the `transactions` table with `type='casino_win'`, status `'success'`, and the positive amount (`+winnings`).
+  3. Generate a proper digital receipt/check object linked to this transaction.
+- **Response:** Return `{ "success": true, "new_balance": X, "winnings": Y, "receipt": {...} }`.
+
+#### 3. Reports Integration ("Hisobotlar")
+- Verify that the frontend *"Hisobotlar"* component updates dynamically without a hard page refresh.
+- When a user views their history after a successful cashout, it must clearly display:
+  - **Type:** `Mines Yutuq` or `Aviator Yutuq`
+  - **Amount:** Green color with a plus sign (e.g., `+25,000 UZS`)
+  - Clicking on it must launch the detailed digital receipt modal.
+
+Please implement these fixes across the respective casino game components and backend routers carefully. Ensure no infinity loops or race conditions occur during fast clicks.

@@ -1548,14 +1548,13 @@ async def _aviator_round():
                 "UPDATE aviator_bets SET result='lost', profit=:p WHERE id=:id",
                 {"p": -bet["amount"], "id": bet["id"]}
             )
-            try:
-                await execute(
-                    "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
-                    "VALUES (:id, :sid, :uid, 'withdraw', :amt, 'UZS', 'aviator', 'completed')",
-                    {"id": str(uuid.uuid4()), "sid": generate_short_id(), "uid": int(tid), "amt": bet["amount"]}
-                )
-            except Exception:
-                pass
+            await execute(
+                "UPDATE transactions SET status='lost' WHERE user_id=:uid AND method='aviator' "
+                "AND type='casino_bet' AND status='completed' "
+                "AND id=(SELECT id FROM transactions WHERE user_id=:uid AND method='aviator' "
+                "AND type='casino_bet' ORDER BY created_at DESC LIMIT 1)",
+                {"uid": int(tid)}
+            )
     await execute(
         "UPDATE aviator_games SET status='crashed', ended_at=NOW() WHERE id=:id",
         {"id": game_id}
@@ -1622,6 +1621,13 @@ async def aviator_place_bet(request: Request, data: dict = Body(...)):
         {"id": bet_id, "gid": _aviator["game_id"], "tid": int(telegram_id), "amt": amount}
     )
     _aviator["bets"][tid] = {"id": bet_id, "amount": amount, "cashed_out": False}
+    bet_tx_id = str(uuid.uuid4())
+    bet_short_id = generate_short_id()
+    await execute(
+        "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
+        "VALUES (:id, :sid, :uid, 'casino_bet', :amt, 'UZS', 'aviator', 'completed')",
+        {"id": bet_tx_id, "sid": bet_short_id, "uid": int(telegram_id), "amt": amount}
+    )
     return {"status": "ok", "bet_id": bet_id, "amount": amount}
 
 
@@ -1771,6 +1777,13 @@ async def mines_start(request: Request, data: dict = Body(...)):
         {"id": game_id, "tid": telegram_id, "amt": bet_amount,
          "mc": mines_count, "mp": json.dumps(mine_positions), "mult": initial_mult}
     )
+    mines_bet_tx_id = str(uuid.uuid4())
+    mines_bet_short = generate_short_id()
+    await execute(
+        "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
+        "VALUES (:id, :sid, :uid, 'casino_bet', :amt, 'UZS', 'mines', 'completed')",
+        {"id": mines_bet_tx_id, "sid": mines_bet_short, "uid": int(telegram_id), "amt": bet_amount}
+    )
 
     return {
         "game_id": game_id,
@@ -1813,14 +1826,23 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "UPDATE mines_games SET status = 'lost', opened_cells = :oc WHERE id = :id",
             {"oc": json.dumps(opened_cells + [cell_index]), "id": game["id"]}
         )
-        loss_tx_id = str(uuid.uuid4())
-        loss_short_id = generate_short_id()
-        loss_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         await execute(
-            "INSERT INTO transactions (id, short_id, user_id, type, amount, currency, method, status) "
-            "VALUES (:id, :sid, :uid, 'withdraw', :amt, 'UZS', 'mines', 'completed')",
-            {"id": loss_tx_id, "sid": loss_short_id, "uid": int(telegram_id), "amt": float(game["bet_amount"])}
+            "UPDATE transactions SET status='lost' "
+            "WHERE id=(SELECT id FROM transactions WHERE user_id=:uid AND method='mines' "
+            "AND type='casino_bet' ORDER BY created_at DESC LIMIT 1)",
+            {"uid": int(telegram_id)}
         )
+        bet_tx = await fetchone(
+            "SELECT * FROM transactions WHERE user_id=:uid AND method='mines' "
+            "AND type='casino_bet' ORDER BY created_at DESC LIMIT 1",
+            {"uid": int(telegram_id)}
+        )
+        receipt_data = None
+        if bet_tx:
+            bt = dict(bet_tx)
+            if isinstance(bt.get("created_at"), datetime):
+                bt["created_at"] = bt["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+            receipt_data = bt
         return {
             "result": "lost",
             "cell": cell_index,
@@ -1829,11 +1851,7 @@ async def mines_click(request: Request, data: dict = Body(...)):
             "opened_cells": opened_cells + [cell_index],
             "current_multiplier": float(game["current_multiplier"]),
             "status": "lost",
-            "receipt": {
-                "id": loss_tx_id, "short_id": loss_short_id, "type": "withdraw",
-                "amount": float(game["bet_amount"]), "currency": "UZS", "method": "mines",
-                "wallet_number": None, "status": "completed", "created_at": loss_now
-            }
+            "receipt": receipt_data
         }
 
     # Xavfsiz katak

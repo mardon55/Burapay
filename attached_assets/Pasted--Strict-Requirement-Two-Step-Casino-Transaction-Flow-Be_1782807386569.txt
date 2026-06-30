@@ -1,0 +1,36 @@
+### Strict Requirement: Two-Step Casino Transaction Flow (Bet & Cashout)
+The casino game logic for Mines and Aviator must process transactions in two distinct, real-time database steps. Users are complaining because bets and wins are not updating the balance and transaction history instantly. Fix this immediately using the following logic:
+
+---
+
+### Step 1: The Bet Phase ("Tikish" API)
+When the user clicks "Tikish" (Place Bet) and the game starts:
+1. **Database Lock & Validation:** Lock the user row using `.with_for_update()`. Check if `balance >= bet_amount`.
+2. **Deduct Instantly:** Deduct the `bet_amount` from the user's balance immediately in PostgreSQL.
+3. **Create Bet Transaction:** Create a transaction record:
+   - `type`: 'casino_bet' (or 'mines_bet' / 'aviator_bet')
+   - `amount`: -bet_amount (Negative value)
+   - `status`: 'success'
+4. **Response:** Return the new deducted balance to the React frontend so the UI updates instantly.
+
+---
+
+### Step 2: The Cashout Phase ("Yechish" API)
+When the user clicks "Yechish" (Cashout) before losing:
+1. **Calculate Win:** Calculate `win_amount = bet_amount * current_multiplier`.
+2. **Credit Instantly:** Add the `win_amount` directly to the user's balance field in PostgreSQL.
+3. **Create Win Transaction:** Create a completely separate transaction record:
+   - `type`: 'casino_win' (or 'mines_win' / 'aviator_win')
+   - `amount`: +win_amount (Positive value)
+   - `status`: 'success'
+   - Store the final multiplier (e.g., x2.50) in the transaction metadata or receipt.
+4. **Response:** Return the new credited balance and winning receipt details.
+
+---
+
+### Frontend Sync (React + Tailwind)
+- As soon as the Bet API responds, subtract the money from the header balance and add the minus (`−`) transaction to the "Hisobotlar" list.
+- As soon as the Cashout API responds, add the money to the header balance and append the plus (`+`) transaction to the "Hisobotlar" list in green color.
+- Ensure the "Tikish" button transitions smoothly to the "Yechish" button state during active gameplay, triggering the correct endpoints.
+
+Please implement this exact architecture across the backend routers and frontend components now.
