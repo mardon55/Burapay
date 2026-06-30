@@ -2728,6 +2728,16 @@ const Reports = ({ user, lang }) => {
 
   // ── Bank receipt modal ────────────────────────────────────────────────────
   const ReceiptModal = ({ tx, onClose }) => {
+    useEffect(() => {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = prev || '';
+        document.body.style.touchAction = '';
+      };
+    }, []);
+
     if (!tx) return null;
     const m = (tx.method || '').toLowerCase();
     const isP2PSent     = m === 'internal_sent';
@@ -2756,13 +2766,15 @@ const Reports = ({ user, lang }) => {
     return (
       <div
         className="fixed inset-0 z-[99999] flex items-end justify-center"
-        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', overscrollBehavior: 'none', touchAction: 'none' }}
         onClick={onClose}
+        onTouchMove={e => e.stopPropagation()}
       >
         <div
-          className="w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 rounded-t-3xl overflow-hidden"
-          style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
+          className="w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 rounded-t-3xl overflow-y-auto"
+          style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', maxHeight: '90vh', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
           onClick={e => e.stopPropagation()}
+          onTouchMove={e => e.stopPropagation()}
         >
           {/* Handle bar */}
           <div className="flex justify-center pt-3 pb-1">
