@@ -27,8 +27,16 @@ export default function MinesGame({ user }) {
   const [clickingCell, setClickingCell] = useState(null);
   const [err, setErr]                   = useState('');
   const [msg, setMsg]                   = useState('');
+  const [toast, setToast]               = useState(null);
   const errTimer = useRef(null);
   const msgTimer = useRef(null);
+  const toastTimerRef = useRef(null);
+
+  const showToast = (message) => {
+    clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), 1000);
+  };
 
   const fmt  = n => Math.round(n).toLocaleString('uz-UZ').replace(/,/g, ' ');
   const fmtM = m => `${Number(m).toFixed(2)}x`;
@@ -99,6 +107,7 @@ export default function MinesGame({ user }) {
       setCurrentMult(parseFloat(res.data.current_multiplier || 1));
       setCells(Array(25).fill(CELL_IDLE));
       setBalance(b => b - amt);
+      showToast(`${fmt(amt)} so'm yechildi`);
       setErr(''); setMsg('');
     } catch (ex) {
       const detail = ex.response?.data?.detail || 'Xatolik yuz berdi';
@@ -165,6 +174,7 @@ export default function MinesGame({ user }) {
       setBalance(b => b + res.data.winnings);
       setCurrentMult(parseFloat(res.data.multiplier));
       showMsg(`✅ +${fmt(res.data.winnings)} UZS (${fmtM(res.data.multiplier)})`, 3500);
+      showToast(`Hisobingizga +${fmt(res.data.winnings)} so'm qo'shildi`);
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik');
     } finally { setLoading(false); }
@@ -207,6 +217,16 @@ export default function MinesGame({ user }) {
 
   return (
     <>
+    {toast && (
+      <div style={{
+        position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+        background: 'rgba(30,30,50,0.97)', color: '#fff',
+        fontSize: 13, fontWeight: 700,
+        padding: '9px 20px', borderRadius: 24,
+        border: '1px solid rgba(255,255,255,0.13)',
+        zIndex: 9999, whiteSpace: 'nowrap', pointerEvents: 'none',
+      }}>{toast}</div>
+    )}
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100dvh',
       background: 'linear-gradient(180deg,#0a0f1e 0%,#0d1225 100%)',

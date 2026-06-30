@@ -96,6 +96,14 @@ export default function AviatorGame({ user }) {
   const [err, setErr] = useState('');
   const [balance, setBalance] = useState(user?.balance_uzs || 0);
   const [betTab, setBetTab] = useState('bet');
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const showToast = (msg) => {
+    clearTimeout(toastTimerRef.current);
+    setToast(msg);
+    toastTimerRef.current = setTimeout(() => setToast(null), 1000);
+  };
 
   const nextRoundBetRef = useRef(null);
   const crashAnimRef = useRef(null); // { startTime, startX, startY }
@@ -448,6 +456,7 @@ export default function AviatorGame({ user }) {
       await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: amt, currency: 'UZS' });
       setActiveBet({ amount: amt }); betRef.current = { amount: amt };
       setBalance(b => b - amt);
+      showToast(`${fmtUzs(amt)} so'm yechildi`);
     } catch (ex) {
       showErr(ex.response?.data?.detail || 'Xatolik', 2000);
     } finally { setLoading(false); }
@@ -472,6 +481,7 @@ export default function AviatorGame({ user }) {
         await axios.post(`${API_URL}/aviator/bet`, { telegram_id: user.telegram_id, amount: nrb.amount, currency: 'UZS' });
         setActiveBet({ amount: nrb.amount }); betRef.current = { amount: nrb.amount };
         setBalance(b => b - nrb.amount);
+        showToast(`${fmtUzs(nrb.amount)} so'm yechildi`);
       } catch (ex) {
         showErr(ex.response?.data?.detail || "Keyingi raund tikishi amalga oshmadi", 2500);
       } finally { setLoading(false); }
@@ -495,6 +505,7 @@ export default function AviatorGame({ user }) {
       }, ...prev].slice(0, 50));
       setActiveBet(null); betRef.current = null;
       setBalance(b => b + res.data.winnings);
+      showToast(`Hisobingizga +${fmtUzs(res.data.winnings)} so'm qo'shildi`);
     } catch (ex) {
       setErr(ex.response?.data?.detail || 'Xatolik');
     } finally { setLoading(false); }
@@ -754,7 +765,25 @@ export default function AviatorGame({ user }) {
           opacity: 0.85;
           margin-top: 2px;
         }
+        .av-toast {
+          position: fixed;
+          top: 16px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(30,30,50,0.97);
+          color: #fff;
+          font-size: 13px;
+          font-weight: 700;
+          padding: 9px 20px;
+          border-radius: 24px;
+          border: 1px solid rgba(255,255,255,0.13);
+          z-index: 9999;
+          white-space: nowrap;
+          pointer-events: none;
+        }
       `}</style>
+
+      {toast && <div className="av-toast">{toast}</div>}
 
       <div className="av-root">
 
