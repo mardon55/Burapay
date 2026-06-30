@@ -2917,8 +2917,8 @@ function App() {
           <Route path="/referral" element={<ReferralPage user={user} lang={lang} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/casino" element={<Casino user={user} lang={lang} />} />
-          <Route path="/aviator" element={<AviatorGame user={user} />} />
-          <Route path="/mines" element={<MinesGame user={user} />} />
+          <Route path="/aviator" element={<AviatorGame user={user} setUser={setUser} />} />
+          <Route path="/mines" element={<MinesGame user={user} setUser={setUser} />} />
         </Routes>
         <BottomNav isAdmin={user?.is_admin || isSuperAdmin(user?.telegram_id)} lang={lang} />
       </BrowserRouter>
