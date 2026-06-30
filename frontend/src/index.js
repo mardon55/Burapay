@@ -41,6 +41,12 @@ function updateSafeArea() {
     topPx > 0 ? topPx + "px" : "0px"
   );
 
+  // Set --sa-top directly so inline style overrides the CSS sheet value.
+  // Always enforce a minimum of 56px so Telegram's floating X/menu chrome
+  // never covers the app header, regardless of API version or device.
+  const saTop = Math.max(tgContentTop, tgSafeTop, 56);
+  document.documentElement.style.setProperty("--sa-top", saTop + "px");
+
   // Bottom safe area
   const bottomPx = Math.max(tgContentBottom, tgSafeBottom);
   document.documentElement.style.setProperty(
