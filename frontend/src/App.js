@@ -2642,6 +2642,171 @@ const getPlatformLabel = (tx) => {
   return tx.method || 'MR Kassa';
 };
 
+// ── Tx helper functions (module-level — stable references, no re-create) ──────
+const _txFmtDate = (s) => {
+  if (!s) return '—';
+  const [datePart, timePart] = s.split(' ');
+  if (!datePart) return s;
+  const [y, mo, d] = datePart.split('-');
+  return `${d}.${mo}.${y} ${timePart || ''}`.trim();
+};
+const _txFmtDateShort = (s) => {
+  if (!s) return '—';
+  const [datePart, timePart] = s.split(' ');
+  if (!datePart) return s;
+  const [y, mo, d] = datePart.split('-');
+  return `${d}.${mo}.${y} ${(timePart || '').slice(0, 5)}`;
+};
+const _txGetPlatformBg = (tx) => {
+  const m = (tx.method || '').toLowerCase();
+  if (m === 'internal_sent') return 'rgba(239,68,68,0.12)';
+  if (m === 'internal_received') return 'rgba(34,197,94,0.12)';
+  if (m === 'balance') return 'rgba(34,197,94,0.12)';
+  if (m.includes('1xbet')) return 'rgba(59,130,246,0.15)';
+  return 'rgba(250,204,21,0.12)';
+};
+const _txGetAmountSign = (tx) => {
+  const m = (tx.method || '').toLowerCase();
+  if (m === 'internal_sent') return { sign: '−', color: 'text-red-400', amount: tx.total_deducted || tx.amount };
+  if (m === 'internal_received') return { sign: '+', color: 'text-green-400', amount: tx.amount };
+  if ((tx.type || '').toLowerCase() === 'deposit') return { sign: '+', color: 'text-green-400', amount: tx.amount };
+  return { sign: '−', color: 'text-red-400', amount: tx.amount };
+};
+const _txGetStatusLabel = (status, lang) => {
+  const s = (status || '').toLowerCase();
+  if (s === 'approved' || s === 'completed') return { label: lang === 'uz' ? 'Muvaffaqiyatli' : 'Успешно', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
+  if (s === 'pending') return { label: lang === 'uz' ? 'Kutilmoqda' : 'В ожидании', color: '#facc15', bg: 'rgba(250,204,21,0.12)' };
+  return { label: lang === 'uz' ? 'Rad etildi' : 'Отклонено', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
+};
+
+// ── ReceiptModal — module-level component so it NEVER re-mounts on re-render ─
+const ReceiptModal = ({ tx, onClose, lang }) => {
+  useEffect(() => {
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.touchAction = 'none';
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.touchAction = '';
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, []);
+
+  const m = (tx.method || '').toLowerCase();
+  const isP2PSent     = m === 'internal_sent';
+  const isP2PReceived = m === 'internal_received';
+  const isP2P         = isP2PSent || isP2PReceived;
+  const isDeposit     = !isP2P && (tx.type || '').toLowerCase() === 'deposit';
+  const isWithdraw    = !isP2P && !isDeposit;
+  const { sign, color: amtColor, amount: displayAmount } = _txGetAmountSign(tx);
+  const statusInfo = _txGetStatusLabel(tx.status, lang);
+  const platform = m.includes('1xbet') ? '1xbet' : m.includes('mostbet') ? 'Mostbet' : m === 'balance' ? 'BuraPay' : '—';
+  const partnerName  = isP2PSent ? tx.receiver_name : tx.sender_name;
+  const partnerBotId = isP2PSent ? tx.receiver_bot_id : tx.sender_bot_id;
+  const shortId = tx.short_id || (tx.id || '').slice(-8).toUpperCase();
+
+  const Row = ({ label, value, valueClass = 'text-white font-semibold' }) => (
+    <div className="flex justify-between items-start gap-3 py-2.5"
+      style={{ borderBottom: '1px dashed rgba(255,255,255,0.07)' }}>
+      <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
+      <span className={`text-xs text-right ${valueClass}`}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[99999] flex items-end justify-center overflow-hidden select-none"
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', touchAction: 'none', overscrollBehavior: 'none' }}
+      onClick={onClose}
+      onTouchMove={e => { e.preventDefault(); e.stopPropagation(); }}
+      onWheel={e => e.stopPropagation()}
+    >
+      <div
+        className="relative w-full max-w-md rounded-t-3xl overflow-y-auto"
+        style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', maxHeight: '90vh', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
+        onClick={e => e.stopPropagation()}
+        onTouchMove={e => e.stopPropagation()}
+        onWheel={e => e.stopPropagation()}
+      >
+        {/* Handle bar */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-slate-700" />
+        </div>
+
+        {/* Receipt header */}
+        <div className="px-5 pt-3 pb-4 text-center" style={{ borderBottom: '1px dashed rgba(255,255,255,0.1)' }}>
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+            style={{ background: _txGetPlatformBg(tx) }}>
+            {isP2PSent    && <ArrowRightLeft size={22} className="text-red-400" />}
+            {isP2PReceived && <ArrowRightLeft size={22} className="text-green-400" />}
+            {isDeposit && !isP2P && <ArrowDownToLine size={22} className="text-green-400" />}
+            {isWithdraw && !isP2P && <ArrowUpFromLine size={22} className="text-red-400" />}
+          </div>
+          <p className="text-xs text-slate-500 mb-0.5">{lang === 'uz' ? 'Chek raqami' : 'Номер чека'}</p>
+          <p className="text-sm font-bold text-yellow-400 font-mono tracking-wider">#{shortId}</p>
+        </div>
+
+        {/* Receipt body */}
+        <div className="px-5 py-2">
+          <Row label={lang === 'uz' ? '🕒 Sana va vaqt' : '🕒 Дата и время'} value={_txFmtDate(tx.created_at)} />
+          <Row
+            label={lang === 'uz' ? '🔄 Turi' : '🔄 Тип'}
+            value={
+              isP2PSent     ? (lang === 'uz' ? "Foydalanuvchiga o'tkazma" : 'Перевод пользователю') :
+              isP2PReceived ? (lang === 'uz' ? 'Foydalanuvchidan qabul' : 'Получено от пользователя') :
+              isDeposit     ? (lang === 'uz' ? "Hisobni to'ldirish" : 'Пополнение счёта') :
+                              (lang === 'uz' ? 'Pul yechish' : 'Вывод средств')
+            }
+          />
+          {!isP2P && <Row label={lang === 'uz' ? '🎮 Platforma' : '🎮 Платформа'} value={platform} />}
+          {!isP2P && tx.wallet_number && <Row label={lang === 'uz' ? "🆔 O'yinchi ID" : '🆔 ID игрока'} value={tx.wallet_number} />}
+          {isP2P && partnerBotId && (
+            <Row
+              label={isP2PSent ? (lang === 'uz' ? '🆔 Kimga' : '🆔 Кому') : (lang === 'uz' ? '🆔 Kimdan' : '🆔 От кого')}
+              value={partnerBotId}
+              valueClass="text-yellow-400 font-bold font-mono"
+            />
+          )}
+          {isP2P && partnerName && <Row label={lang === 'uz' ? '👤 Foydalanuvchi' : '👤 Пользователь'} value={partnerName} />}
+          {isP2PSent && tx.commission > 0 && (
+            <Row
+              label={lang === 'uz' ? 'Komissiya (3%)' : 'Комиссия (3%)'}
+              value={`${Number(tx.commission).toLocaleString('uz-UZ')} UZS`}
+              valueClass="text-yellow-400 font-semibold text-xs"
+            />
+          )}
+
+          {/* Amount */}
+          <div className="flex justify-between items-center py-3 mt-1" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+            <span className="text-sm text-slate-300 font-semibold">{lang === 'uz' ? '💰 Summa' : '💰 Сумма'}</span>
+            <span className={`text-xl font-bold ${amtColor}`}>
+              {sign}{Number(displayAmount || 0).toLocaleString('uz-UZ')} <span className="text-sm">{tx.currency || 'UZS'}</span>
+            </span>
+          </div>
+
+          {/* Status */}
+          <div className="flex justify-between items-center py-2.5 mb-2" style={{ borderTop: '1px dashed rgba(255,255,255,0.07)' }}>
+            <span className="text-xs text-slate-500">{lang === 'uz' ? '🟢 Status' : '🟢 Статус'}</span>
+            <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ color: statusInfo.color, background: statusInfo.bg }}>
+              {statusInfo.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Close button */}
+        <div className="px-5 pb-6 pt-2">
+          <button onClick={onClose} className="w-full py-3.5 rounded-2xl font-bold text-sm text-slate-300"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {lang === 'uz' ? 'Yopish' : 'Закрыть'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Reports = ({ user, lang }) => {
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2652,9 +2817,7 @@ const Reports = ({ user, lang }) => {
     if (user?.telegram_id) {
       axios.get(`${API_URL}/transactions/${user.telegram_id}`)
         .then(r => {
-          const sorted = (r.data || []).slice().sort(
-            (a, b) => new Date(b.created_at) - new Date(a.created_at)
-          );
+          const sorted = (r.data || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           setTxs(sorted);
         })
         .catch(() => {})
@@ -2663,25 +2826,6 @@ const Reports = ({ user, lang }) => {
       setLoading(false);
     }
   }, [user]);
-
-  // Format date string (already Tashkent from backend: "YYYY-MM-DD HH:MM:SS")
-  const fmtDate = (s) => {
-    if (!s) return '—';
-    // Backend returns "YYYY-MM-DD HH:MM:SS" already in Tashkent time
-    const [datePart, timePart] = s.split(' ');
-    if (!datePart) return s;
-    const [y, mo, d] = datePart.split('-');
-    return `${d}.${mo}.${y} ${timePart || ''}`.trim();
-  };
-
-  const fmtDateShort = (s) => {
-    if (!s) return '—';
-    const [datePart, timePart] = s.split(' ');
-    if (!datePart) return s;
-    const [y, mo, d] = datePart.split('-');
-    const hhmm = (timePart || '').slice(0, 5);
-    return `${d}.${mo}.${y} ${hhmm}`;
-  };
 
   const getPlatformShort = (tx) => {
     const m = (tx.method || '').toLowerCase();
@@ -2700,198 +2844,6 @@ const Reports = ({ user, lang }) => {
     if (m === 'balance') return <Wallet size={14} className="text-green-400" />;
     if (m.includes('1xbet')) return <span className="text-[11px] font-extrabold text-blue-400">1X</span>;
     return <span className="text-[11px] font-extrabold text-yellow-400">MB</span>;
-  };
-
-  const getPlatformBg = (tx) => {
-    const m = (tx.method || '').toLowerCase();
-    if (m === 'internal_sent') return 'rgba(239,68,68,0.12)';
-    if (m === 'internal_received') return 'rgba(34,197,94,0.12)';
-    if (m === 'balance') return 'rgba(34,197,94,0.12)';
-    if (m.includes('1xbet')) return 'rgba(59,130,246,0.15)';
-    return 'rgba(250,204,21,0.12)';
-  };
-
-  const getAmountSign = (tx) => {
-    const m = (tx.method || '').toLowerCase();
-    if (m === 'internal_sent') return { sign: '−', color: 'text-red-400', amount: tx.total_deducted || tx.amount };
-    if (m === 'internal_received') return { sign: '+', color: 'text-green-400', amount: tx.amount };
-    if (tx.type === 'deposit' || (tx.type || '').toLowerCase() === 'deposit') return { sign: '+', color: 'text-green-400', amount: tx.amount };
-    return { sign: '−', color: 'text-red-400', amount: tx.amount };
-  };
-
-  const getStatusLabel = (status) => {
-    const s = (status || '').toLowerCase();
-    if (s === 'approved' || s === 'completed') return { label: lang === 'uz' ? 'Muvaffaqiyatli' : 'Успешно', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
-    if (s === 'pending') return { label: lang === 'uz' ? 'Kutilmoqda' : 'В ожидании', color: '#facc15', bg: 'rgba(250,204,21,0.12)' };
-    return { label: lang === 'uz' ? 'Rad etildi' : 'Отклонено', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
-  };
-
-  // ── Bank receipt modal ────────────────────────────────────────────────────
-  const ReceiptModal = ({ tx, onClose }) => {
-    useEffect(() => {
-      document.documentElement.style.overflow = 'hidden';
-      document.documentElement.style.touchAction = 'none';
-      document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none';
-      return () => {
-        document.documentElement.style.overflow = '';
-        document.documentElement.style.touchAction = '';
-        document.body.style.overflow = '';
-        document.body.style.touchAction = '';
-      };
-    }, []);
-
-    if (!tx) return null;
-    const m = (tx.method || '').toLowerCase();
-    const isP2PSent     = m === 'internal_sent';
-    const isP2PReceived = m === 'internal_received';
-    const isP2P         = isP2PSent || isP2PReceived;
-    const isDeposit     = !isP2P && (tx.type || '').toLowerCase() === 'deposit';
-    const isWithdraw    = !isP2P && !isDeposit;
-    const { sign, color: amtColor, amount: displayAmount } = getAmountSign(tx);
-    const statusInfo = getStatusLabel(tx.status);
-
-    const platform = m.includes('1xbet') ? '1xbet' : m.includes('mostbet') ? 'Mostbet' : m === 'balance' ? 'BuraPay' : '—';
-
-    const partnerName = isP2PSent ? tx.receiver_name : tx.sender_name;
-    const partnerBotId = isP2PSent ? tx.receiver_bot_id : tx.sender_bot_id;
-
-    const shortId = tx.short_id || (tx.id || '').slice(-8).toUpperCase();
-
-    const Row = ({ label, value, valueClass = 'text-white font-semibold' }) => (
-      <div className="flex justify-between items-start gap-3 py-2.5"
-        style={{ borderBottom: '1px dashed rgba(255,255,255,0.07)' }}>
-        <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
-        <span className={`text-xs text-right ${valueClass}`}>{value}</span>
-      </div>
-    );
-
-    return (
-      <div
-        className="fixed inset-0 z-[99999] flex items-end justify-center overflow-hidden select-none"
-        style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', touchAction: 'none', overscrollBehavior: 'none' }}
-        onClick={onClose}
-        onTouchMove={e => { e.preventDefault(); e.stopPropagation(); }}
-        onWheel={e => e.stopPropagation()}
-      >
-        <div
-          className="relative w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 rounded-t-3xl overflow-y-auto"
-          style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', maxHeight: '90vh', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
-          onClick={e => e.stopPropagation()}
-          onTouchMove={e => e.stopPropagation()}
-          onWheel={e => e.stopPropagation()}
-        >
-          {/* Handle bar */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-slate-700" />
-          </div>
-
-          {/* Receipt header */}
-          <div className="px-5 pt-3 pb-4 text-center" style={{ borderBottom: '1px dashed rgba(255,255,255,0.1)' }}>
-            <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"
-              style={{ background: getPlatformBg(tx) }}>
-              {isP2PSent && <ArrowRightLeft size={22} className="text-red-400" />}
-              {isP2PReceived && <ArrowRightLeft size={22} className="text-green-400" />}
-              {isDeposit && !isP2P && <ArrowDownToLine size={22} className="text-green-400" />}
-              {isWithdraw && !isP2P && <ArrowUpFromLine size={22} className="text-red-400" />}
-            </div>
-            <p className="text-xs text-slate-500 mb-0.5">{lang === 'uz' ? 'Chek raqami' : 'Номер чека'}</p>
-            <p className="text-sm font-bold text-yellow-400 font-mono tracking-wider">#{shortId}</p>
-          </div>
-
-          {/* Receipt body */}
-          <div className="px-5 py-2">
-
-            {/* Time */}
-            <Row
-              label={lang === 'uz' ? '🕒 Sana va vaqt' : '🕒 Дата и время'}
-              value={fmtDate(tx.created_at)}
-            />
-
-            {/* Type */}
-            <Row
-              label={lang === 'uz' ? '🔄 Turi' : '🔄 Тип'}
-              value={
-                isP2PSent     ? (lang === 'uz' ? "Foydalanuvchiga o'tkazma" : 'Перевод пользователю') :
-                isP2PReceived ? (lang === 'uz' ? 'Foydalanuvchidan qabul' : 'Получено от пользователя') :
-                isDeposit     ? (lang === 'uz' ? 'Hisobni to\'ldirish' : 'Пополнение счёта') :
-                                (lang === 'uz' ? 'Pul yechish' : 'Вывод средств')
-              }
-            />
-
-            {/* Platform (deposit/withdraw only) */}
-            {!isP2P && (
-              <Row
-                label={lang === 'uz' ? '🎮 Platforma' : '🎮 Платформа'}
-                value={platform}
-              />
-            )}
-
-            {/* Player ID (deposit/withdraw only) */}
-            {!isP2P && tx.wallet_number && (
-              <Row
-                label={lang === 'uz' ? '🆔 O\'yinchi ID' : '🆔 ID игрока'}
-                value={tx.wallet_number}
-              />
-            )}
-
-            {/* P2P partner */}
-            {isP2P && partnerBotId && (
-              <Row
-                label={isP2PSent ? (lang === 'uz' ? '🆔 Kimga' : '🆔 Кому') : (lang === 'uz' ? '🆔 Kimdan' : '🆔 От кого')}
-                value={partnerBotId}
-                valueClass="text-yellow-400 font-bold font-mono"
-              />
-            )}
-            {isP2P && partnerName && (
-              <Row
-                label={lang === 'uz' ? '👤 Foydalanuvchi' : '👤 Пользователь'}
-                value={partnerName}
-              />
-            )}
-
-            {/* Commission (P2P sent only) */}
-            {isP2PSent && tx.commission > 0 && (
-              <Row
-                label={lang === 'uz' ? 'Komissiya (3%)' : 'Комиссия (3%)'}
-                value={`${Number(tx.commission).toLocaleString('uz-UZ')} UZS`}
-                valueClass="text-yellow-400 font-semibold text-xs"
-              />
-            )}
-
-            {/* Amount */}
-            <div className="flex justify-between items-center py-3 mt-1"
-              style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-              <span className="text-sm text-slate-300 font-semibold">{lang === 'uz' ? '💰 Summa' : '💰 Сумма'}</span>
-              <span className={`text-xl font-bold ${amtColor}`}>
-                {sign}{Number(displayAmount || 0).toLocaleString('uz-UZ')} <span className="text-sm">{tx.currency || 'UZS'}</span>
-              </span>
-            </div>
-
-            {/* Status */}
-            <div className="flex justify-between items-center py-2.5 mb-2"
-              style={{ borderTop: '1px dashed rgba(255,255,255,0.07)' }}>
-              <span className="text-xs text-slate-500">{lang === 'uz' ? '🟢 Status' : '🟢 Статус'}</span>
-              <span className="text-xs font-bold px-3 py-1 rounded-full"
-                style={{ color: statusInfo.color, background: statusInfo.bg }}>
-                {statusInfo.label}
-              </span>
-            </div>
-          </div>
-
-          {/* Close button */}
-          <div className="px-5 pb-6 pt-2">
-            <button
-              onClick={onClose}
-              className="w-full py-3.5 rounded-2xl font-bold text-sm text-slate-300"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              {lang === 'uz' ? 'Yopish' : 'Закрыть'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -2923,8 +2875,8 @@ const Reports = ({ user, lang }) => {
             {txs.map((tx, idx) => {
               const platform  = getPlatformShort(tx);
               const isLast    = idx === txs.length - 1;
-              const { sign, color, amount: displayAmount } = getAmountSign(tx);
-              const statusInfo = getStatusLabel(tx.status);
+              const { sign, color, amount: displayAmount } = _txGetAmountSign(tx);
+              const statusInfo = _txGetStatusLabel(tx.status, lang);
 
               return (
                 <div
@@ -2939,7 +2891,7 @@ const Reports = ({ user, lang }) => {
                   {/* Platform icon */}
                   <div
                     className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-                    style={{ background: getPlatformBg(tx) }}
+                    style={{ background: _txGetPlatformBg(tx) }}
                   >
                     {getPlatformIcon(tx)}
                   </div>
@@ -2947,7 +2899,7 @@ const Reports = ({ user, lang }) => {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white leading-tight">{platform}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{fmtDateShort(tx.created_at)}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{_txFmtDateShort(tx.created_at)}</p>
                   </div>
 
                   {/* Amount + status dot */}
@@ -2970,7 +2922,7 @@ const Reports = ({ user, lang }) => {
       </div>
 
       {/* Bank receipt modal */}
-      {selectedTx && <ReceiptModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}
+      {selectedTx && <ReceiptModal tx={selectedTx} lang={lang} onClose={() => setSelectedTx(null)} />}
     </div>
   );
 };
