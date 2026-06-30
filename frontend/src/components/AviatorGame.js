@@ -299,6 +299,7 @@ export default function AviatorGame({ user }) {
     ws.onmessage = (e) => {
       const d = JSON.parse(e.data);
       if (d.type === 'waiting') {
+        const wasAlreadyWaiting = phaseRef.current === 'waiting';
         phaseRef.current = 'waiting';
         setPhase('waiting');
 
@@ -333,8 +334,15 @@ export default function AviatorGame({ user }) {
         ptsRef.current = [1.0];
         crashAnimRef.current = null;
         if (d.history) setHistory(d.history.slice(0, 50));
-        setActiveBet(null); betRef.current = null;
-        setCashedOut(null); setErr('');
+        // Only clear the active bet and cashed-out state when first entering the
+        // waiting phase (i.e. transitioning from crashed/flying → waiting).
+        // Subsequent countdown ticks also arrive as 'waiting' messages — clearing
+        // activeBet on every tick was the bug: a bet placed during the countdown
+        // would be wiped by the very next tick before the round even started.
+        if (!wasAlreadyWaiting) {
+          setActiveBet(null); betRef.current = null;
+          setCashedOut(null); setErr('');
+        }
       } else if (d.type === 'flying') {
         // Clear countdown timer — round has started
         if (countdownTimerRef.current) {
