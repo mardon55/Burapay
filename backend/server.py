@@ -2087,9 +2087,23 @@ async def startup():
         logging.info(f"Detected public URL: {public_url or 'none (will use polling)'}")
         if public_url:
             webhook_url = f"{public_url}/api/webhook"
-            await bot.set_webhook(url=webhook_url, drop_pending_updates=True,
-                                   allowed_updates=["message", "callback_query", "my_chat_member"])
-            logging.info(f"Webhook set to: {webhook_url}")
+            try:
+                await bot.set_webhook(url=webhook_url, drop_pending_updates=True,
+                                       allowed_updates=["message", "callback_query", "my_chat_member"])
+                logging.info(f"Webhook set to: {webhook_url}")
+            except Exception as e:
+                logging.warning(f"Could not set webhook (will retry in background): {e}")
+                async def _retry_webhook():
+                    for delay in [2, 5, 15, 30]:
+                        await asyncio.sleep(delay)
+                        try:
+                            await bot.set_webhook(url=webhook_url, drop_pending_updates=True,
+                                                   allowed_updates=["message", "callback_query", "my_chat_member"])
+                            logging.info(f"Webhook set to (retry): {webhook_url}")
+                            return
+                        except Exception as re:
+                            logging.warning(f"Webhook retry failed: {re}")
+                asyncio.create_task(_retry_webhook())
             try:
                 from aiogram.types import MenuButtonWebApp, WebAppInfo as TgWebAppInfo
                 await bot.set_chat_menu_button(
