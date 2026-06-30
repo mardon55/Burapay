@@ -1,0 +1,37 @@
+Siz Telegram Mini App (BuraPay) loyihasini rivojlantirish bo'yicha katta dasturchisiz. "Hisobotlar" (Reports) bo'limida tranzaksiya cheki (ReceiptModal) ochilganda HAMMA qurilmalarda (Android, iOS va PC brauzerda) yuz berayotgan vizual qimirlash va ozgina pastga-tepaga siljish muammosini butunlay yo'qotishimiz kerak.
+
+Muammo:
+Modal oyna ochilganda foydalanuvchi barmog'i yoki sichqoncha bilan chekni yurgizmoqchi bo'lsa, butun modal oyna fon bilan birga ozgina pastga va tepaga qo'zg'alib qimirlayapti. Chek mutlaqo harakatsiz, ekranning markazida mixlangandek qotib turishi shart.
+
+DIQQAT: Admin panel qismiga mutlaqo tegilmasin. O'zgarishlar faqat foydalanuvchilarning "Hisobotlar" bo'limidagi modal oynaga tegishli.
+
+Vazifa (Hamma qurilmalar uchun skrolni to'liq bloklash):
+
+1. `ReceiptModal` komponentining eng tashqi overlay (fon) div elementiga quyidagi Tailwind CSS klasslarini to'liq va qat'iy yozing:
+   `className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-hidden overscroll-none touch-none select-none"`
+
+2. Ichki chek kartasi (oq yoki to'q fondagi chek formasi) div elementining stillarini tekshiring. Unga hech qanday tashqi margin (`my-`, `mt-`) berilmasin, faqat quyidagicha qat'iy joylashsin:
+   `className="relative w-full max-w-md mx-4 bg-slate-900 rounded-2xl p-6 shadow-xl overscroll-none max-h-[90vh] overflow-y-auto touch-pan-y"`
+
+3. Komponent ichidagi `useEffect` mantiqini hamma qurilmalar brauzerida ishlaydigan quyidagi qat'iy variantga almashtiring:
+   ```javascript
+   useEffect(() => {
+     if (isModalOpen) {
+       // Hamma qurilmalarda asosiy sahifa skrolini qulflash
+       document.documentElement.style.overflow = 'hidden';
+       document.documentElement.style.touchAction = 'none';
+       document.body.style.overflow = 'hidden';
+       document.body.style.touchAction = 'none';
+     } else {
+       document.documentElement.style.overflow = '';
+       document.documentElement.style.touchAction = '';
+       document.body.style.overflow = '';
+       document.body.style.touchAction = '';
+     }
+     return () => {
+       document.documentElement.style.overflow = '';
+       document.documentElement.style.touchAction = '';
+       document.body.style.overflow = '';
+       document.body.style.touchAction = '';
+     };
+   }, [isModalOpen]);

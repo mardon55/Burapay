@@ -2729,11 +2729,14 @@ const Reports = ({ user, lang }) => {
   // ── Bank receipt modal ────────────────────────────────────────────────────
   const ReceiptModal = ({ tx, onClose }) => {
     useEffect(() => {
-      const prev = document.body.style.overflow;
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.touchAction = 'none';
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
       return () => {
-        document.body.style.overflow = prev || '';
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.touchAction = '';
+        document.body.style.overflow = '';
         document.body.style.touchAction = '';
       };
     }, []);
@@ -2765,16 +2768,18 @@ const Reports = ({ user, lang }) => {
 
     return (
       <div
-        className="fixed inset-0 z-[99999] flex items-end justify-center"
-        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', overscrollBehavior: 'none', touchAction: 'none' }}
+        className="fixed inset-0 z-[99999] flex items-end justify-center overflow-hidden select-none"
+        style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', touchAction: 'none', overscrollBehavior: 'none' }}
         onClick={onClose}
-        onTouchMove={e => e.stopPropagation()}
+        onTouchMove={e => { e.preventDefault(); e.stopPropagation(); }}
+        onWheel={e => e.stopPropagation()}
       >
         <div
-          className="w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 rounded-t-3xl overflow-y-auto"
+          className="relative w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 rounded-t-3xl overflow-y-auto"
           style={{ background: '#0d1225', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', maxHeight: '90vh', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
           onClick={e => e.stopPropagation()}
           onTouchMove={e => e.stopPropagation()}
+          onWheel={e => e.stopPropagation()}
         >
           {/* Handle bar */}
           <div className="flex justify-center pt-3 pb-1">
