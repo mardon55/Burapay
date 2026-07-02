@@ -523,11 +523,6 @@ const CryptoBuy = ({ user, lang }) => {
         )}
       </div>
 
-      {/* Info */}
-      <div className="rounded-xl bg-purple-500/5 border border-purple-500/20 px-4 py-3">
-        <p className="text-xs text-slate-400">{t.crypto_pending_info}</p>
-      </div>
-
       {/* Submit */}
       <button
         onClick={handleSubmit}
