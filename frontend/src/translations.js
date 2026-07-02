@@ -328,6 +328,24 @@ const translations = {
     premium_success: "Premium so'rovi yuborildi! Admin tekshiradi.",
     premium_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
     premium_enter_username: "Foydalanuvchi nomini kiriting",
+
+    // PUBG UC Buy
+    pubg_title: "PUBG UC sotib olish",
+    pubg_btn: "UC sotib olish",
+    pubg_balance_label: "Balansdagi mablag'ingiz",
+    pubg_id_label: "PUBG Player ID",
+    pubg_id_placeholder: "PUBG Player ID raqamingizni kiriting",
+    pubg_uc_label: "UC miqdori",
+    pubg_uc_placeholder: "Qancha UC kerak?",
+    pubg_price_per: "1 UC = 200 so'm",
+    pubg_total_label: "Jami to'lov:",
+    pubg_insufficient: "Mablag' yetarli emas",
+    pubg_submit_btn: "UC sotib olishni so'rash",
+    pubg_success: "PUBG UC so'rovi yuborildi! Admin tekshiradi.",
+    pubg_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
+    pubg_enter_id: "PUBG Player ID raqamini kiriting",
+    pubg_enter_uc: "UC miqdorini kiriting",
+    pubg_min_uc: "Minimal 1 UC kiriting",
   },
 
   ru: {
@@ -659,6 +677,24 @@ const translations = {
     premium_success: "Запрос на Premium отправлен! Администратор проверит.",
     premium_pending_info: "Ваш запрос будет обработан после проверки администратором.",
     premium_enter_username: "Введите имя пользователя",
+
+    // PUBG UC Buy
+    pubg_title: "Купить PUBG UC",
+    pubg_btn: "Купить UC",
+    pubg_balance_label: "Ваш баланс",
+    pubg_id_label: "PUBG Player ID",
+    pubg_id_placeholder: "Введите ваш PUBG Player ID",
+    pubg_uc_label: "Количество UC",
+    pubg_uc_placeholder: "Сколько UC нужно?",
+    pubg_price_per: "1 UC = 200 сум",
+    pubg_total_label: "Итого к оплате:",
+    pubg_insufficient: "Недостаточно средств",
+    pubg_submit_btn: "Запросить покупку UC",
+    pubg_success: "Запрос на PUBG UC отправлен! Администратор проверит.",
+    pubg_pending_info: "Ваш запрос будет обработан после проверки администратором.",
+    pubg_enter_id: "Введите PUBG Player ID",
+    pubg_enter_uc: "Введите количество UC",
+    pubg_min_uc: "Введите минимум 1 UC",
   }
 };
 
