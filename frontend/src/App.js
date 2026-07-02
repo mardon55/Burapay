@@ -283,7 +283,7 @@ const Otkazmalar = ({ user, lang }) => {
   const t = translations[lang];
 
   return (
-    <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
+    <div className="px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto" style={{ paddingTop: 'calc(var(--sa-top) + 12px)', height: '100vh' }}>
       <h1 className="text-2xl font-bold">{t.otkazmalar}</h1>
 
       {/* Mostbet */}
