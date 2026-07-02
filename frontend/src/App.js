@@ -349,6 +349,197 @@ const Otkazmalar = ({ user, lang }) => {
           <ChevronRight size={18} className="text-slate-500" />
         </button>
       </div>
+
+      {/* Kriptovalyuta sotib olish */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <Coins size={16} className="text-purple-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white">{t.crypto_title}</h2>
+        </div>
+        <button
+          onClick={() => navigate('/crypto-buy')}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 active:scale-95 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-purple-400/20 flex items-center justify-center">
+              <Coins size={18} className="text-purple-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-purple-400">{t.crypto_btn}</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-slate-500" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Crypto Buy Page ────────────────────────────────────────────────────────────
+const CryptoBuy = ({ user, lang }) => {
+  const navigate = useNavigate();
+  const t = translations[lang];
+
+  const EXCHANGES = ['Binance', 'Bybit', 'Trust Wallet', 'Tonkeeper'];
+  const CRYPTO_TYPES = [
+    { value: 'USDT', label: 'USDT (Tether)' },
+    { value: 'TON',  label: 'TON (Toncoin)' },
+    { value: 'BTC',  label: 'BTC (Bitcoin)' },
+    { value: 'ETH',  label: 'ETH (Ethereum)' },
+  ];
+
+  const [exchange, setExchange]   = useState(EXCHANGES[0]);
+  const [cryptoType, setCryptoType] = useState(CRYPTO_TYPES[0].value);
+  const [address, setAddress]     = useState('');
+  const [amount, setAmount]       = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [done, setDone]           = useState(false);
+
+  const balance   = user?.balance_uzs ?? 0;
+  const amtNum    = parseFloat(amount) || 0;
+  const notEnough = amtNum > 0 && amtNum > balance;
+  const isValid   = amtNum >= 1000 && address.trim().length > 0 && !notEnough;
+
+  const handleSubmit = async () => {
+    if (!address.trim()) return toast.error(t.crypto_enter_address);
+    if (!amtNum)         return toast.error(t.crypto_enter_amount);
+    if (amtNum < 1000)   return toast.error(t.crypto_min_amount);
+    if (notEnough)       return toast.error(t.crypto_insufficient);
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/crypto/buy`, {
+        telegram_id:  user.telegram_id,
+        exchange,
+        crypto_type:  cryptoType,
+        wallet_address: address.trim(),
+        amount:       amtNum,
+      });
+      setDone(true);
+      toast.success(t.crypto_success);
+    } catch (e) {
+      const msg = e?.response?.data?.detail;
+      toast.error(msg || t.crypto_insufficient);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectCls = "w-full bg-midnight border border-slate-700 text-white rounded-xl h-12 px-4 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all appearance-none";
+
+  if (done) return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center space-y-5 animate-in fade-in">
+      <div className="w-20 h-20 rounded-full bg-purple-500/20 flex items-center justify-center">
+        <CheckCircle2 size={40} className="text-purple-400" />
+      </div>
+      <h2 className="text-xl font-bold text-white">{t.crypto_success}</h2>
+      <p className="text-slate-400 text-sm">{t.crypto_pending_info}</p>
+      <button
+        onClick={() => { setDone(false); setAddress(''); setAmount(''); }}
+        className="w-full py-3 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 font-bold"
+      >
+        {lang === 'uz' ? 'Yangi so\'rov' : 'Новый запрос'}
+      </button>
+      <button onClick={() => navigate('/transfers')} className="text-slate-500 text-sm">{t.back}</button>
+    </div>
+  );
+
+  return (
+    <div className="px-4 pb-28 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/transfers')} className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+          <ChevronDown size={18} className="text-slate-400 rotate-90" />
+        </button>
+        <h1 className="text-xl font-bold text-white">{t.crypto_title}</h1>
+      </div>
+
+      {/* Balance card */}
+      <div className="rounded-2xl p-4 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg,#1a1032 0%,#0f0a20 100%)', border: '1px solid rgba(168,85,247,0.25)' }}>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">{t.crypto_balance_label}</p>
+          <p className="text-2xl font-bold text-white">{balance.toLocaleString('uz-UZ')} <span className="text-base text-purple-400">UZS</span></p>
+        </div>
+        <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center">
+          <Coins size={24} className="text-purple-400" />
+        </div>
+      </div>
+
+      {/* Exchange select */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.crypto_exchange_label}</label>
+        <div className="relative">
+          <select value={exchange} onChange={e => setExchange(e.target.value)} className={selectCls}>
+            {EXCHANGES.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+          </select>
+          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Crypto type select */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.crypto_type_label}</label>
+        <div className="relative">
+          <select value={cryptoType} onChange={e => setCryptoType(e.target.value)} className={selectCls}>
+            {CRYPTO_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Wallet address */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.crypto_address_label}</label>
+        <Input
+          placeholder={t.crypto_address_placeholder}
+          value={address}
+          onChange={e => setAddress(e.target.value)}
+          className="focus:border-purple-500 focus:ring-purple-500"
+        />
+      </div>
+
+      {/* Amount */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.crypto_amount_label}</label>
+        <Input
+          type="number"
+          inputMode="numeric"
+          placeholder={t.crypto_amount_placeholder}
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          className={`focus:border-purple-500 focus:ring-purple-500 ${notEnough ? 'border-red-500' : ''}`}
+        />
+        {notEnough && (
+          <p className="text-xs text-red-400 flex items-center gap-1">⚠️ {t.crypto_insufficient}</p>
+        )}
+        {amtNum >= 1000 && !notEnough && (
+          <p className="text-xs text-slate-500">{t.crypto_min_amount.replace('Minimal summa 1 000 UZS','').replace('Минимальная сумма 1 000 UZS','')}
+            <span className="text-purple-400 font-semibold">{amtNum.toLocaleString()} UZS</span>
+          </p>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="rounded-xl bg-purple-500/5 border border-purple-500/20 px-4 py-3">
+        <p className="text-xs text-slate-400">{t.crypto_pending_info}</p>
+      </div>
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !isValid}
+        className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 shadow-lg
+          ${isValid
+            ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/30'
+            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+          }`}
+      >
+        {loading ? (lang === 'uz' ? 'Yuborilmoqda...' : 'Отправка...') : t.crypto_submit_btn}
+      </button>
     </div>
   );
 };
@@ -2903,6 +3094,7 @@ function App() {
           <Route path="/deposit" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/transfers" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} setUser={setUser} />} />
+          <Route path="/crypto-buy" element={<CryptoBuy user={user} lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />

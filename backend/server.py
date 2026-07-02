@@ -1057,6 +1057,54 @@ async def internal_transfer(request: Request, data: dict = Body(...)):
     }
 
 
+@api_router.post("/crypto/buy")
+@limiter.limit("10/minute")
+async def crypto_buy(request: Request, data: dict = Body(...)):
+    telegram_id   = data.get("telegram_id")
+    exchange      = str(data.get("exchange", "")).strip()
+    crypto_type   = str(data.get("crypto_type", "")).strip()
+    wallet_address = str(data.get("wallet_address", "")).strip()
+    amount        = data.get("amount")
+
+    if not all([telegram_id, exchange, crypto_type, wallet_address, amount]):
+        raise HTTPException(status_code=400, detail="Ma'lumotlar to'liq emas")
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Noto'g'ri summa formati")
+
+    if amount < 1000:
+        raise HTTPException(status_code=400, detail="Minimal summa 1 000 UZS")
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user_row = await conn.fetchrow(
+                "SELECT telegram_id, balance_uzs FROM users WHERE telegram_id = $1 FOR UPDATE",
+                int(telegram_id)
+            )
+            if not user_row:
+                raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+            if float(user_row["balance_uzs"]) < amount:
+                raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
+
+            order_id = str(uuid.uuid4())
+            short_id = generate_short_id()
+            now = datetime.now(timezone.utc)
+
+            await conn.execute(
+                """INSERT INTO crypto_orders
+                   (id, short_id, user_telegram_id, exchange, crypto_type, wallet_address, amount, status, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)""",
+                order_id, short_id, int(telegram_id),
+                exchange, crypto_type, wallet_address, amount, now
+            )
+
+    return {"success": True, "order_id": order_id, "short_id": short_id}
+
+
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
     rows = await fetchall(
@@ -2141,6 +2189,18 @@ async def create_tables():
                 opened_cells JSONB DEFAULT '[]'::jsonb,
                 status VARCHAR(20) DEFAULT 'active',
                 current_multiplier NUMERIC(10,4) DEFAULT 1.0,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS crypto_orders (
+                id VARCHAR(100) PRIMARY KEY,
+                short_id VARCHAR(20),
+                user_telegram_id BIGINT NOT NULL,
+                exchange VARCHAR(50) NOT NULL,
+                crypto_type VARCHAR(20) NOT NULL,
+                wallet_address TEXT NOT NULL,
+                amount NUMERIC(18,2) NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
         """)

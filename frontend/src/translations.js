@@ -279,6 +279,24 @@ const translations = {
     p2p_received_label: "Ichki o'tkazma (Qabul qilindi)",
     p2p_to: "Kimga: {name}",
     p2p_from: "Kimdan: {name}",
+
+    // Crypto Buy
+    crypto_title: "Kriptovalyuta sotib olish",
+    crypto_btn: "Sotib olish",
+    crypto_exchange_label: "Birja / Hamyon turi",
+    crypto_type_label: "Kriptovalyuta turi",
+    crypto_address_label: "Hamyon manzili yoki havolasi",
+    crypto_address_placeholder: "Hamyon manzili yoki havolasini kiriting",
+    crypto_amount_label: "Miqdor (UZS)",
+    crypto_amount_placeholder: "Sotib olmoqchi bo'lgan summani kiriting",
+    crypto_submit_btn: "Sotib olishni so'rash",
+    crypto_balance_label: "Balansdagi mablag'ingiz",
+    crypto_insufficient: "Mablag' yetarli emas",
+    crypto_success: "Kripto so'rovi yuborildi! Admin tekshiradi.",
+    crypto_enter_address: "Hamyon manzilini kiriting",
+    crypto_enter_amount: "Miqdorni kiriting",
+    crypto_min_amount: "Minimal summa 1 000 UZS",
+    crypto_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
   },
 
   ru: {
@@ -561,6 +579,24 @@ const translations = {
     p2p_received_label: "Внутренний перевод (Получено)",
     p2p_to: "Кому: {name}",
     p2p_from: "От кого: {name}",
+
+    // Crypto Buy
+    crypto_title: "Купить криптовалюту",
+    crypto_btn: "Купить",
+    crypto_exchange_label: "Биржа / Тип кошелька",
+    crypto_type_label: "Тип криптовалюты",
+    crypto_address_label: "Адрес кошелька или ссылка",
+    crypto_address_placeholder: "Введите адрес кошелька или ссылку",
+    crypto_amount_label: "Сумма (UZS)",
+    crypto_amount_placeholder: "Введите сумму для покупки",
+    crypto_submit_btn: "Отправить запрос на покупку",
+    crypto_balance_label: "Ваш баланс",
+    crypto_insufficient: "Недостаточно средств",
+    crypto_success: "Запрос на крипто отправлен! Администратор проверит.",
+    crypto_enter_address: "Введите адрес кошелька",
+    crypto_enter_amount: "Введите сумму",
+    crypto_min_amount: "Минимальная сумма 1 000 UZS",
+    crypto_pending_info: "Ваш запрос будет обработан после проверки администратором.",
   }
 };
 
