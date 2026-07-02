@@ -447,7 +447,7 @@ const CryptoBuy = ({ user, lang }) => {
   );
 
   return (
-    <div className="px-4 pb-28 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ paddingTop: 'calc(var(--sa-top) + 12px)' }}>
+    <div className="px-4 pb-28 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto" style={{ paddingTop: 'calc(var(--sa-top) + 12px)', height: '100vh' }}>
 
       {/* Header */}
       <div className="flex items-center gap-3">
