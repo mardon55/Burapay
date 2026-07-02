@@ -297,6 +297,24 @@ const translations = {
     crypto_enter_amount: "Miqdorni kiriting",
     crypto_min_amount: "Minimal summa 1 000 UZS",
     crypto_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
+
+    // Stars Buy
+    stars_title: "Telegram Stars sotib olish",
+    stars_btn: "Stars sotib olish",
+    stars_balance_label: "Balansdagi mablag'ingiz",
+    stars_username_label: "Telegram foydalanuvchi nomi",
+    stars_username_placeholder: "Telegram foydalanuvchi nomingizni kiriting (@username)",
+    stars_amount_label: "Stars miqdori",
+    stars_amount_placeholder: "Qancha Stars kerak?",
+    stars_price_per: "1 Stars = 200 so'm",
+    stars_total_label: "Jami to'lov:",
+    stars_insufficient: "Mablag' yetarli emas",
+    stars_submit_btn: "Stars sotib olishni so'rash",
+    stars_success: "Stars so'rovi yuborildi! Admin tekshiradi.",
+    stars_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
+    stars_enter_username: "Foydalanuvchi nomini kiriting",
+    stars_enter_amount: "Stars miqdorini kiriting",
+    stars_min_stars: "Minimal 1 Stars kiriting",
   },
 
   ru: {
@@ -597,6 +615,24 @@ const translations = {
     crypto_enter_amount: "Введите сумму",
     crypto_min_amount: "Минимальная сумма 1 000 UZS",
     crypto_pending_info: "Ваш запрос будет обработан после проверки администратором.",
+
+    // Stars Buy
+    stars_title: "Купить Telegram Stars",
+    stars_btn: "Купить Stars",
+    stars_balance_label: "Ваш баланс",
+    stars_username_label: "Имя пользователя Telegram",
+    stars_username_placeholder: "Введите имя пользователя Telegram (@username)",
+    stars_amount_label: "Количество Stars",
+    stars_amount_placeholder: "Сколько Stars нужно?",
+    stars_price_per: "1 Stars = 200 сум",
+    stars_total_label: "Итого к оплате:",
+    stars_insufficient: "Недостаточно средств",
+    stars_submit_btn: "Запросить покупку Stars",
+    stars_success: "Запрос на Stars отправлен! Администратор проверит.",
+    stars_pending_info: "Ваш запрос будет обработан после проверки администратором.",
+    stars_enter_username: "Введите имя пользователя",
+    stars_enter_amount: "Введите количество Stars",
+    stars_min_stars: "Введите минимум 1 Stars",
   }
 };
 

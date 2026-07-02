@@ -39,7 +39,8 @@ import {
   Gamepad2,
   ChevronDown,
   Home as HomeIcon,
-  User
+  User,
+  Star
 } from "lucide-react";
 import axios from "axios";
 import translations from "./translations";
@@ -373,6 +374,30 @@ const Otkazmalar = ({ user, lang }) => {
           <ChevronRight size={18} className="text-slate-500" />
         </button>
       </div>
+
+      {/* Telegram Stars sotib olish */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+            <Star size={16} className="text-yellow-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white">{t.stars_title}</h2>
+        </div>
+        <button
+          onClick={() => navigate('/stars-buy')}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 active:scale-95 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
+              <Star size={18} className="text-yellow-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-yellow-400">{t.stars_btn}</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-slate-500" />
+        </button>
+      </div>
     </div>
   );
 };
@@ -534,6 +559,143 @@ const CryptoBuy = ({ user, lang }) => {
           }`}
       >
         {loading ? (lang === 'uz' ? 'Yuborilmoqda...' : 'Отправка...') : t.crypto_submit_btn}
+      </button>
+    </div>
+  );
+};
+
+// ── Stars Buy Page ─────────────────────────────────────────────────────────────
+const STAR_PRICE_UZS = 200;
+
+const StarsBuy = ({ user, lang }) => {
+  const navigate = useNavigate();
+  const t = translations[lang];
+
+  const [username, setUsername] = useState('');
+  const [stars, setStars]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [done, setDone]         = useState(false);
+
+  const balance    = user?.balance_uzs ?? 0;
+  const starsNum   = parseInt(stars, 10) || 0;
+  const totalUzs   = starsNum * STAR_PRICE_UZS;
+  const notEnough  = starsNum > 0 && totalUzs > balance;
+  const isValid    = starsNum >= 1 && username.trim().length > 0 && !notEnough;
+
+  const handleSubmit = async () => {
+    if (!username.trim()) return toast.error(t.stars_enter_username);
+    if (!starsNum)        return toast.error(t.stars_enter_amount);
+    if (starsNum < 1)     return toast.error(t.stars_min_stars);
+    if (notEnough)        return toast.error(t.stars_insufficient);
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/stars/buy`, {
+        telegram_id: user.telegram_id,
+        username:    username.trim(),
+        stars_count: starsNum,
+        amount_uzs:  totalUzs,
+      });
+      setDone(true);
+      toast.success(t.stars_success);
+    } catch (e) {
+      const msg = e?.response?.data?.detail;
+      toast.error(msg || t.stars_insufficient);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center space-y-5 animate-in fade-in">
+      <div className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center">
+        <CheckCircle2 size={40} className="text-yellow-400" />
+      </div>
+      <h2 className="text-xl font-bold text-white">{t.stars_success}</h2>
+      <p className="text-slate-400 text-sm">{t.stars_pending_info}</p>
+      <button
+        onClick={() => { setDone(false); setUsername(''); setStars(''); }}
+        className="w-full py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-bold"
+      >
+        {lang === 'uz' ? 'Yangi so\'rov' : 'Новый запрос'}
+      </button>
+      <button onClick={() => navigate('/transfers')} className="text-slate-500 text-sm">{t.back}</button>
+    </div>
+  );
+
+  return (
+    <div className="px-4 pb-28 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto" style={{ paddingTop: 'calc(var(--sa-top) + 12px)', height: '100vh' }}>
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/transfers')} className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+          <ChevronDown size={18} className="text-slate-400 rotate-90" />
+        </button>
+        <h1 className="text-xl font-bold text-white">{t.stars_title}</h1>
+      </div>
+
+      {/* Balance card */}
+      <div className="rounded-2xl p-4 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg,#1a1400 0%,#0f0d00 100%)', border: '1px solid rgba(234,179,8,0.25)' }}>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">{t.stars_balance_label}</p>
+          <p className="text-2xl font-bold text-white">{balance.toLocaleString('uz-UZ')} <span className="text-base text-yellow-400">UZS</span></p>
+        </div>
+        <div className="w-12 h-12 rounded-2xl bg-yellow-500/20 flex items-center justify-center">
+          <Star size={24} className="text-yellow-400" />
+        </div>
+      </div>
+
+      {/* Price info */}
+      <div className="rounded-xl bg-yellow-500/5 border border-yellow-500/20 px-4 py-3 flex items-center gap-2">
+        <Star size={14} className="text-yellow-400 flex-shrink-0" />
+        <p className="text-xs text-yellow-300 font-semibold">{t.stars_price_per}</p>
+      </div>
+
+      {/* Username input */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.stars_username_label}</label>
+        <Input
+          placeholder={t.stars_username_placeholder}
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          className="focus:border-yellow-500 focus:ring-yellow-500"
+        />
+      </div>
+
+      {/* Stars amount input */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.stars_amount_label}</label>
+        <Input
+          type="number"
+          inputMode="numeric"
+          placeholder={t.stars_amount_placeholder}
+          value={stars}
+          onChange={e => setStars(e.target.value)}
+          className={`focus:border-yellow-500 focus:ring-yellow-500 ${notEnough ? 'border-red-500' : ''}`}
+        />
+        {notEnough && (
+          <p className="text-xs text-red-400 flex items-center gap-1">⚠️ {t.stars_insufficient}</p>
+        )}
+        {starsNum >= 1 && !notEnough && (
+          <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700">
+            <span className="text-xs text-slate-400">{t.stars_total_label}</span>
+            <span className="text-sm font-bold text-yellow-400">{totalUzs.toLocaleString('uz-UZ')} UZS</span>
+          </div>
+        )}
+      </div>
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !isValid}
+        className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 shadow-lg
+          ${isValid
+            ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-yellow-500/30'
+            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+          }`}
+      >
+        {loading ? (lang === 'uz' ? 'Yuborilmoqda...' : 'Отправка...') : t.stars_submit_btn}
       </button>
     </div>
   );
@@ -3090,6 +3252,7 @@ function App() {
           <Route path="/transfers" element={<Otkazmalar user={user} lang={lang} />} />
           <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} setUser={setUser} />} />
           <Route path="/crypto-buy" element={<CryptoBuy user={user} lang={lang} />} />
+          <Route path="/stars-buy" element={<StarsBuy user={user} lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />

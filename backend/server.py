@@ -1105,6 +1105,67 @@ async def crypto_buy(request: Request, data: dict = Body(...)):
     return {"success": True, "order_id": order_id, "short_id": short_id}
 
 
+@api_router.post("/stars/buy")
+@limiter.limit("10/minute")
+async def stars_buy(request: Request, data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    username    = str(data.get("username", "")).strip()
+    stars_count = data.get("stars_count")
+    amount_uzs  = data.get("amount_uzs")
+
+    if not all([telegram_id, username, stars_count, amount_uzs]):
+        raise HTTPException(status_code=400, detail="Ma'lumotlar to'liq emas")
+
+    try:
+        stars_count = int(stars_count)
+        amount_uzs  = float(amount_uzs)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Noto'g'ri format")
+
+    if stars_count < 1:
+        raise HTTPException(status_code=400, detail="Minimal 1 Stars")
+
+    STAR_PRICE = 200
+    expected_amount = stars_count * STAR_PRICE
+    if int(amount_uzs) != expected_amount:
+        raise HTTPException(status_code=400, detail="Noto'g'ri summa hisobi")
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user_row = await conn.fetchrow(
+                "SELECT telegram_id, balance_uzs FROM users WHERE telegram_id = $1 FOR UPDATE",
+                int(telegram_id)
+            )
+            if not user_row:
+                raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+            # Mavjud pending so'rovlar summasini ham hisobga olamiz
+            pending_row = await conn.fetchrow(
+                "SELECT COALESCE(SUM(amount_uzs), 0) AS reserved FROM stars_orders WHERE user_telegram_id = $1 AND status = 'pending'",
+                int(telegram_id)
+            )
+            reserved = float(pending_row["reserved"])
+            available = float(user_row["balance_uzs"]) - reserved
+
+            if available < amount_uzs:
+                raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
+
+            order_id = str(uuid.uuid4())
+            short_id = generate_short_id()
+            now = datetime.now(timezone.utc)
+
+            await conn.execute(
+                """INSERT INTO stars_orders
+                   (id, short_id, user_telegram_id, username, stars_count, amount_uzs, status, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)""",
+                order_id, short_id, int(telegram_id),
+                username, stars_count, amount_uzs, now
+            )
+
+    return {"success": True, "order_id": order_id, "short_id": short_id}
+
+
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
     rows = await fetchall(
@@ -2200,6 +2261,17 @@ async def create_tables():
                 crypto_type VARCHAR(20) NOT NULL,
                 wallet_address TEXT NOT NULL,
                 amount NUMERIC(18,2) NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS stars_orders (
+                id VARCHAR(100) PRIMARY KEY,
+                short_id VARCHAR(20),
+                user_telegram_id BIGINT NOT NULL,
+                username TEXT NOT NULL,
+                stars_count INT NOT NULL,
+                amount_uzs NUMERIC(18,2) NOT NULL,
                 status VARCHAR(20) DEFAULT 'pending',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
