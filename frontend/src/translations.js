@@ -315,6 +315,19 @@ const translations = {
     stars_enter_username: "Foydalanuvchi nomini kiriting",
     stars_enter_amount: "Stars miqdorini kiriting",
     stars_min_stars: "Minimal 1 Stars kiriting",
+
+    // Premium Buy
+    premium_title: "Telegram Premium sotib olish",
+    premium_btn: "Premium sotib olish",
+    premium_balance_label: "Balansdagi mablag'ingiz",
+    premium_price_info: "Telegram Premium obunasi narxi:",
+    premium_username_label: "Telegram foydalanuvchi nomi",
+    premium_username_placeholder: "Telegram foydalanuvchi nomingizni kiriting (@username)",
+    premium_submit_btn: "Premium sotib olishni so'rash",
+    premium_insufficient: "Mablag' yetarli emas (kerak: 50 000 UZS)",
+    premium_success: "Premium so'rovi yuborildi! Admin tekshiradi.",
+    premium_pending_info: "So'rovingiz admin tomonidan tekshirilgandan so'ng amalga oshiriladi.",
+    premium_enter_username: "Foydalanuvchi nomini kiriting",
   },
 
   ru: {
@@ -633,6 +646,19 @@ const translations = {
     stars_enter_username: "Введите имя пользователя",
     stars_enter_amount: "Введите количество Stars",
     stars_min_stars: "Введите минимум 1 Stars",
+
+    // Premium Buy
+    premium_title: "Купить Telegram Premium",
+    premium_btn: "Купить Premium",
+    premium_balance_label: "Ваш баланс",
+    premium_price_info: "Стоимость подписки Telegram Premium:",
+    premium_username_label: "Имя пользователя Telegram",
+    premium_username_placeholder: "Введите имя пользователя Telegram (@username)",
+    premium_submit_btn: "Запросить покупку Premium",
+    premium_insufficient: "Недостаточно средств (нужно: 50 000 сум)",
+    premium_success: "Запрос на Premium отправлен! Администратор проверит.",
+    premium_pending_info: "Ваш запрос будет обработан после проверки администратором.",
+    premium_enter_username: "Введите имя пользователя",
   }
 };
 

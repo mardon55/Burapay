@@ -40,7 +40,8 @@ import {
   ChevronDown,
   Home as HomeIcon,
   User,
-  Star
+  Star,
+  Crown
 } from "lucide-react";
 import axios from "axios";
 import translations from "./translations";
@@ -398,6 +399,30 @@ const Otkazmalar = ({ user, lang }) => {
           <ChevronRight size={18} className="text-slate-500" />
         </button>
       </div>
+
+      {/* Telegram Premium sotib olish */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+            <Crown size={16} className="text-cyan-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white">{t.premium_title}</h2>
+        </div>
+        <button
+          onClick={() => navigate('/premium-buy')}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 active:scale-95 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-cyan-400/20 flex items-center justify-center">
+              <Crown size={18} className="text-cyan-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-cyan-400">{t.premium_btn}</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-slate-500" />
+        </button>
+      </div>
     </div>
   );
 };
@@ -696,6 +721,126 @@ const StarsBuy = ({ user, lang }) => {
           }`}
       >
         {loading ? (lang === 'uz' ? 'Yuborilmoqda...' : 'Отправка...') : t.stars_submit_btn}
+      </button>
+    </div>
+  );
+};
+
+// ── Premium Buy Page ───────────────────────────────────────────────────────────
+const PREMIUM_PRICE_UZS = 50000;
+
+const PremiumBuy = ({ user, lang }) => {
+  const navigate = useNavigate();
+  const t = translations[lang];
+
+  const [username, setUsername] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [done, setDone]         = useState(false);
+
+  const balance   = user?.balance_uzs ?? 0;
+  const notEnough = balance < PREMIUM_PRICE_UZS;
+  const isValid   = username.trim().length > 0 && !notEnough;
+
+  const handleSubmit = async () => {
+    if (!username.trim()) return toast.error(t.premium_enter_username);
+    if (notEnough)        return toast.error(t.premium_insufficient);
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/premium/buy`, {
+        telegram_id: user.telegram_id,
+        username:    username.trim(),
+        amount_uzs:  PREMIUM_PRICE_UZS,
+      });
+      setDone(true);
+      toast.success(t.premium_success);
+    } catch (e) {
+      const msg = e?.response?.data?.detail;
+      toast.error(msg || t.premium_insufficient);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center space-y-5 animate-in fade-in">
+      <div className="w-20 h-20 rounded-full bg-cyan-500/20 flex items-center justify-center">
+        <CheckCircle2 size={40} className="text-cyan-400" />
+      </div>
+      <h2 className="text-xl font-bold text-white">{t.premium_success}</h2>
+      <p className="text-slate-400 text-sm">{t.premium_pending_info}</p>
+      <button
+        onClick={() => { setDone(false); setUsername(''); }}
+        className="w-full py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-bold"
+      >
+        {lang === 'uz' ? 'Yangi so\'rov' : 'Новый запрос'}
+      </button>
+      <button onClick={() => navigate('/transfers')} className="text-slate-500 text-sm">{t.back}</button>
+    </div>
+  );
+
+  return (
+    <div className="px-4 pb-28 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto" style={{ paddingTop: 'calc(var(--sa-top) + 12px)', height: '100vh' }}>
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/transfers')} className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+          <ChevronDown size={18} className="text-slate-400 rotate-90" />
+        </button>
+        <h1 className="text-xl font-bold text-white">{t.premium_title}</h1>
+      </div>
+
+      {/* Balance card */}
+      <div className="rounded-2xl p-4 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg,#001a1a 0%,#000f0f 100%)', border: '1px solid rgba(34,211,238,0.25)' }}>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">{t.premium_balance_label}</p>
+          <p className="text-2xl font-bold text-white">{balance.toLocaleString('uz-UZ')} <span className="text-base text-cyan-400">UZS</span></p>
+        </div>
+        <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center">
+          <Crown size={24} className="text-cyan-400" />
+        </div>
+      </div>
+
+      {/* Price info */}
+      <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/20 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Crown size={14} className="text-cyan-400 flex-shrink-0" />
+          <p className="text-xs text-cyan-300 font-semibold">{t.premium_price_info}</p>
+        </div>
+        <span className="text-sm font-bold text-cyan-400">50 000 UZS</span>
+      </div>
+
+      {/* Insufficient funds warning (always visible when balance low) */}
+      {notEnough && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 flex items-center gap-2">
+          <span className="text-red-400 text-sm">⚠️</span>
+          <p className="text-xs text-red-400 font-semibold">{t.premium_insufficient}</p>
+        </div>
+      )}
+
+      {/* Username input */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-300">{t.premium_username_label}</label>
+        <Input
+          placeholder={t.premium_username_placeholder}
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          className="focus:border-cyan-500 focus:ring-cyan-500"
+        />
+      </div>
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !isValid}
+        className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 shadow-lg
+          ${isValid
+            ? 'bg-cyan-500 hover:bg-cyan-400 text-black shadow-cyan-500/30'
+            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+          }`}
+      >
+        {loading ? (lang === 'uz' ? 'Yuborilmoqda...' : 'Отправка...') : t.premium_submit_btn}
       </button>
     </div>
   );
@@ -3253,6 +3398,7 @@ function App() {
           <Route path="/p2p-transfer" element={<P2PTransfer user={user} lang={lang} setUser={setUser} />} />
           <Route path="/crypto-buy" element={<CryptoBuy user={user} lang={lang} />} />
           <Route path="/stars-buy" element={<StarsBuy user={user} lang={lang} />} />
+          <Route path="/premium-buy" element={<PremiumBuy user={user} lang={lang} />} />
           <Route path="/mostbet-deposit" element={<Deposit user={user} lang={lang} platform="mostbet" />} />
           <Route path="/mostbet-withdraw" element={<Withdraw user={user} lang={lang} platform="mostbet" />} />
           <Route path="/1xbet-deposit" element={<Deposit user={user} lang={lang} platform="1xbet" />} />

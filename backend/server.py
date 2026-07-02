@@ -1166,6 +1166,61 @@ async def stars_buy(request: Request, data: dict = Body(...)):
     return {"success": True, "order_id": order_id, "short_id": short_id}
 
 
+@api_router.post("/premium/buy")
+@limiter.limit("5/minute")
+async def premium_buy(request: Request, data: dict = Body(...)):
+    telegram_id = data.get("telegram_id")
+    username    = str(data.get("username", "")).strip()
+    amount_uzs  = data.get("amount_uzs")
+
+    if not all([telegram_id, username, amount_uzs]):
+        raise HTTPException(status_code=400, detail="Ma'lumotlar to'liq emas")
+
+    try:
+        amount_uzs = float(amount_uzs)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Noto'g'ri format")
+
+    PREMIUM_PRICE = 50000.0
+    if amount_uzs != PREMIUM_PRICE:
+        raise HTTPException(status_code=400, detail="Noto'g'ri summa")
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user_row = await conn.fetchrow(
+                "SELECT telegram_id, balance_uzs FROM users WHERE telegram_id = $1 FOR UPDATE",
+                int(telegram_id)
+            )
+            if not user_row:
+                raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+            # Mavjud pending premium so'rovlar ham hisobga olinadi
+            pending_row = await conn.fetchrow(
+                "SELECT COALESCE(SUM(amount_uzs), 0) AS reserved FROM premium_orders WHERE user_telegram_id = $1 AND status = 'pending'",
+                int(telegram_id)
+            )
+            reserved  = float(pending_row["reserved"])
+            available = float(user_row["balance_uzs"]) - reserved
+
+            if available < PREMIUM_PRICE:
+                raise HTTPException(status_code=400, detail="Mablag' yetarli emas")
+
+            order_id = str(uuid.uuid4())
+            short_id = generate_short_id()
+            now = datetime.now(timezone.utc)
+
+            await conn.execute(
+                """INSERT INTO premium_orders
+                   (id, short_id, user_telegram_id, username, amount_uzs, status, created_at)
+                   VALUES ($1, $2, $3, $4, $5, 'pending', $6)""",
+                order_id, short_id, int(telegram_id),
+                username, PREMIUM_PRICE, now
+            )
+
+    return {"success": True, "order_id": order_id, "short_id": short_id}
+
+
 @api_router.get("/admin/transactions/pending")
 async def get_pending_transactions():
     rows = await fetchall(
@@ -2272,6 +2327,16 @@ async def create_tables():
                 username TEXT NOT NULL,
                 stars_count INT NOT NULL,
                 amount_uzs NUMERIC(18,2) NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS premium_orders (
+                id VARCHAR(100) PRIMARY KEY,
+                short_id VARCHAR(20),
+                user_telegram_id BIGINT NOT NULL,
+                username TEXT NOT NULL,
+                amount_uzs NUMERIC(18,2) NOT NULL DEFAULT 50000,
                 status VARCHAR(20) DEFAULT 'pending',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
